@@ -13,6 +13,7 @@ export const usePlannerStore = defineStore('planner', () => {
   const birthDate = ref<string>('')
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
+  const liquidAssetsInterestRate = ref<number>(5) // Default 5% for all liquid assets
   const projectionResult = ref<ProjectionResult | null>(null)
 
   // Computed
@@ -20,6 +21,7 @@ export const usePlannerStore = defineStore('planner', () => {
     birthDate: birthDate.value,
     capitalAccounts: capitalAccounts.value,
     cashFlows: cashFlows.value,
+    liquidAssetsInterestRate: liquidAssetsInterestRate.value,
   }))
 
   const currentAge = computed(() => {
@@ -49,12 +51,19 @@ export const usePlannerStore = defineStore('planner', () => {
     recalculate()
   }
 
+  function setLiquidAssetsInterestRate(rate: number) {
+    liquidAssetsInterestRate.value = rate
+    recalculate()
+  }
+
   function addCapitalAccount(account: Omit<CapitalAccount, 'id'>) {
     const newAccount: CapitalAccount = {
       ...account,
       id: crypto.randomUUID(),
       // Ensure annualInterestRate has a default value if not provided
       annualInterestRate: account.annualInterestRate ?? 5,
+      // Ensure assetType has a default value if not provided
+      assetType: account.assetType ?? 'liquid',
     }
     capitalAccounts.value.push(newAccount)
     recalculate()
@@ -112,12 +121,14 @@ export const usePlannerStore = defineStore('planner', () => {
     const profile = storageService.loadProfile()
     if (profile) {
       birthDate.value = profile.birthDate
-      // Ensure all loaded accounts have an interest rate (default to 5% for legacy data)
+      // Ensure all loaded accounts have defaults (for legacy data)
       capitalAccounts.value = profile.capitalAccounts.map((account) => ({
         ...account,
         annualInterestRate: account.annualInterestRate ?? 5,
+        assetType: account.assetType ?? 'liquid',
       }))
       cashFlows.value = profile.cashFlows
+      liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate ?? 5
       recalculate()
       return true
     }
@@ -128,6 +139,7 @@ export const usePlannerStore = defineStore('planner', () => {
     birthDate.value = ''
     capitalAccounts.value = []
     cashFlows.value = []
+    liquidAssetsInterestRate.value = 5
     projectionResult.value = null
     storageService.clearProfile()
   }
@@ -137,6 +149,7 @@ export const usePlannerStore = defineStore('planner', () => {
     birthDate,
     capitalAccounts,
     cashFlows,
+    liquidAssetsInterestRate,
     projectionResult,
     // Computed
     userProfile,
@@ -145,6 +158,7 @@ export const usePlannerStore = defineStore('planner', () => {
     hasData,
     // Actions
     setBirthDate,
+    setLiquidAssetsInterestRate,
     addCapitalAccount,
     updateCapitalAccount,
     removeCapitalAccount,

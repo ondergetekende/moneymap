@@ -67,20 +67,31 @@ function formatYearMonth(date: Date): string {
 export function calculateProjections(profile: UserProfile): ProjectionResult {
   const startTime = performance.now()
 
-  const { birthDate, capitalAccounts } = profile
+  const { birthDate, capitalAccounts, liquidAssetsInterestRate } = profile
   // Support both legacy 'expenses' and new 'cashFlows' field
   const cashFlows = profile.cashFlows || []
 
-  // Calculate total starting capital
-  const totalCapital = capitalAccounts.reduce((sum, account) => sum + account.amount, 0)
+  // Separate liquid and fixed assets
+  const liquidAccounts = capitalAccounts.filter((account) => account.assetType === 'liquid')
+  const fixedAccounts = capitalAccounts.filter((account) => account.assetType === 'fixed')
 
-  const monthlyProjections: MonthlyProjection[] = []
+  // Use the global liquid assets interest rate (default to 5% if not set)
+  const liquidInterestRate = liquidAssetsInterestRate ?? 5
 
-  // Track each capital account balance separately for interest calculations
-  const accountBalances = capitalAccounts.map((account) => ({
+  // Initialize liquid assets pool (all liquid accounts combined)
+  let liquidAssetsBalance = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
+
+  // Track each fixed asset separately with its own rate
+  const fixedAssetBalances = fixedAccounts.map((account) => ({
     ...account,
     balance: account.amount,
   }))
+
+  // Calculate total starting capital
+  const totalCapital =
+    liquidAssetsBalance + fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0)
+
+  const monthlyProjections: MonthlyProjection[] = []
 
   // Start from today
   const today = new Date()
@@ -105,12 +116,16 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     const age = calculateAge(birthDate, currentDate)
 
-    // Apply interest to each account first (compound monthly on starting balance)
-    for (const account of accountBalances) {
-      // Calculate monthly interest rate from annual rate
-      const monthlyRate = account.annualInterestRate / 100 / 12
-      const interestEarned = account.balance * monthlyRate
-      account.balance += interestEarned
+    // Apply interest to liquid assets pool (shared rate)
+    const liquidMonthlyRate = liquidInterestRate / 100 / 12
+    const liquidInterest = liquidAssetsBalance * liquidMonthlyRate
+    liquidAssetsBalance += liquidInterest
+
+    // Apply appreciation/depreciation to each fixed asset individually
+    for (const asset of fixedAssetBalances) {
+      const monthlyRate = asset.annualInterestRate / 100 / 12
+      const valueChange = asset.balance * monthlyRate
+      asset.balance += valueChange
     }
 
     // Calculate income and expenses for this month
@@ -127,31 +142,20 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       }
     }
 
-    // Apply cash flows proportionally to accounts based on their balances
-    // (positive cash flow distributed proportionally, negative withdrawn proportionally)
+    // All cash flows interact with liquid assets only
     const netCashFlow = monthlyIncome - monthlyExpenses
-    const totalAccountBalance = accountBalances.reduce((sum, a) => sum + a.balance, 0)
+    liquidAssetsBalance += netCashFlow
 
-    if (totalAccountBalance > 0) {
-      for (const account of accountBalances) {
-        const accountProportion = account.balance / totalAccountBalance
-        account.balance += netCashFlow * accountProportion
-      }
-    } else {
-      // If total balance is zero or negative, apply cash flow to first account
-      const firstAccount = accountBalances[0]
-      if (firstAccount) {
-        firstAccount.balance += netCashFlow
-      }
-    }
-
-    // Calculate final balance
-    const currentBalance = accountBalances.reduce((sum, account) => sum + account.balance, 0)
+    // Calculate totals
+    const fixedAssetsTotal = fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0)
+    const currentBalance = liquidAssetsBalance + fixedAssetsTotal
 
     monthlyProjections.push({
       date: formatYearMonth(currentDate),
       age,
       balance: currentBalance,
+      liquidAssets: liquidAssetsBalance,
+      fixedAssets: fixedAssetsTotal,
       income: monthlyIncome,
       expenses: monthlyExpenses,
     })
@@ -183,23 +187,36 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     if (!firstProjection || !lastProjection) continue
 
-    // Find the projection from the previous month for starting balance
+    // Find the projection from the previous month for starting balances
     const yearMonth = `${year}-01`
     const projectionIndex = monthlyProjections.findIndex((p) => p.date === yearMonth)
     const previousProjection = projectionIndex > 0 ? monthlyProjections[projectionIndex - 1] : null
+
     const startingBalance = previousProjection ? previousProjection.balance : totalCapital
+    const startingLiquidAssets = previousProjection
+      ? previousProjection.liquidAssets
+      : liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
+    const startingFixedAssets = previousProjection
+      ? previousProjection.fixedAssets
+      : fixedAccounts.reduce((sum, account) => sum + account.amount, 0)
 
     const totalIncome = projections.reduce((sum, p) => sum + p.income, 0)
     const totalExpenses = projections.reduce((sum, p) => sum + p.expenses, 0)
     const endingBalance = lastProjection.balance
+    const endingLiquidAssets = lastProjection.liquidAssets
+    const endingFixedAssets = lastProjection.fixedAssets
 
     annualSummaries.push({
       year,
       age: firstProjection.age,
       startingBalance,
+      startingLiquidAssets,
+      startingFixedAssets,
       totalIncome,
       totalExpenses,
       endingBalance,
+      endingLiquidAssets,
+      endingFixedAssets,
     })
   }
 

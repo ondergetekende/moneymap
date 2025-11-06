@@ -20,11 +20,12 @@ import {
   Title,
   Tooltip,
   Legend,
+  Filler,
   type ChartOptions,
 } from 'chart.js'
 import type { AnnualSummary } from '@/types/models'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 
 const props = defineProps<{
   annualSummaries: AnnualSummary[]
@@ -33,18 +34,29 @@ const props = defineProps<{
 
 const chartData = computed(() => {
   const labels = props.annualSummaries.map((summary) => `${summary.year} (age ${summary.age})`)
-  const data = props.annualSummaries.map((summary) => summary.endingBalance)
+  const liquidData = props.annualSummaries.map((summary) => summary.endingLiquidAssets)
+  const fixedData = props.annualSummaries.map((summary) => summary.endingFixedAssets)
 
   return {
     labels,
     datasets: [
       {
-        label: 'Net Worth',
-        data,
+        label: 'Liquid Assets',
+        data: liquidData,
         borderColor: '#42b983',
-        backgroundColor: 'rgba(66, 185, 131, 0.1)',
+        backgroundColor: 'rgba(66, 185, 131, 0.6)',
         tension: 0.1,
         fill: true,
+        stack: 'assets',
+      },
+      {
+        label: 'Fixed Assets',
+        data: fixedData,
+        borderColor: '#3498db',
+        backgroundColor: 'rgba(52, 152, 219, 0.6)',
+        tension: 0.1,
+        fill: '-1', // Stack on top of previous dataset
+        stack: 'assets',
       },
     ],
   }
@@ -53,6 +65,10 @@ const chartData = computed(() => {
 const chartOptions: ChartOptions<'line'> = {
   responsive: true,
   maintainAspectRatio: true,
+  interaction: {
+    mode: 'index',
+    intersect: false,
+  },
   plugins: {
     legend: {
       display: true,
@@ -62,10 +78,17 @@ const chartOptions: ChartOptions<'line'> = {
       display: false,
     },
     tooltip: {
+      mode: 'index',
       callbacks: {
         label: function (context) {
           const value = context.parsed.y ?? 0
-          return `Net Worth: ${formatCurrency(value)}`
+          const label = context.dataset.label || ''
+          return `${label}: ${formatCurrency(value)}`
+        },
+        footer: function (tooltipItems) {
+          // Calculate total net worth from both liquid and fixed assets
+          const total = tooltipItems.reduce((sum, item) => sum + (item.parsed.y ?? 0), 0)
+          return `Total Net Worth: ${formatCurrency(total)}`
         },
       },
     },
@@ -76,12 +99,14 @@ const chartOptions: ChartOptions<'line'> = {
         display: true,
         text: 'Year (Age)',
       },
+      stacked: true,
     },
     y: {
       title: {
         display: true,
         text: 'Net Worth',
       },
+      stacked: true,
       ticks: {
         callback: function (value) {
           return formatCurrency(Number(value))

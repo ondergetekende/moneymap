@@ -15,9 +15,11 @@
           />
           <CapitalAccountsManager
             :accounts="store.capitalAccounts"
+            :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
             @add="store.addCapitalAccount"
             @update="store.updateCapitalAccount"
             @remove="store.removeCapitalAccount"
+            @update-liquid-rate="store.setLiquidAssetsInterestRate"
           />
           <CashFlowManager
             :cash-flows="store.cashFlows"
@@ -66,7 +68,7 @@ function handleBirthDateChange(date: string) {
 
 // Auto-save when data changes
 watch(
-  () => [store.capitalAccounts, store.cashFlows, store.birthDate],
+  () => [store.capitalAccounts, store.cashFlows, store.birthDate, store.liquidAssetsInterestRate],
   () => {
     store.saveToStorage()
   },
