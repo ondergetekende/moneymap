@@ -53,6 +53,8 @@ export const usePlannerStore = defineStore('planner', () => {
     const newAccount: CapitalAccount = {
       ...account,
       id: crypto.randomUUID(),
+      // Ensure annualInterestRate has a default value if not provided
+      annualInterestRate: account.annualInterestRate ?? 5,
     }
     capitalAccounts.value.push(newAccount)
     recalculate()
@@ -110,7 +112,11 @@ export const usePlannerStore = defineStore('planner', () => {
     const profile = storageService.loadProfile()
     if (profile) {
       birthDate.value = profile.birthDate
-      capitalAccounts.value = profile.capitalAccounts
+      // Ensure all loaded accounts have an interest rate (default to 5% for legacy data)
+      capitalAccounts.value = profile.capitalAccounts.map((account) => ({
+        ...account,
+        annualInterestRate: account.annualInterestRate ?? 5,
+      }))
       cashFlows.value = profile.cashFlows
       recalculate()
       return true

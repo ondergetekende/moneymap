@@ -6,6 +6,7 @@ export interface CapitalAccount {
   id: string
   name: string
   amount: number
+  annualInterestRate: number // Annual interest rate as percentage (e.g., 5 for 5%)
 }
 
 export type CashFlowType = 'income' | 'expense'

@@ -17,6 +17,18 @@
           step="100"
           @blur="updateAccount(account)"
         />
+        <div class="interest-rate-group">
+          <input
+            v-model.number="account.annualInterestRate"
+            type="number"
+            placeholder="Interest %"
+            step="0.1"
+            min="0"
+            max="100"
+            @blur="updateAccount(account)"
+          />
+          <span class="percent-label">%</span>
+        </div>
         <button @click="removeAccount(account.id)" class="btn-remove">Remove</button>
       </div>
       <div class="total"><strong>Total Capital:</strong> {{ formatCurrency(totalCapital) }}</div>
@@ -25,6 +37,17 @@
     <div class="add-form">
       <input v-model="newAccountName" type="text" placeholder="Account name" />
       <input v-model.number="newAccountAmount" type="number" placeholder="Amount" step="100" />
+      <div class="interest-rate-group">
+        <input
+          v-model.number="newAccountInterestRate"
+          type="number"
+          placeholder="Interest %"
+          step="0.1"
+          min="0"
+          max="100"
+        />
+        <span class="percent-label">%</span>
+      </div>
       <button @click="addAccount" class="btn-add">Add Account</button>
     </div>
   </div>
@@ -46,6 +69,7 @@ const emit = defineEmits<{
 
 const newAccountName = ref('')
 const newAccountAmount = ref<number>(0)
+const newAccountInterestRate = ref<number>(5)
 
 const totalCapital = computed(() =>
   props.accounts.reduce((sum, account) => sum + account.amount, 0),
@@ -56,9 +80,11 @@ function addAccount() {
     emit('add', {
       name: newAccountName.value.trim(),
       amount: newAccountAmount.value,
+      annualInterestRate: newAccountInterestRate.value,
     })
     newAccountName.value = ''
     newAccountAmount.value = 0
+    newAccountInterestRate.value = 5
   }
 }
 
@@ -66,6 +92,7 @@ function updateAccount(account: CapitalAccount) {
   emit('update', account.id, {
     name: account.name,
     amount: account.amount,
+    annualInterestRate: account.annualInterestRate,
   })
 }
 
@@ -113,6 +140,25 @@ h3 {
   padding: 0.5rem;
   border: 1px solid #ddd;
   border-radius: 4px;
+}
+
+.interest-rate-group {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  position: relative;
+}
+
+.interest-rate-group input[type='number'] {
+  width: 80px;
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.percent-label {
+  color: #666;
+  font-size: 0.9rem;
 }
 
 .add-form {

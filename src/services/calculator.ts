@@ -75,7 +75,12 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   const totalCapital = capitalAccounts.reduce((sum, account) => sum + account.amount, 0)
 
   const monthlyProjections: MonthlyProjection[] = []
-  let currentBalance = totalCapital
+
+  // Track each capital account balance separately for interest calculations
+  const accountBalances = capitalAccounts.map((account) => ({
+    ...account,
+    balance: account.amount,
+  }))
 
   // Start from today
   const today = new Date()
@@ -100,6 +105,14 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     const age = calculateAge(birthDate, currentDate)
 
+    // Apply interest to each account first (compound monthly on starting balance)
+    for (const account of accountBalances) {
+      // Calculate monthly interest rate from annual rate
+      const monthlyRate = account.annualInterestRate / 100 / 12
+      const interestEarned = account.balance * monthlyRate
+      account.balance += interestEarned
+    }
+
     // Calculate income and expenses for this month
     let monthlyIncome = 0
     let monthlyExpenses = 0
@@ -114,9 +127,26 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       }
     }
 
-    // Update balance: add income, subtract expenses
-    currentBalance += monthlyIncome
-    currentBalance -= monthlyExpenses
+    // Apply cash flows proportionally to accounts based on their balances
+    // (positive cash flow distributed proportionally, negative withdrawn proportionally)
+    const netCashFlow = monthlyIncome - monthlyExpenses
+    const totalAccountBalance = accountBalances.reduce((sum, a) => sum + a.balance, 0)
+
+    if (totalAccountBalance > 0) {
+      for (const account of accountBalances) {
+        const accountProportion = account.balance / totalAccountBalance
+        account.balance += netCashFlow * accountProportion
+      }
+    } else {
+      // If total balance is zero or negative, apply cash flow to first account
+      const firstAccount = accountBalances[0]
+      if (firstAccount) {
+        firstAccount.balance += netCashFlow
+      }
+    }
+
+    // Calculate final balance
+    const currentBalance = accountBalances.reduce((sum, account) => sum + account.balance, 0)
 
     monthlyProjections.push({
       date: formatYearMonth(currentDate),
