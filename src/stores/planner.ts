@@ -4,7 +4,14 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { UserProfile, CapitalAccount, CashFlow, ProjectionResult } from '@/types/models'
+import type {
+  UserProfile,
+  CapitalAccount,
+  LiquidAsset,
+  FixedAsset,
+  CashFlow,
+  ProjectionResult,
+} from '@/types/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
 
@@ -57,15 +64,10 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function addCapitalAccount(account: Omit<CapitalAccount, 'id'>) {
-    const newAccount: CapitalAccount = {
+    capitalAccounts.value.push({
       ...account,
       id: crypto.randomUUID(),
-      // Ensure annualInterestRate has a default value if not provided
-      annualInterestRate: account.annualInterestRate ?? 5,
-      // Ensure assetType has a default value if not provided
-      assetType: account.assetType ?? 'liquid',
-    }
-    capitalAccounts.value.push(newAccount)
+    } as CapitalAccount)
     recalculate()
   }
 
@@ -121,12 +123,27 @@ export const usePlannerStore = defineStore('planner', () => {
     const profile = storageService.loadProfile()
     if (profile) {
       birthDate.value = profile.birthDate
-      // Ensure all loaded accounts have defaults (for legacy data)
-      capitalAccounts.value = profile.capitalAccounts.map((account) => ({
-        ...account,
-        annualInterestRate: account.annualInterestRate ?? 5,
-        assetType: account.assetType ?? 'liquid',
-      }))
+      // Ensure all loaded accounts are properly typed (for legacy data)
+      capitalAccounts.value = profile.capitalAccounts.map((account) => {
+        if (account.assetType === 'fixed') {
+          const fixedAccount = account as FixedAsset
+          return {
+            id: fixedAccount.id,
+            name: fixedAccount.name,
+            amount: fixedAccount.amount,
+            annualInterestRate: fixedAccount.annualInterestRate,
+            assetType: 'fixed',
+          } as FixedAsset
+        } else {
+          // Either 'liquid' or undefined (legacy data without assetType)
+          return {
+            id: account.id,
+            name: account.name,
+            amount: account.amount,
+            assetType: 'liquid',
+          } as LiquidAsset
+        }
+      })
       cashFlows.value = profile.cashFlows
       liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate ?? 5
       recalculate()

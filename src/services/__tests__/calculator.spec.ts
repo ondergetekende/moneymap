@@ -15,7 +15,7 @@ describe('Financial Calculator', () => {
   it('should calculate projections correctly', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -49,7 +49,7 @@ describe('Financial Calculator', () => {
   it('should handle expenses with different date ranges', () => {
     const profile: UserProfile = {
       birthDate: '2000-01-01', // 25 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -102,7 +102,7 @@ describe('Financial Calculator', () => {
 
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows,
     }
@@ -118,9 +118,9 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Checking', amount: 10000, annualInterestRate: 0, assetType: 'liquid' },
-        { id: '2', name: 'Savings', amount: 50000, annualInterestRate: 0, assetType: 'liquid' },
-        { id: '3', name: 'Investment', amount: 100000, annualInterestRate: 0, assetType: 'liquid' },
+        { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' },
+        { id: '2', name: 'Savings', amount: 50000, assetType: 'liquid' },
+        { id: '3', name: 'Investment', amount: 100000, assetType: 'liquid' },
       ],
       liquidAssetsInterestRate: 0,
       cashFlows: [
@@ -144,7 +144,7 @@ describe('Financial Calculator', () => {
   it('should handle negative balances correctly', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -168,7 +168,7 @@ describe('Financial Calculator', () => {
   it('should calculate age correctly', () => {
     const profile: UserProfile = {
       birthDate: '1990-05-15',
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [],
     }
@@ -183,7 +183,7 @@ describe('Financial Calculator', () => {
   it('should handle income correctly', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -221,7 +221,7 @@ describe('Financial Calculator', () => {
   it('should handle mixed income and expenses', () => {
     const profile: UserProfile = {
       birthDate: '1990-01-01', // 35 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Checking', amount: 20000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Checking', amount: 20000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -278,7 +278,7 @@ describe('Financial Calculator', () => {
   it('should handle cash flows with no start date (active from beginning)', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         { id: '1', name: 'Rent', monthlyAmount: 1000, endDate: '2030-01-01', type: 'expense' },
@@ -300,7 +300,7 @@ describe('Financial Calculator', () => {
   it('should handle cash flows with no end date (active forever)', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         {
@@ -328,7 +328,7 @@ describe('Financial Calculator', () => {
   it('should handle cash flows with neither start nor end date (always active)', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 300000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 300000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         { id: '1', name: 'Universal Basic Income', monthlyAmount: 1000, type: 'income' },
@@ -353,7 +353,7 @@ describe('Financial Calculator', () => {
   it('should handle mixed optional and required dates', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Savings', amount: 200000, annualInterestRate: 0, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Savings', amount: 200000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
         { id: '1', name: 'Permanent Expense', monthlyAmount: 500, type: 'expense' }, // No dates
@@ -405,7 +405,7 @@ describe('Financial Calculator', () => {
   it('should apply 5% annual interest compounded monthly', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, annualInterestRate: 5, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
       cashFlows: [], // No cash flows, only interest
     }
@@ -428,9 +428,9 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Checking', amount: 10000, annualInterestRate: 0, assetType: 'liquid' }, // No interest
-        { id: '2', name: 'Savings', amount: 50000, annualInterestRate: 2, assetType: 'liquid' }, // 2% interest
-        { id: '3', name: 'Investment', amount: 40000, annualInterestRate: 7, assetType: 'liquid' }, // 7% interest
+        { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' }, // No interest
+        { id: '2', name: 'Savings', amount: 50000, assetType: 'liquid' }, // 2% interest
+        { id: '3', name: 'Investment', amount: 40000, assetType: 'liquid' }, // 7% interest
       ],
       liquidAssetsInterestRate: 3.8,
       cashFlows: [],
@@ -450,7 +450,7 @@ describe('Financial Calculator', () => {
   it('should apply interest before applying cash flows', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, annualInterestRate: 5, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
       cashFlows: [
         {
@@ -477,7 +477,7 @@ describe('Financial Calculator', () => {
   it('should handle negative balances with interest correctly', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
-      capitalAccounts: [{ id: '1', name: 'Account', amount: 10000, annualInterestRate: 5, assetType: 'liquid' }],
+      capitalAccounts: [{ id: '1', name: 'Account', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
       cashFlows: [
         {
@@ -506,8 +506,8 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Low Rate', amount: 50000, annualInterestRate: 1, assetType: 'liquid' },
-        { id: '2', name: 'High Rate', amount: 50000, annualInterestRate: 10, assetType: 'liquid' },
+        { id: '1', name: 'Low Rate', amount: 50000, assetType: 'liquid' },
+        { id: '2', name: 'High Rate', amount: 50000, assetType: 'liquid' },
       ],
       liquidAssetsInterestRate: 5.5,
       cashFlows: [
@@ -538,7 +538,7 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Savings', amount: 50000, annualInterestRate: 5, assetType: 'liquid' },
+        { id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' },
         { id: '2', name: 'House', amount: 200000, annualInterestRate: 3, assetType: 'fixed' }, // 3% appreciation
       ],
       liquidAssetsInterestRate: 5,
@@ -576,7 +576,7 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Cash', amount: 10000, annualInterestRate: 0, assetType: 'liquid' },
+        { id: '1', name: 'Cash', amount: 10000, assetType: 'liquid' },
         { id: '2', name: 'Car', amount: 30000, annualInterestRate: -10, assetType: 'fixed' }, // 10% depreciation
       ],
       liquidAssetsInterestRate: 0,
@@ -601,7 +601,7 @@ describe('Financial Calculator', () => {
     const profile: UserProfile = {
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Investment', amount: 100000, annualInterestRate: 7, assetType: 'liquid' },
+        { id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' },
         { id: '2', name: 'Property', amount: 300000, annualInterestRate: 2, assetType: 'fixed' },
       ],
       liquidAssetsInterestRate: 7,

@@ -2,15 +2,24 @@
  * Data models for the Financial Planner application
  */
 
-export type AssetType = 'liquid' | 'fixed'
-
-export interface CapitalAccount {
+export interface LiquidAsset {
   id: string
   name: string
   amount: number
-  annualInterestRate?: number // Annual interest rate as percentage (e.g., 5 for 5%)
-  assetType: AssetType // 'liquid' for cash/investments, 'fixed' for property/vehicles
-}           
+  assetType: 'liquid'
+}
+
+export interface FixedAsset {
+  id: string
+  name: string
+  amount: number
+  annualInterestRate: number // Annual appreciation/depreciation rate as percentage (e.g., 3 for 3%, -10 for -10%)
+  assetType: 'fixed'
+}
+
+export type CapitalAccount = LiquidAsset | FixedAsset
+
+export type AssetType = 'liquid' | 'fixed'
 
 export type CashFlowType = 'income' | 'expense'
 

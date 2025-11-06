@@ -86,7 +86,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { CapitalAccount, AssetType } from '@/types/models'
+import type { CapitalAccount, AssetType, FixedAsset, LiquidAsset } from '@/types/models'
 
 const props = defineProps<{
   accounts: CapitalAccount[]
@@ -124,12 +124,22 @@ const totalFixedAssets = computed(() =>
 
 function addAccount() {
   if (newAccountName.value.trim() && newAccountAmount.value > 0) {
-    emit('add', {
-      name: newAccountName.value.trim(),
-      amount: newAccountAmount.value,
-      annualInterestRate: newAccountAssetType.value === 'fixed' ? newAccountInterestRate.value : 0,
-      assetType: newAccountAssetType.value,
-    })
+    if (newAccountAssetType.value === 'fixed') {
+      const account: Omit<FixedAsset, 'id'> = {
+        name: newAccountName.value.trim(),
+        amount: newAccountAmount.value,
+        annualInterestRate: newAccountInterestRate.value,
+        assetType: 'fixed',
+      }
+      emit('add', account)
+    } else {
+      const account: Omit<LiquidAsset, 'id'> = {
+        name: newAccountName.value.trim(),
+        amount: newAccountAmount.value,
+        assetType: 'liquid',
+      }
+      emit('add', account)
+    }
     newAccountName.value = ''
     newAccountAmount.value = 0
     newAccountInterestRate.value = 0
@@ -138,12 +148,20 @@ function addAccount() {
 }
 
 function updateAccount(account: CapitalAccount) {
-  emit('update', account.id, {
-    name: account.name,
-    amount: account.amount,
-    annualInterestRate: account.annualInterestRate,
-    assetType: account.assetType,
-  })
+  if (account.assetType === 'fixed') {
+    emit('update', account.id, {
+      name: account.name,
+      amount: account.amount,
+      annualInterestRate: account.annualInterestRate,
+      assetType: 'fixed',
+    })
+  } else {
+    emit('update', account.id, {
+      name: account.name,
+      amount: account.amount,
+      assetType: 'liquid',
+    })
+  }
 }
 
 function removeAccount(id: string) {
