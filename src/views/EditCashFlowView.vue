@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
-import type { CashFlowType } from '@/types/models'
+import type { CashFlowType } from '@/models'
 
 const props = defineProps<{
   id?: string

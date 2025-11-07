@@ -1,6 +1,28 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { calculateProjections } from '../calculator'
-import type { UserProfile, CashFlow } from '@/types/models'
+import { UserProfile, LiquidAsset, FixedAsset, CashFlow } from '@/models'
+
+// Helper to create test profiles using classes
+function createTestProfile(data: {
+  birthDate: string
+  capitalAccounts: Array<{ id: string; name: string; amount: number; assetType: 'liquid' | 'fixed'; annualInterestRate?: number }>
+  liquidAssetsInterestRate: number
+  cashFlows: Array<{ id: string; name: string; monthlyAmount: number; type: 'income' | 'expense'; startDate?: string; endDate?: string }>
+}): UserProfile {
+  const accounts = data.capitalAccounts.map(acc => {
+    if (acc.assetType === 'fixed') {
+      return new FixedAsset(acc.id, acc.name, acc.amount, acc.annualInterestRate || 0)
+    } else {
+      return new LiquidAsset(acc.id, acc.name, acc.amount)
+    }
+  })
+
+  const flows = data.cashFlows.map(cf =>
+    new CashFlow(cf.id, cf.name, cf.monthlyAmount, cf.type, cf.startDate, cf.endDate)
+  )
+
+  return new UserProfile(data.birthDate, accounts, flows, data.liquidAssetsInterestRate)
+}
 
 describe('Financial Calculator', () => {
   beforeEach(() => {
@@ -13,7 +35,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should calculate projections correctly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -35,7 +57,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -47,7 +69,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle expenses with different date ranges', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '2000-01-01', // 25 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -69,7 +91,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -90,22 +112,24 @@ describe('Financial Calculator', () => {
     // Create 25 cashflows to test performance
     const cashFlows: CashFlow[] = []
     for (let i = 0; i < 25; i++) {
-      cashFlows.push({
-        id: `cashflow-${i}`,
-        name: `Expense ${i}`,
-        monthlyAmount: 100 + i * 10,
-        startDate: `${2025 + (i % 30)}-01-01`,
-        endDate: `${2055 + (i % 40)}-01-01`,
-        type: 'expense',
-      })
+      cashFlows.push(
+        new CashFlow(
+          `cashflow-${i}`,
+          `Expense ${i}`,
+          100 + i * 10,
+          'expense',
+          `${2025 + (i % 30)}-01-01`,
+          `${2055 + (i % 40)}-01-01`,
+        ),
+      )
     }
 
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows,
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -115,7 +139,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle multiple capital accounts', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' },
@@ -133,7 +157,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -142,7 +166,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle negative balances correctly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -156,7 +180,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -166,12 +190,12 @@ describe('Financial Calculator', () => {
   })
 
   it('should calculate age correctly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1990-05-15',
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -181,7 +205,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle income correctly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -203,7 +227,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -219,7 +243,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle mixed income and expenses', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Checking', amount: 20000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -257,7 +281,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -276,7 +300,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle cash flows with no start date (active from beginning)', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -284,7 +308,7 @@ describe('Financial Calculator', () => {
         { id: '1', name: 'Rent', monthlyAmount: 1000, endDate: '2030-01-01', type: 'expense' },
         // No startDate - should be active immediately
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -298,7 +322,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle cash flows with no end date (active forever)', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 500000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -312,7 +336,7 @@ describe('Financial Calculator', () => {
         },
         // No endDate - should continue forever
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -326,7 +350,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle cash flows with neither start nor end date (always active)', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 300000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -334,7 +358,7 @@ describe('Financial Calculator', () => {
         { id: '1', name: 'Universal Basic Income', monthlyAmount: 1000, type: 'income' },
         // No dates - always active
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -351,7 +375,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle mixed optional and required dates', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 200000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
@@ -380,7 +404,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         }, // Both dates
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -403,12 +427,12 @@ describe('Financial Calculator', () => {
   })
 
   it('should apply 5% annual interest compounded monthly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
       cashFlows: [], // No cash flows, only interest
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -425,7 +449,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle different interest rates for multiple accounts', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' }, // No interest
@@ -434,7 +458,7 @@ describe('Financial Calculator', () => {
       ],
       liquidAssetsInterestRate: 3.8,
       cashFlows: [],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -448,7 +472,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should apply interest before applying cash flows', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
@@ -461,7 +485,7 @@ describe('Financial Calculator', () => {
           type: 'income',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -475,7 +499,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle negative balances with interest correctly', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [{ id: '1', name: 'Account', amount: 10000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 5,
@@ -488,7 +512,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -503,7 +527,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should distribute cash flows proportionally across accounts with different rates', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Low Rate', amount: 50000, assetType: 'liquid' },
@@ -519,7 +543,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
 
@@ -535,7 +559,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle fixed assets separately from liquid assets', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' },
@@ -551,7 +575,7 @@ describe('Financial Calculator', () => {
           type: 'expense',
         },
       ],
-    }
+    })
 
     const result = calculateProjections(profile)
     const firstYear = result.annualSummaries[0]
@@ -573,7 +597,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should handle fixed asset depreciation (negative rate)', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Cash', amount: 10000, assetType: 'liquid' },
@@ -581,7 +605,7 @@ describe('Financial Calculator', () => {
       ],
       liquidAssetsInterestRate: 0,
       cashFlows: [],
-    }
+    })
 
     const result = calculateProjections(profile)
     const firstYear = result.annualSummaries[0]
@@ -598,7 +622,7 @@ describe('Financial Calculator', () => {
   })
 
   it('should track liquid and fixed assets separately in projections', () => {
-    const profile: UserProfile = {
+    const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
         { id: '1', name: 'Investment', amount: 100000, assetType: 'liquid' },
@@ -606,7 +630,7 @@ describe('Financial Calculator', () => {
       ],
       liquidAssetsInterestRate: 7,
       cashFlows: [],
-    }
+    })
 
     const result = calculateProjections(profile)
 

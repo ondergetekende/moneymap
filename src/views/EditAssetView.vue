@@ -3,7 +3,8 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
-import type { AssetType } from '@/types/models'
+import { LiquidAsset, FixedAsset } from '@/models'
+import type { AssetType } from '@/models'
 
 const props = defineProps<{
   id?: string
@@ -39,8 +40,8 @@ onMounted(() => {
     if (asset) {
       name.value = asset.name
       amount.value = asset.amount
-      assetType.value = asset.assetType
-      if (asset.assetType === 'fixed') {
+      assetType.value = asset instanceof FixedAsset ? 'fixed' : 'liquid'
+      if (asset instanceof FixedAsset) {
         annualInterestRate.value = asset.annualInterestRate
       }
     } else {
@@ -51,12 +52,17 @@ onMounted(() => {
     // New asset with pre-selected type - load template values
     const itemTypeConfig = getItemTypeById(props.typeId)
     if (itemTypeConfig && itemTypeConfig.template) {
-      const template = itemTypeConfig.template as any
-      name.value = template.name || ''
-      amount.value = template.amount || 0
-      assetType.value = template.assetType || 'liquid'
-      if (template.assetType === 'fixed' && template.annualInterestRate !== undefined) {
+      const template = itemTypeConfig.template
+      name.value = template.name
+
+      // Only load asset templates (skip cash flows)
+      if (template instanceof FixedAsset) {
+        assetType.value = 'fixed'
+        amount.value = template.amount
         annualInterestRate.value = template.annualInterestRate
+      } else if (template instanceof LiquidAsset) {
+        assetType.value = 'liquid'
+        amount.value = template.amount
       }
     } else {
       assetType.value = props.typeId as AssetType
@@ -81,15 +87,19 @@ function handleSave() {
     }
     store.updateCapitalAccount(props.id, updates)
   } else {
-    // Create new asset using template
-    const itemTypeConfig = itemType.value
-    if (itemTypeConfig && itemTypeConfig.template) {
-      const template = itemTypeConfig.template as any
+    // Create new asset - build object for store
+    if (assetType.value === 'fixed') {
       store.addCapitalAccount({
-        ...template,
+        type: 'fixed',
         name: name.value.trim(),
         amount: amount.value,
-        ...(assetType.value === 'fixed' && { annualInterestRate: annualInterestRate.value }),
+        annualInterestRate: annualInterestRate.value,
+      })
+    } else {
+      store.addCapitalAccount({
+        type: 'liquid',
+        name: name.value.trim(),
+        amount: amount.value,
       })
     }
   }

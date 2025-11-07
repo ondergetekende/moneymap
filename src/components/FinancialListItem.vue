@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import type { CapitalAccount, CashFlow } from '@/types/models'
-import { isAsset, isCashFlow, isLiquidAsset, isFixedAsset } from '@/types/models'
+import type { CapitalAccount, CashFlow } from '@/models'
+import { isAsset, isCashFlow, isLiquidAsset, isFixedAsset } from '@/models'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 
 const props = defineProps<{

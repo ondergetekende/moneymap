@@ -4,14 +4,14 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type {
+import {
   UserProfile,
-  CapitalAccount,
   LiquidAsset,
   FixedAsset,
   CashFlow,
-  ProjectionResult,
-} from '@/types/models'
+  type CapitalAccount,
+  type ProjectionResult,
+} from '@/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
 
@@ -24,23 +24,20 @@ export const usePlannerStore = defineStore('planner', () => {
   const projectionResult = ref<ProjectionResult | null>(null)
 
   // Computed
-  const userProfile = computed<UserProfile>(() => ({
-    birthDate: birthDate.value,
-    capitalAccounts: capitalAccounts.value,
-    cashFlows: cashFlows.value,
-    liquidAssetsInterestRate: liquidAssetsInterestRate.value,
-  }))
+  const userProfile = computed<UserProfile>(() => {
+    const defaultDate = new Date().toISOString().split('T')[0]
+    const date: string = (birthDate.value || defaultDate) as string
+    return new UserProfile(
+      date,
+      capitalAccounts.value as CapitalAccount[],
+      cashFlows.value as CashFlow[],
+      liquidAssetsInterestRate.value
+    )
+  })
 
   const currentAge = computed(() => {
     if (!birthDate.value) return 0
-    const birth = new Date(birthDate.value)
-    const today = new Date()
-    let age = today.getFullYear() - birth.getFullYear()
-    const monthDiff = today.getMonth() - birth.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
-      age--
-    }
-    return age
+    return userProfile.value.getCurrentAge()
   })
 
   const totalCapital = computed(() =>
@@ -54,11 +51,7 @@ export const usePlannerStore = defineStore('planner', () => {
 
   // New computed properties for unified list
   const allItems = computed(() => {
-    const items: (CapitalAccount | CashFlow)[] = [
-      ...capitalAccounts.value,
-      ...cashFlows.value,
-    ]
-    return items
+    return [...capitalAccounts.value, ...cashFlows.value] as (CapitalAccount | CashFlow)[]
   })
 
   const totalAssets = computed(() =>
@@ -89,22 +82,39 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function addCapitalAccount(
-    account: Omit<LiquidAsset, 'id'> | Omit<FixedAsset, 'id'>,
+    account:
+      | { type: 'liquid'; name: string; amount: number }
+      | { type: 'fixed'; name: string; amount: number; annualInterestRate: number }
   ) {
-    capitalAccounts.value.push({
-      ...account,
-      id: crypto.randomUUID(),
-    } as CapitalAccount)
+    const id = crypto.randomUUID()
+    let newAccount: CapitalAccount
+
+    if (account.type === 'fixed') {
+      newAccount = new FixedAsset(
+        id,
+        account.name,
+        account.amount,
+        account.annualInterestRate
+      )
+    } else {
+      newAccount = new LiquidAsset(id, account.name, account.amount)
+    }
+
+    capitalAccounts.value.push(newAccount)
     recalculate()
   }
 
-  function updateCapitalAccount(id: string, updates: Partial<CapitalAccount>) {
+  function updateCapitalAccount(id: string, updates: Partial<Omit<CapitalAccount, 'id'>>) {
     const index = capitalAccounts.value.findIndex((a) => a.id === id)
     if (index !== -1) {
-      capitalAccounts.value[index] = {
-        ...capitalAccounts.value[index],
-        ...updates,
-      } as CapitalAccount
+      const existing = capitalAccounts.value[index]
+
+      if (existing instanceof FixedAsset) {
+        capitalAccounts.value[index] = existing.with(updates as any)
+      } else {
+        capitalAccounts.value[index] = (existing as LiquidAsset).with(updates as any)
+      }
+
       recalculate()
     }
   }
@@ -115,18 +125,25 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function addCashFlow(cashFlow: Omit<CashFlow, 'id'>) {
-    const newCashFlow: CashFlow = {
-      ...cashFlow,
-      id: crypto.randomUUID(),
-    }
+    const newCashFlow = new CashFlow(
+      crypto.randomUUID(),
+      cashFlow.name,
+      cashFlow.monthlyAmount,
+      cashFlow.type,
+      cashFlow.startDate,
+      cashFlow.endDate
+    )
     cashFlows.value.push(newCashFlow)
     recalculate()
   }
 
-  function updateCashFlow(id: string, updates: Partial<CashFlow>) {
+  function updateCashFlow(id: string, updates: Partial<Omit<CashFlow, 'id'>>) {
     const index = cashFlows.value.findIndex((cf) => cf.id === id)
     if (index !== -1) {
-      cashFlows.value[index] = { ...cashFlows.value[index], ...updates } as CashFlow
+      const existing = cashFlows.value[index]
+      if (existing) {
+        cashFlows.value[index] = existing.with(updates as any)
+      }
       recalculate()
     }
   }
@@ -149,30 +166,11 @@ export const usePlannerStore = defineStore('planner', () => {
   function loadFromStorage() {
     const profile = storageService.loadProfile()
     if (profile) {
+      // Profile is already a UserProfile instance with proper class instances
       birthDate.value = profile.birthDate
-      // Ensure all loaded accounts are properly typed (for legacy data)
-      capitalAccounts.value = profile.capitalAccounts.map((account) => {
-        if (account.assetType === 'fixed') {
-          const fixedAccount = account as FixedAsset
-          return {
-            id: fixedAccount.id,
-            name: fixedAccount.name,
-            amount: fixedAccount.amount,
-            annualInterestRate: fixedAccount.annualInterestRate,
-            assetType: 'fixed',
-          } as FixedAsset
-        } else {
-          // Either 'liquid' or undefined (legacy data without assetType)
-          return {
-            id: account.id,
-            name: account.name,
-            amount: account.amount,
-            assetType: 'liquid',
-          } as LiquidAsset
-        }
-      })
+      capitalAccounts.value = profile.capitalAccounts
       cashFlows.value = profile.cashFlows
-      liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate ?? 5
+      liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
       recalculate()
       return true
     }
@@ -194,7 +192,7 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function getCashFlowById(id: string): CashFlow | undefined {
-    return cashFlows.value.find((cf) => cf.id === id)
+    return cashFlows.value.find((cf) => cf.id === id) as CashFlow | undefined
   }
 
   return {

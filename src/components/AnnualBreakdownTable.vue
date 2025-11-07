@@ -42,7 +42,7 @@
 </template>
 
 <script setup lang="ts">
-  import type { AnnualSummary } from '@/types/models'
+  import type { AnnualSummary } from '@/models'
 
   defineProps<{
     annualSummaries: AnnualSummary[]

@@ -2,7 +2,7 @@
  * LocalStorage service for persisting user data
  */
 
-import type { UserProfile } from '@/types/models'
+import { UserProfile } from '@/models'
 
 const STORAGE_KEY = 'financial-planner-data'
 
@@ -12,7 +12,8 @@ export const storageService = {
    */
   saveProfile(profile: UserProfile): void {
     try {
-      const serialized = JSON.stringify(profile)
+      // Use the class's toJSON method for proper serialization
+      const serialized = JSON.stringify(profile.toJSON())
       localStorage.setItem(STORAGE_KEY, serialized)
     } catch (error) {
       console.error('Failed to save profile to localStorage:', error)
@@ -29,7 +30,9 @@ export const storageService = {
       if (!serialized) {
         return null
       }
-      return JSON.parse(serialized) as UserProfile
+      const data = JSON.parse(serialized)
+      // Use the class's fromJSON method to deserialize into class instance
+      return UserProfile.fromJSON(data)
     } catch (error) {
       console.error('Failed to load profile from localStorage:', error)
       return null

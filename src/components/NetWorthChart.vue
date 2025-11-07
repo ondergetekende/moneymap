@@ -23,7 +23,7 @@ import {
   Filler,
   type ChartOptions,
 } from 'chart.js'
-import type { AnnualSummary } from '@/types/models'
+import type { AnnualSummary } from '@/models'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler)
 

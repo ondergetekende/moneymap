@@ -7,22 +7,10 @@ import type {
   MonthlyProjection,
   AnnualSummary,
   ProjectionResult,
-} from '@/types/models'
+} from '@/models'
+import { LiquidAsset, FixedAsset } from '@/models'
 
 const MAX_AGE = 100
-
-/**
- * Calculate age at a given date
- */
-function calculateAge(birthDate: string, atDate: Date): number {
-  const birth = new Date(birthDate)
-  let age = atDate.getFullYear() - birth.getFullYear()
-  const monthDiff = atDate.getMonth() - birth.getMonth()
-  if (monthDiff < 0 || (monthDiff === 0 && atDate.getDate() < birth.getDate())) {
-    age--
-  }
-  return age
-}
 
 /**
  * Check if a date is within a range (inclusive start, exclusive end)
@@ -72,8 +60,8 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   const cashFlows = profile.cashFlows || []
 
   // Separate liquid and fixed assets
-  const liquidAccounts = capitalAccounts.filter((account) => account.assetType === 'liquid')
-  const fixedAccounts = capitalAccounts.filter((account) => account.assetType === 'fixed')
+  const liquidAccounts = capitalAccounts.filter((account) => account instanceof LiquidAsset)
+  const fixedAccounts = capitalAccounts.filter((account) => account instanceof FixedAsset)
 
   // Use the global liquid assets interest rate (default to 5% if not set)
   const liquidInterestRate = liquidAssetsInterestRate ?? 5
@@ -114,7 +102,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       1,
     )
 
-    const age = calculateAge(birthDate, currentDate)
+    const age = profile.getAgeAt(currentDate)
 
     // Apply interest to liquid assets pool (shared rate)
     const liquidMonthlyRate = liquidInterestRate / 100 / 12
