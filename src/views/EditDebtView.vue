@@ -4,6 +4,9 @@ import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import { LinearDebt, AnnualizedDebt, InterestOnlyDebt } from '@/models'
+import type { Month } from '@/types/month'
+import { getCurrentMonth, addMonths, monthDiff } from '@/types/month'
+import MonthEdit from '@/components/MonthEdit.vue'
 
 const props = defineProps<{
   id?: string
@@ -17,7 +20,7 @@ const store = usePlannerStore()
 const name = ref('')
 const amount = ref<number>(0)
 const annualInterestRate = ref<number>(0)
-const startDate = ref<string>('')
+const startDate = ref<Month | undefined>(undefined)
 
 // Scenario selection - what does the user know?
 const willPayOff = ref<boolean>(true) // Will fully repay the debt?
@@ -27,8 +30,8 @@ const knowsPaymentAmount = ref<boolean>(false) // Do they know the payment amoun
 const constantPayment = ref<boolean>(true) // Constant total payment vs constant principal
 
 // Conditional fields based on scenario
-const repaymentStartDate = ref<string>('')
-const endDate = ref<string>('')
+const repaymentStartDate = ref<Month | undefined>(undefined)
+const endDate = ref<Month | undefined>(undefined)
 const monthlyPayment = ref<number>(0)
 const monthlyPrincipal = ref<number>(0)
 
@@ -65,24 +68,16 @@ const pageTitle = computed(() => {
 })
 
 // Helper functions
-function getStartDate(): string {
-  const date = startDate.value
-  if (date && date.trim()) {
-    return date as string
-  }
-  return new Date().toISOString().split('T')[0] as string
+function getStartMonth(): Month {
+  return startDate.value ?? getCurrentMonth()
 }
 
-function calculateMonthsUntil(dateString: string): number {
-  const start = new Date(getStartDate())
-  const end = new Date(dateString)
-  return (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth())
+function calculateMonthsUntil(month: Month): number {
+  return monthDiff(month, getStartMonth())
 }
 
-function addMonthsToDate(dateString: string, months: number): string {
-  const date = new Date(dateString)
-  date.setMonth(date.getMonth() + months)
-  return date.toISOString().split('T')[0] as string
+function addMonthsToMonth(month: Month, monthsToAdd: number): Month {
+  return addMonths(month, monthsToAdd)
 }
 
 // Calculated fields (read-only display)
@@ -90,7 +85,7 @@ const calculatedMonthlyPayment = computed(() => {
   if (!willPayOff.value || knowsPaymentAmount.value) return null
   if (!constantPayment.value) return null // Only for annualized/constant payment
 
-  if (knowsEndDate.value && endDate.value && amount.value > 0) {
+  if (knowsEndDate.value && endDate.value !== undefined && amount.value > 0) {
     // Calculate payment needed to pay off by end date (constant payment)
     const months = calculateMonthsUntil(endDate.value)
     if (months <= 0) return null
@@ -110,7 +105,7 @@ const calculatedPrincipalPayment = computed(() => {
   if (!willPayOff.value || knowsPaymentAmount.value) return null
   if (constantPayment.value) return null // Only for linear/variable payment
 
-  if (knowsEndDate.value && endDate.value && amount.value > 0) {
+  if (knowsEndDate.value && endDate.value !== undefined && amount.value > 0) {
     // Calculate principal payment for linear repayment
     const months = calculateMonthsUntil(endDate.value)
     if (months <= 0) return null
@@ -122,7 +117,7 @@ const calculatedPrincipalPayment = computed(() => {
   return null
 })
 
-const calculatedEndDate = computed(() => {
+const calculatedEndDate = computed((): Month | null => {
   if (!willPayOff.value || knowsEndDate.value) return null
 
   if (knowsPaymentAmount.value && amount.value > 0) {
@@ -136,16 +131,16 @@ const calculatedEndDate = computed(() => {
 
       if (monthlyRate === 0) {
         const months = Math.ceil(amount.value / monthlyPayment.value)
-        return addMonthsToDate(getStartDate(), months)
+        return addMonthsToMonth(getStartMonth(), months)
       }
 
       // Calculate months: n = -log(1 - (r * PV / PMT)) / log(1 + r)
       const months = Math.ceil(-Math.log(1 - (monthlyRate * amount.value / monthlyPayment.value)) / Math.log(1 + monthlyRate))
-      return addMonthsToDate(getStartDate(), months)
+      return addMonthsToMonth(getStartMonth(), months)
     } else if (!constantPayment.value && monthlyPrincipal.value > 0) {
       // Calculate payoff date for constant principal payment (linear)
       const months = Math.ceil(amount.value / monthlyPrincipal.value)
-      return addMonthsToDate(getStartDate(), months)
+      return addMonthsToMonth(getStartMonth(), months)
     }
   }
 
@@ -163,10 +158,10 @@ const warnings = computed(() => {
     }
   }
 
-  if (knowsEndDate.value && endDate.value) {
+  if (knowsEndDate.value && endDate.value !== undefined) {
     const months = calculateMonthsUntil(endDate.value)
     if (months <= 0) {
-      warns.push('End date must be in the future')
+      warns.push('End month must be in the future')
     }
   }
 
@@ -181,7 +176,7 @@ onMounted(() => {
       name.value = debt.name
       amount.value = debt.amount
       annualInterestRate.value = debt.annualInterestRate
-      startDate.value = debt.startDate || ''
+      startDate.value = debt.startDate
 
       // Determine scenario from existing debt
       const type = debt.getDebtType()
@@ -189,14 +184,14 @@ onMounted(() => {
       hasDelayedStart.value = !!debt.repaymentStartDate && debt.repaymentStartDate !== debt.startDate
 
       if (hasDelayedStart.value) {
-        repaymentStartDate.value = debt.repaymentStartDate || ''
+        repaymentStartDate.value = debt.repaymentStartDate
       }
 
       if (type === 'annualized') {
         constantPayment.value = true
         knowsPaymentAmount.value = true
         monthlyPayment.value = debt.monthlyPayment ?? 0
-        if (debt.endDate) {
+        if (debt.endDate !== undefined) {
           knowsEndDate.value = true
           endDate.value = debt.endDate
         }
@@ -204,13 +199,13 @@ onMounted(() => {
         constantPayment.value = false
         knowsPaymentAmount.value = true
         monthlyPrincipal.value = debt.monthlyPrincipalPayment ?? 0
-        if (debt.endDate) {
+        if (debt.endDate !== undefined) {
           knowsEndDate.value = true
           endDate.value = debt.endDate
         }
       } else if (type === 'interest-only') {
         willPayOff.value = false
-        if (debt.endDate) {
+        if (debt.endDate !== undefined) {
           knowsEndDate.value = true
           endDate.value = debt.endDate
         }
@@ -226,7 +221,7 @@ onMounted(() => {
       name.value = template.name || ''
       amount.value = template.amount || 0
       annualInterestRate.value = template.annualInterestRate || 0
-      startDate.value = template.startDate || ''
+      startDate.value = template.startDate
 
       // Set default scenario based on template
       const type = template.getDebtType()
@@ -411,9 +406,8 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <label for="start-date">Start Date</label>
-        <input id="start-date" v-model="startDate" type="date" />
-        <p class="help-text">When the debt begins (defaults to today)</p>
+        <MonthEdit v-model="startDate" label="Start Month" :nullable="false" />
+        <p class="help-text">When the debt begins (defaults to current month)</p>
       </div>
 
       <!-- Scenario selection -->
@@ -437,9 +431,8 @@ function handleDelete() {
         </div>
 
         <div v-if="!willPayOff && knowsEndDate" class="form-group">
-          <label for="settlement-date">Settlement Date *</label>
-          <input id="settlement-date" v-model="endDate" type="date" required />
-          <p class="help-text">Date of final balloon payment</p>
+          <MonthEdit v-model="endDate" label="Settlement Month *" :required="true" :nullable="false" />
+          <p class="help-text">Month of final balloon payment</p>
         </div>
 
         <div v-if="willPayOff" class="form-group checkbox-group">
@@ -450,8 +443,7 @@ function handleDelete() {
         </div>
 
         <div v-if="showRepaymentStartDate" class="form-group">
-          <label for="repayment-start-date">Repayment Start Date *</label>
-          <input id="repayment-start-date" v-model="repaymentStartDate" type="date" required />
+          <MonthEdit v-model="repaymentStartDate" label="Repayment Start Month *" :required="true" :nullable="false" />
         </div>
 
         <div v-if="willPayOff" class="form-group checkbox-group">
@@ -462,8 +454,7 @@ function handleDelete() {
         </div>
 
         <div v-if="showEndDate" class="form-group">
-          <label for="end-date">Payoff Date *</label>
-          <input id="end-date" v-model="endDate" type="date" required />
+          <MonthEdit v-model="endDate" label="Payoff Month *" :required="true" :nullable="false" />
         </div>
 
         <div v-if="willPayOff" class="form-group checkbox-group">

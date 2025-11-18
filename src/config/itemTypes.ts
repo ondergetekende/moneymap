@@ -7,6 +7,7 @@ import {
   AnnualizedDebt,
   InterestOnlyDebt,
 } from '@/models'
+import { getCurrentMonth, addMonths } from '@/types/month'
 
 export interface ItemTypeDefinition {
   id: string
@@ -86,8 +87,8 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       amount: 300000, // Typical mortgage amount
       annualInterestRate: 3.5, // Current mortgage rates
       monthlyPayment: 1500, // Standard monthly payment
-      startDate: new Date().toISOString().split('T')[0], // Today
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 30)).toISOString().split('T')[0], // 30 years from now
+      startDate: getCurrentMonth(), // Current month
+      endDate: addMonths(getCurrentMonth(), 360), // 30 years from now (30 * 12 = 360 months)
     })
   },
   {
@@ -100,8 +101,8 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       amount: 30000, // Average car loan
       annualInterestRate: 4.5,
       monthlyPayment: 600,
-      startDate: new Date().toISOString().split('T')[0], // Today
-      endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 30)).toISOString().split('T')[0], // 30 years from now
+      startDate: getCurrentMonth(), // Current month
+      endDate: addMonths(getCurrentMonth(), 360), // 30 years from now (30 * 12 = 360 months)
     })
   },
 ]

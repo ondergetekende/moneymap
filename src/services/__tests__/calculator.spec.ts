@@ -1,13 +1,15 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { calculateProjections } from '../calculator'
 import { UserProfile, LiquidAsset, FixedAsset, CashFlow, Debt } from '@/models'
+import type { Month } from '@/types/month'
+import { stringToMonth } from '@/types/month'
 
 // Helper to create test profiles using classes
 function createTestProfile(data: {
   birthDate: string
   capitalAccounts: Array<{ id: string; name: string; amount: number; assetType: 'liquid' | 'fixed'; annualInterestRate?: number }>
   liquidAssetsInterestRate: number
-  cashFlows: Array<{ id: string; name: string; monthlyAmount: number; type: 'income' | 'expense'; startDate?: string; endDate?: string }>
+  cashFlows: Array<{ id: string; name: string; monthlyAmount: number; type: 'income' | 'expense'; startDate?: string | Month; endDate?: string | Month }>
 }): UserProfile {
   const accounts = data.capitalAccounts.map(acc => {
     if (acc.assetType === 'fixed') {
@@ -17,11 +19,14 @@ function createTestProfile(data: {
     }
   })
 
-  const flows = data.cashFlows.map(cf =>
-    new CashFlow(cf.id, cf.name, cf.monthlyAmount, cf.type, cf.startDate, cf.endDate)
-  )
+  const flows = data.cashFlows.map(cf => {
+    const startDate = typeof cf.startDate === 'string' ? stringToMonth(cf.startDate) : cf.startDate
+    const endDate = typeof cf.endDate === 'string' ? stringToMonth(cf.endDate) : cf.endDate
+    return new CashFlow(cf.id, cf.name, cf.monthlyAmount, cf.type, startDate, endDate)
+  })
 
-  return new UserProfile(data.birthDate, accounts, flows, data.liquidAssetsInterestRate)
+  const birthMonth = stringToMonth(data.birthDate)!
+  return new UserProfile(birthMonth, accounts, flows, data.liquidAssetsInterestRate)
 }
 
 describe('Financial Calculator', () => {
@@ -44,16 +49,16 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Rent',
           monthlyAmount: 1000,
-          startDate: '2025-01-01',
-          endDate: '2060-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2060-01-01')!,
           type: 'expense',
         },
         {
           id: '2',
           name: 'Food',
           monthlyAmount: 500,
-          startDate: '2025-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
       ],
@@ -78,16 +83,16 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Rent',
           monthlyAmount: 1000,
-          startDate: '2025-01-01',
-          endDate: '2030-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2030-01-01')!,
           type: 'expense',
         },
         {
           id: '2',
           name: 'Retirement',
           monthlyAmount: 500,
-          startDate: '2060-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2060-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
       ],
@@ -110,18 +115,16 @@ describe('Financial Calculator', () => {
 
   it('should meet performance requirement with 20+ cashflows', () => {
     // Create 25 cashflows to test performance
-    const cashFlows: CashFlow[] = []
+    const cashFlows = []
     for (let i = 0; i < 25; i++) {
-      cashFlows.push(
-        new CashFlow(
-          `cashflow-${i}`,
-          `Expense ${i}`,
-          100 + i * 10,
-          'expense',
-          `${2025 + (i % 30)}-01-01`,
-          `${2055 + (i % 40)}-01-01`,
-        ),
-      )
+      cashFlows.push({
+        id: `cashflow-${i}`,
+        name: `Expense ${i}`,
+        monthlyAmount: 100 + i * 10,
+        type: 'expense' as const,
+        startDate: `${2025 + (i % 30)}-01-01`,
+        endDate: `${2055 + (i % 40)}-01-01`,
+      })
     }
 
     const profile = createTestProfile({
@@ -152,8 +155,8 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Living',
           monthlyAmount: 2000,
-          startDate: '2025-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
       ],
@@ -175,8 +178,8 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'High Expense',
           monthlyAmount: 5000,
-          startDate: '2025-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
       ],
@@ -214,16 +217,16 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Salary',
           monthlyAmount: 5000,
-          startDate: '2025-01-01',
-          endDate: '2060-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2060-01-01')!,
           type: 'income',
         },
         {
           id: '2',
           name: 'Rent',
           monthlyAmount: 1500,
-          startDate: '2025-01-01',
-          endDate: '2060-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2060-01-01')!,
           type: 'expense',
         },
       ],
@@ -252,32 +255,32 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Job Salary',
           monthlyAmount: 6000,
-          startDate: '2025-01-01',
-          endDate: '2055-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2055-01-01')!,
           type: 'income',
         },
         {
           id: '2',
           name: 'Pension',
           monthlyAmount: 3000,
-          startDate: '2055-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2055-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'income',
         },
         {
           id: '3',
           name: 'Rent',
           monthlyAmount: 2000,
-          startDate: '2025-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
         {
           id: '4',
           name: 'Food',
           monthlyAmount: 800,
-          startDate: '2025-01-01',
-          endDate: '2095-01-01',
+          startDate: stringToMonth('2025-01-01')!,
+          endDate: stringToMonth('2095-01-01')!,
           type: 'expense',
         },
       ],
@@ -305,7 +308,7 @@ describe('Financial Calculator', () => {
       capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
       liquidAssetsInterestRate: 0,
       cashFlows: [
-        { id: '1', name: 'Rent', monthlyAmount: 1000, endDate: '2030-01-01', type: 'expense' },
+        { id: '1', name: 'Rent', monthlyAmount: 1000, endDate: stringToMonth('2030-01-01')!, type: 'expense' },
         // No startDate - should be active immediately
       ],
     })
@@ -331,7 +334,7 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Basic Living',
           monthlyAmount: 1500,
-          startDate: '2025-01-01',
+          startDate: stringToMonth('2025-01-01')!,
           type: 'expense',
         },
         // No endDate - should continue forever
@@ -385,22 +388,22 @@ describe('Financial Calculator', () => {
           id: '2',
           name: 'Early Expense',
           monthlyAmount: 300,
-          endDate: '2030-01-01',
+          endDate: stringToMonth('2030-01-01')!,
           type: 'expense',
         }, // Only end
         {
           id: '3',
           name: 'Late Expense',
           monthlyAmount: 400,
-          startDate: '2060-01-01',
+          startDate: stringToMonth('2060-01-01')!,
           type: 'expense',
         }, // Only start
         {
           id: '4',
           name: 'Fixed Period',
           monthlyAmount: 200,
-          startDate: '2040-01-01',
-          endDate: '2050-01-01',
+          startDate: stringToMonth('2040-01-01')!,
+          endDate: stringToMonth('2050-01-01')!,
           type: 'expense',
         }, // Both dates
       ],
@@ -481,7 +484,7 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Monthly Contribution',
           monthlyAmount: 1000,
-          startDate: '2025-01-01',
+          startDate: stringToMonth('2025-01-01')!,
           type: 'income',
         },
       ],
@@ -508,7 +511,7 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Large Expense',
           monthlyAmount: 2000,
-          startDate: '2025-01-01',
+          startDate: stringToMonth('2025-01-01')!,
           type: 'expense',
         },
       ],
@@ -539,7 +542,7 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Expense',
           monthlyAmount: 1000,
-          startDate: '2025-01-01',
+          startDate: stringToMonth('2025-01-01')!,
           type: 'expense',
         },
       ],
@@ -571,7 +574,7 @@ describe('Financial Calculator', () => {
           id: '1',
           name: 'Monthly Expense',
           monthlyAmount: 1000,
-          startDate: '2025-01-01',
+          startDate: stringToMonth('2025-01-01')!,
           type: 'expense',
         },
       ],
@@ -657,11 +660,11 @@ describe('Financial Calculator', () => {
         amount: 10000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,
@@ -692,11 +695,11 @@ describe('Financial Calculator', () => {
         amount: 20000,
         annualInterestRate: 6,
         monthlyPayment: 600,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 100000)],
         [],
         5,
@@ -724,12 +727,12 @@ describe('Financial Calculator', () => {
         amount: 100000,
         annualInterestRate: 4,
         finalBalance: 0,
-        startDate: '2025-01-01',
-        endDate: '2030-01-01',
+        startDate: stringToMonth('2025-01-01')!,
+        endDate: stringToMonth('2030-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 200000)],
         [],
         5,
@@ -763,11 +766,11 @@ describe('Financial Calculator', () => {
         amount: 12000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2024-07-01',
+        startDate: stringToMonth('2024-07-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,
@@ -792,12 +795,12 @@ describe('Financial Calculator', () => {
         amount: 15000,
         annualInterestRate: 4,
         monthlyPrincipalPayment: 300,
-        startDate: '2024-01-01',
-        repaymentStartDate: '2026-01-01',
+        startDate: stringToMonth('2024-01-01')!,
+        repaymentStartDate: stringToMonth('2026-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,
@@ -824,11 +827,11 @@ describe('Financial Calculator', () => {
         amount: 10000,
         annualInterestRate: 6,
         monthlyPrincipalPayment: 500,
-        startDate: '2024-01-01',
+        startDate: stringToMonth('2024-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,
@@ -851,7 +854,7 @@ describe('Financial Calculator', () => {
         amount: 5000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 250,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const debt2 = new Debt({
@@ -859,11 +862,11 @@ describe('Financial Calculator', () => {
         amount: 8000,
         annualInterestRate: 6,
         monthlyPayment: 300,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 100000)],
         [],
         5,
@@ -890,11 +893,11 @@ describe('Financial Calculator', () => {
         amount: 10000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         0, // No interest on liquid assets
@@ -908,7 +911,7 @@ describe('Financial Calculator', () => {
       // Principal: ~5500 (500 * 11), Interest: ~250 (declining balance)
       const expectedDecrease =
         firstYear!.totalDebtPrincipalPaid + firstYear!.totalDebtInterestPaid
-      expect(firstYear?.startingLiquidAssets - firstYear!.endingLiquidAssets).toBeCloseTo(
+      expect(firstYear!.startingLiquidAssets - firstYear!.endingLiquidAssets).toBeCloseTo(
         expectedDecrease,
         -2,
       )
@@ -920,11 +923,11 @@ describe('Financial Calculator', () => {
         amount: 10000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [
           new LiquidAsset('1', 'Savings', 50000),
           new FixedAsset('2', 'House', 200000, 3),
@@ -948,11 +951,11 @@ describe('Financial Calculator', () => {
         amount: 20000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,
@@ -974,11 +977,11 @@ describe('Financial Calculator', () => {
         amount: 50000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 5000, // Very high payment
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 10000)], // Not enough to make payments
         [],
         0,
@@ -1006,12 +1009,12 @@ describe('Financial Calculator', () => {
         amount: 50000,
         annualInterestRate: 4,
         finalBalance: 30000, // Pay down to 30k, then balloon
-        startDate: '2025-01-01',
-        endDate: '2027-01-01',
+        startDate: stringToMonth('2025-01-01')!,
+        endDate: stringToMonth('2027-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 100000)],
         [],
         5,
@@ -1043,11 +1046,11 @@ describe('Financial Calculator', () => {
         amount: 6000,
         annualInterestRate: 5,
         monthlyPrincipalPayment: 500,
-        startDate: '2025-01-01',
+        startDate: stringToMonth('2025-01-01')!,
       })
 
       const profile = new UserProfile(
-        '1995-01-01',
+        stringToMonth('1995-01-01')!,
         [new LiquidAsset('1', 'Savings', 50000)],
         [],
         5,

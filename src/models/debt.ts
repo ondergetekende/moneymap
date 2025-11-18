@@ -1,4 +1,6 @@
 import { FinancialItem } from './base'
+import type { Month } from '@/types/month'
+import { stringToMonth } from '@/types/month'
 
 /**
  * Payment breakdown for a single month
@@ -18,9 +20,9 @@ export interface DebtPayment {
 export class Debt extends FinancialItem {
   readonly amount: number
   readonly annualInterestRate: number
-  readonly startDate?: string
-  readonly repaymentStartDate?: string
-  readonly endDate?: string
+  readonly startDate?: Month
+  readonly repaymentStartDate?: Month
+  readonly endDate?: Month
 
   // Payment strategy fields - only one should be set
   readonly monthlyPrincipalPayment?: number  // Linear
@@ -32,9 +34,9 @@ export class Debt extends FinancialItem {
     name: string
     amount: number
     annualInterestRate: number
-    startDate?: string
-    repaymentStartDate?: string
-    endDate?: string
+    startDate?: Month
+    repaymentStartDate?: Month
+    endDate?: Month
     monthlyPrincipalPayment?: number
     monthlyPayment?: number
     finalBalance?: number
@@ -175,33 +177,27 @@ export class Debt extends FinancialItem {
   }
 
   /**
-   * Check if debt exists at this date
+   * Check if debt exists at this month
    */
-  isActive(date: Date): boolean {
-    if (this.startDate) {
-      const start = new Date(this.startDate)
-      if (date < start) return false
+  isActive(month: Month): boolean {
+    if (this.startDate !== undefined) {
+      if (month < this.startDate) return false
     }
-    if (this.endDate) {
-      const end = new Date(this.endDate)
-      if (date > end) return false
+    if (this.endDate !== undefined) {
+      if (month > this.endDate) return false
     }
     return true
   }
 
   /**
-   * Check if repayments should occur at this date
+   * Check if repayments should occur at this month
    */
-  isRepaymentActive(date: Date): boolean {
-    if (!this.isActive(date)) return false
+  isRepaymentActive(month: Month): boolean {
+    if (!this.isActive(month)) return false
 
-    const repaymentStart = this.repaymentStartDate
-      ? new Date(this.repaymentStartDate)
-      : this.startDate
-        ? new Date(this.startDate)
-        : null
+    const repaymentStart = this.repaymentStartDate ?? this.startDate
 
-    if (repaymentStart && date < repaymentStart) return false
+    if (repaymentStart !== undefined && month < repaymentStart) return false
 
     return true
   }
@@ -220,9 +216,9 @@ export class Debt extends FinancialItem {
     name: string
     amount: number
     annualInterestRate: number
-    startDate: string | undefined
-    repaymentStartDate: string | undefined
-    endDate: string | undefined
+    startDate: Month | undefined
+    repaymentStartDate: Month | undefined
+    endDate: Month | undefined
     monthlyPrincipalPayment: number | undefined
     monthlyPayment: number | undefined
     finalBalance: number | undefined
@@ -264,14 +260,38 @@ export class Debt extends FinancialItem {
    * Deserialize from JSON
    */
   static fromJSON(data: Record<string, unknown>): Debt {
+    // Handle startDate - could be Month (number), legacy string, or undefined
+    let startDate: Month | undefined
+    if (typeof data.startDate === 'number') {
+      startDate = data.startDate
+    } else if (typeof data.startDate === 'string') {
+      startDate = stringToMonth(data.startDate)
+    }
+
+    // Handle repaymentStartDate - could be Month (number), legacy string, or undefined
+    let repaymentStartDate: Month | undefined
+    if (typeof data.repaymentStartDate === 'number') {
+      repaymentStartDate = data.repaymentStartDate
+    } else if (typeof data.repaymentStartDate === 'string') {
+      repaymentStartDate = stringToMonth(data.repaymentStartDate)
+    }
+
+    // Handle endDate - could be Month (number), legacy string, or undefined
+    let endDate: Month | undefined
+    if (typeof data.endDate === 'number') {
+      endDate = data.endDate
+    } else if (typeof data.endDate === 'string') {
+      endDate = stringToMonth(data.endDate)
+    }
+
     return new Debt({
       id: data.id as string,
       name: data.name as string,
       amount: data.amount as number,
       annualInterestRate: data.annualInterestRate as number,
-      startDate: data.startDate as string | undefined,
-      repaymentStartDate: data.repaymentStartDate as string | undefined,
-      endDate: data.endDate as string | undefined,
+      startDate,
+      repaymentStartDate,
+      endDate,
       monthlyPrincipalPayment: data.monthlyPrincipalPayment as number | undefined,
       monthlyPayment: data.monthlyPayment as number | undefined,
       finalBalance: data.finalBalance as number | undefined,

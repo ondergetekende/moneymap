@@ -6,26 +6,28 @@ import type { CapitalAccount } from './assets'
 import { LiquidAsset, FixedAsset } from './assets'
 import { CashFlow } from './cashflow'
 import { Debt } from './debt'
+import type { Month } from '@/types/month'
+import { getCurrentMonth, monthDiff, stringToMonth } from '@/types/month'
 
 /**
  * User's complete financial profile
  */
 export class UserProfile {
-  readonly birthDate: string // ISO date string (YYYY-MM-DD)
+  readonly birthDate: Month // Birth month (months since January 1900)
   readonly capitalAccounts: CapitalAccount[]
   readonly cashFlows: CashFlow[]
   readonly debts: Debt[]
   readonly liquidAssetsInterestRate: number // Shared annual interest rate for all liquid assets (percentage)
 
   constructor(
-    birthDate: string,
+    birthDate: Month,
     capitalAccounts: CapitalAccount[],
     cashFlows: CashFlow[],
     liquidAssetsInterestRate: number,
     debts: Debt[] = []
   ) {
-    if (!birthDate || !this.isValidDate(birthDate)) {
-      throw new Error('UserProfile birthDate must be a valid ISO date string (YYYY-MM-DD)')
+    if (birthDate === undefined || typeof birthDate !== 'number') {
+      throw new Error('UserProfile birthDate must be a valid Month value')
     }
 
     this.birthDate = birthDate
@@ -36,33 +38,18 @@ export class UserProfile {
   }
 
   /**
-   * Validate ISO date string format
+   * Calculate user's age at a specific month
    */
-  private isValidDate(dateString: string): boolean {
-    const regex = /^\d{4}-\d{2}-\d{2}$/
-    if (!regex.test(dateString)) return false
-    const date = new Date(dateString)
-    return !isNaN(date.getTime())
-  }
-
-  /**
-   * Calculate user's age at a specific date
-   */
-  getAgeAt(date: Date): number {
-    const birth = new Date(this.birthDate)
-    let age = date.getFullYear() - birth.getFullYear()
-    const monthDiff = date.getMonth() - birth.getMonth()
-    if (monthDiff < 0 || (monthDiff === 0 && date.getDate() < birth.getDate())) {
-      age--
-    }
-    return age
+  getAgeAt(month: Month): number {
+    const monthsSinceBirth = monthDiff(month, this.birthDate)
+    return Math.floor(monthsSinceBirth / 12)
   }
 
   /**
    * Calculate user's current age
    */
   getCurrentAge(): number {
-    return this.getAgeAt(new Date())
+    return this.getAgeAt(getCurrentMonth())
   }
 
   /**
@@ -101,7 +88,7 @@ export class UserProfile {
    * Create a copy of this profile with updated properties
    */
   with(updates: {
-    birthDate?: string
+    birthDate?: Month
     capitalAccounts?: CapitalAccount[]
     cashFlows?: CashFlow[]
     debts?: Debt[]
@@ -150,8 +137,20 @@ export class UserProfile {
     // Handle backward compatibility - default to empty array if debts not present
     const debts = (data.debts || []).map((debt: any) => Debt.fromJSON(debt))
 
+    // Handle birthDate - could be Month (number) or legacy string
+    let birthDate: Month
+    if (typeof data.birthDate === 'number') {
+      birthDate = data.birthDate
+    } else if (typeof data.birthDate === 'string') {
+      // Legacy string date - convert to Month
+      birthDate = stringToMonth(data.birthDate) ?? getCurrentMonth()
+    } else {
+      // No birthDate - use current month
+      birthDate = getCurrentMonth()
+    }
+
     return new UserProfile(
-      data.birthDate || new Date().toISOString().split('T')[0],
+      birthDate,
       capitalAccounts,
       cashFlows,
       data.liquidAssetsInterestRate || 0,

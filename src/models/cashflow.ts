@@ -4,6 +4,8 @@
 
 import { FinancialItem } from './base'
 import type { CapitalAccount } from './assets'
+import type { Month } from '@/types/month'
+import { stringToMonth } from '@/types/month'
 
 export type CashFlowType = 'income' | 'expense'
 
@@ -12,8 +14,8 @@ export type CashFlowType = 'income' | 'expense'
  */
 export class CashFlow extends FinancialItem {
   readonly monthlyAmount: number
-  readonly startDate?: string // ISO date string (YYYY-MM-DD), optional - defaults to projection start
-  readonly endDate?: string // ISO date string (YYYY-MM-DD), optional - defaults to projection end
+  readonly startDate?: Month // Optional - defaults to projection start
+  readonly endDate?: Month // Optional - defaults to projection end
   readonly type: CashFlowType
 
   constructor(
@@ -21,35 +23,19 @@ export class CashFlow extends FinancialItem {
     name: string,
     monthlyAmount: number,
     type: CashFlowType,
-    startDate?: string,
-    endDate?: string
+    startDate?: Month,
+    endDate?: Month
   ) {
     super(id, name)
 
     if (monthlyAmount < 0) {
       throw new Error('CashFlow amount cannot be negative')
     }
-    if (startDate && !this.isValidDate(startDate)) {
-      throw new Error('CashFlow startDate must be a valid ISO date string (YYYY-MM-DD)')
-    }
-    if (endDate && !this.isValidDate(endDate)) {
-      throw new Error('CashFlow endDate must be a valid ISO date string (YYYY-MM-DD)')
-    }
 
     this.monthlyAmount = monthlyAmount
     this.type = type
     this.startDate = startDate
     this.endDate = endDate
-  }
-
-  /**
-   * Validate ISO date string format
-   */
-  private isValidDate(dateString: string): boolean {
-    const regex = /^\d{4}-\d{2}-\d{2}$/
-    if (!regex.test(dateString)) return false
-    const date = new Date(dateString)
-    return !isNaN(date.getTime())
   }
 
   /**
@@ -70,8 +56,8 @@ export class CashFlow extends FinancialItem {
       updates.name ?? this.name,
       updates.monthlyAmount ?? this.monthlyAmount,
       updates.type ?? this.type,
-      updates.startDate ?? this.startDate,
-      updates.endDate ?? this.endDate
+      updates.startDate !== undefined ? updates.startDate : this.startDate,
+      updates.endDate !== undefined ? updates.endDate : this.endDate
     )
   }
 
@@ -93,13 +79,29 @@ export class CashFlow extends FinancialItem {
    * Deserialize from JSON
    */
   static fromJSON(data: any): CashFlow {
+    // Handle startDate - could be Month (number), legacy string, or undefined
+    let startDate: Month | undefined
+    if (typeof data.startDate === 'number') {
+      startDate = data.startDate
+    } else if (typeof data.startDate === 'string') {
+      startDate = stringToMonth(data.startDate)
+    }
+
+    // Handle endDate - could be Month (number), legacy string, or undefined
+    let endDate: Month | undefined
+    if (typeof data.endDate === 'number') {
+      endDate = data.endDate
+    } else if (typeof data.endDate === 'string') {
+      endDate = stringToMonth(data.endDate)
+    }
+
     return new CashFlow(
       data.id || crypto.randomUUID(),
       data.name || '',
       data.monthlyAmount || 0,
       data.type || 'expense',
-      data.startDate,
-      data.endDate
+      startDate,
+      endDate
     )
   }
 

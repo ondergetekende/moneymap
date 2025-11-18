@@ -4,6 +4,8 @@ import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import type { CashFlowType } from '@/models'
+import type { Month } from '@/types/month'
+import MonthEdit from '@/components/MonthEdit.vue'
 
 const props = defineProps<{
   id?: string
@@ -16,8 +18,8 @@ const store = usePlannerStore()
 // Form state
 const name = ref('')
 const monthlyAmount = ref<number>(0)
-const startDate = ref<string>('')
-const endDate = ref<string>('')
+const startDate = ref<Month | undefined>(undefined)
+const endDate = ref<Month | undefined>(undefined)
 const cashFlowType = ref<CashFlowType>('income')
 
 // UI state
@@ -38,8 +40,8 @@ onMounted(() => {
     if (cashFlow) {
       name.value = cashFlow.name
       monthlyAmount.value = cashFlow.monthlyAmount
-      startDate.value = cashFlow.startDate || ''
-      endDate.value = cashFlow.endDate || ''
+      startDate.value = cashFlow.startDate
+      endDate.value = cashFlow.endDate
       cashFlowType.value = cashFlow.type
     } else {
       // CashFlow not found, redirect to dashboard
@@ -53,8 +55,8 @@ onMounted(() => {
       name.value = template.name || ''
       monthlyAmount.value = template.monthlyAmount || 0
       cashFlowType.value = template.type || 'income'
-      startDate.value = template.startDate || ''
-      endDate.value = template.endDate || ''
+      startDate.value = template.startDate
+      endDate.value = template.endDate
     } else {
       cashFlowType.value = props.typeId as CashFlowType
     }
@@ -72,8 +74,8 @@ function handleSave() {
     const cashFlowData = {
       name: name.value.trim(),
       monthlyAmount: monthlyAmount.value,
-      startDate: startDate.value || undefined,
-      endDate: endDate.value || undefined,
+      startDate: startDate.value,
+      endDate: endDate.value,
       type: cashFlowType.value,
     }
     store.updateCashFlow(props.id, cashFlowData)
@@ -86,8 +88,8 @@ function handleSave() {
         ...template,
         name: name.value.trim(),
         monthlyAmount: monthlyAmount.value,
-        startDate: startDate.value || undefined,
-        endDate: endDate.value || undefined,
+        startDate: startDate.value,
+        endDate: endDate.value,
       })
     }
   }
@@ -151,14 +153,12 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <label for="start-date">Start Date (optional)</label>
-        <input id="start-date" v-model="startDate" type="date" />
-        <p class="help-text">Leave empty to start from current date</p>
+        <MonthEdit v-model="startDate" label="Start Month (optional)" :nullable="true" />
+        <p class="help-text">Leave empty to start from current month</p>
       </div>
 
       <div class="form-group">
-        <label for="end-date">End Date (optional)</label>
-        <input id="end-date" v-model="endDate" type="date" />
+        <MonthEdit v-model="endDate" label="End Month (optional)" :nullable="true" />
         <p class="help-text">Leave empty to continue indefinitely</p>
       </div>
 

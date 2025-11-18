@@ -6,12 +6,13 @@
   import ActionButtons from '@/components/ActionButtons.vue'
   import NetWorthChart from '@/components/NetWorthChart.vue'
   import AnnualBreakdownTable from '@/components/AnnualBreakdownTable.vue'
+  import type { Month } from '@/types/month'
 
   const store = usePlannerStore()
 
   const birthDate = computed({
     get: () => store.birthDate,
-    set: (value: string) => store.setBirthDate(value),
+    set: (value: Month) => store.setBirthDate(value),
   })
 </script>
 

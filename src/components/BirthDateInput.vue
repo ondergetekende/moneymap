@@ -3,13 +3,12 @@
     <h3>Your Birth Date</h3>
     <div class="input-group">
       <div class="form-field">
-        <label for="birth-date">Date of Birth:</label>
-        <input
-          id="birth-date"
-          type="date"
-          :value="modelValue"
-          @input="handleInput"
-          :max="maxDate"
+        <MonthEdit
+          :modelValue="modelValue"
+          @update:modelValue="handleUpdate"
+          label="Birth Month"
+          :maxMonth="maxMonth"
+          :nullable="false"
         />
       </div>
       <div v-if="currentAge !== null" class="age-display">
@@ -22,24 +21,27 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import MonthEdit from './MonthEdit.vue'
+import type { Month } from '@/types/month'
+import { getCurrentMonth } from '@/types/month'
 
 const props = defineProps<{
-  modelValue: string
+  modelValue: Month
   currentAge: number | null
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
+  'update:modelValue': [value: Month]
 }>()
 
-const maxDate = computed(() => {
-  const today = new Date()
-  return today.toISOString().split('T')[0]
+const maxMonth = computed(() => {
+  return getCurrentMonth()
 })
 
-function handleInput(event: Event) {
-  const target = event.target as HTMLInputElement
-  emit('update:modelValue', target.value)
+function handleUpdate(value: Month | undefined) {
+  if (value !== undefined) {
+    emit('update:modelValue', value)
+  }
 }
 </script>
 
@@ -63,27 +65,6 @@ h3 {
 .form-field {
   display: flex;
   flex-direction: column;
-}
-
-label {
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-  color: #2c3e50;
-  font-size: 0.9rem;
-}
-
-input[type='date'] {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 1rem;
-  min-width: 200px;
-}
-
-input[type='date']:focus {
-  outline: none;
-  border-color: #42b983;
-  box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
 }
 
 .age-display {

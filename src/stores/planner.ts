@@ -15,10 +15,12 @@ import {
 } from '@/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
+import type { Month } from '@/types/month'
+import { getCurrentMonth } from '@/types/month'
 
 export const usePlannerStore = defineStore('planner', () => {
   // State
-  const birthDate = ref<string>('')
+  const birthDate = ref<Month>(getCurrentMonth())
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
   const debts = ref<AllDebtTypes[]>([])
@@ -27,10 +29,8 @@ export const usePlannerStore = defineStore('planner', () => {
 
   // Computed
   const userProfile = computed<UserProfile>(() => {
-    const defaultDate = new Date().toISOString().split('T')[0]
-    const date: string = (birthDate.value || defaultDate) as string
     return new UserProfile(
-      date,
+      birthDate.value,
       capitalAccounts.value as CapitalAccount[],
       cashFlows.value as CashFlow[],
       liquidAssetsInterestRate.value,
@@ -39,7 +39,6 @@ export const usePlannerStore = defineStore('planner', () => {
   })
 
   const currentAge = computed(() => {
-    if (!birthDate.value) return 0
     return userProfile.value.getCurrentAge()
   })
 
@@ -49,8 +48,7 @@ export const usePlannerStore = defineStore('planner', () => {
 
   const hasData = computed(
     () =>
-      birthDate.value !== '' &&
-      (capitalAccounts.value.length > 0 || cashFlows.value.length > 0 || debts.value.length > 0),
+      capitalAccounts.value.length > 0 || cashFlows.value.length > 0 || debts.value.length > 0,
   )
 
   // New computed properties for unified list
@@ -81,8 +79,8 @@ export const usePlannerStore = defineStore('planner', () => {
   const totalDebt = computed(() => debts.value.reduce((sum: number, debt: AllDebtTypes) => sum + debt.amount, 0))
 
   // Actions
-  function setBirthDate(date: string) {
-    birthDate.value = date
+  function setBirthDate(month: Month) {
+    birthDate.value = month
     recalculate()
   }
 
@@ -210,7 +208,7 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function clearAll() {
-    birthDate.value = ''
+    birthDate.value = getCurrentMonth()
     capitalAccounts.value = []
     cashFlows.value = []
     debts.value = []

@@ -9,44 +9,33 @@ import type {
   ProjectionResult,
 } from '@/models'
 import { LiquidAsset, FixedAsset } from '@/models'
+import type { Month } from '@/types/month'
+import { getCurrentMonth, addMonths, formatMonth, monthDiff } from '@/types/month'
 
 const MAX_AGE = 100
 
 /**
- * Check if a date is within a range (inclusive start, exclusive end)
- * If startDate is missing, treats as "from the beginning"
- * If endDate is missing, treats as "forever"
+ * Check if a month is within a range (inclusive start, exclusive end)
+ * If startMonth is missing, treats as "from the beginning"
+ * If endMonth is missing, treats as "forever"
  */
-function isDateInRange(date: Date, startDate?: string, endDate?: string): boolean {
-  if (!startDate && !endDate) {
+function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boolean {
+  if (startMonth === undefined && endMonth === undefined) {
     return true // No date constraints, always active
   }
 
-  if (!startDate) {
-    // Only end date specified - active until end date
-    const end = new Date(endDate!)
-    return date < end
+  if (startMonth === undefined) {
+    // Only end month specified - active until end month
+    return month < endMonth!
   }
 
-  if (!endDate) {
-    // Only start date specified - active from start date onwards
-    const start = new Date(startDate)
-    return date >= start
+  if (endMonth === undefined) {
+    // Only start month specified - active from start month onwards
+    return month >= startMonth
   }
 
-  // Both dates specified - traditional range check
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  return date >= start && date < end
-}
-
-/**
- * Format date as YYYY-MM
- */
-function formatYearMonth(date: Date): string {
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  return `${year}-${month}`
+  // Both months specified - traditional range check
+  return month >= startMonth && month < endMonth
 }
 
 /**
@@ -78,11 +67,8 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
   const monthlyProjections: MonthlyProjection[] = []
 
-  // Start from today
-  const today = new Date()
-
   // Start from the beginning of current month
-  const projectionStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const projectionStart = getCurrentMonth()
 
   // Track each debt separately with its current balance
   // For debts that started in the past, calculate the balance at simulation start
@@ -90,16 +76,12 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     let currentBalance = debt.amount
 
     // If debt has a start date in the past, calculate how much would have been paid off
-    const debtStartDate = debt.startDate ? new Date(debt.startDate) : null
-    const repaymentStartDate = debt.repaymentStartDate
-      ? new Date(debt.repaymentStartDate)
-      : debtStartDate
+    const debtStartMonth = debt.startDate
+    const repaymentStartMonth = debt.repaymentStartDate ?? debtStartMonth
 
-    if (repaymentStartDate && repaymentStartDate < projectionStart) {
+    if (repaymentStartMonth !== undefined && repaymentStartMonth < projectionStart) {
       // Calculate months between repayment start and simulation start
-      const monthsPassed =
-        (projectionStart.getFullYear() - repaymentStartDate.getFullYear()) * 12 +
-        (projectionStart.getMonth() - repaymentStartDate.getMonth())
+      const monthsPassed = monthDiff(projectionStart, repaymentStartMonth)
 
       if (monthsPassed > 0) {
         // Use the debt's calculateProjectedBalance to determine current balance
@@ -123,22 +105,16 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0) -
     initialTotalDebt
 
-  // Calculate end date (when user turns 100)
-  const birth = new Date(birthDate)
-  const endDate = new Date(birth.getFullYear() + MAX_AGE, birth.getMonth(), birth.getDate())
+  // Calculate end month (when user turns 100)
+  const endMonth = addMonths(birthDate, MAX_AGE * 12)
 
   // Calculate total months from now until age 100
-  const monthsFromNow =
-    (endDate.getFullYear() - today.getFullYear()) * 12 + (endDate.getMonth() - today.getMonth())
+  const monthsFromNow = monthDiff(endMonth, projectionStart)
 
   for (let monthIndex = 0; monthIndex < monthsFromNow; monthIndex++) {
-    const currentDate = new Date(
-      projectionStart.getFullYear(),
-      projectionStart.getMonth() + monthIndex,
-      1,
-    )
+    const currentMonth = addMonths(projectionStart, monthIndex)
 
-    const age = profile.getAgeAt(currentDate)
+    const age = profile.getAgeAt(currentMonth)
 
     // Apply interest to liquid assets pool (shared rate)
     const liquidMonthlyRate = liquidInterestRate / 100 / 12
@@ -171,11 +147,10 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
       const debt = debtTracking.debt
 
-      // Check if we've reached or passed the end date - trigger final payment
-      if (debt.endDate) {
-        const endDate = new Date(debt.endDate)
-        // If current date is at or after end date, trigger final payment
-        if (currentDate >= endDate) {
+      // Check if we've reached or passed the end month - trigger final payment
+      if (debt.endDate !== undefined) {
+        // If current month is at or after end month, trigger final payment
+        if (currentMonth >= debt.endDate) {
           // Use the debt's calculateMonthlyPayment with monthsRemaining=1 to get final payment
           const payment = debt.calculateMonthlyPayment(debtTracking.balance, 1)
 
@@ -199,18 +174,15 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
         }
       }
 
-      // Check if repayment is active at this date
-      if (!debt.isRepaymentActive(currentDate)) {
+      // Check if repayment is active at this month
+      if (!debt.isRepaymentActive(currentMonth)) {
         continue
       }
 
-      // Calculate months remaining until end date (if specified)
+      // Calculate months remaining until end month (if specified)
       let monthsRemaining: number | undefined
-      if (debt.endDate) {
-        const endDate = new Date(debt.endDate)
-        const monthsDiff =
-          (endDate.getFullYear() - currentDate.getFullYear()) * 12 +
-          (endDate.getMonth() - currentDate.getMonth())
+      if (debt.endDate !== undefined) {
+        const monthsDiff = monthDiff(debt.endDate, currentMonth)
         monthsRemaining = Math.max(1, monthsDiff)
       }
 
@@ -238,7 +210,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     let monthlyExpenses = 0
 
     for (const cashFlow of cashFlows) {
-      if (isDateInRange(currentDate, cashFlow.startDate, cashFlow.endDate)) {
+      if (isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate)) {
         if (cashFlow.type === 'income') {
           monthlyIncome += cashFlow.monthlyAmount
         } else {
@@ -257,7 +229,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     const currentBalance = liquidAssetsBalance + fixedAssetsTotal - totalDebt
 
     monthlyProjections.push({
-      date: formatYearMonth(currentDate),
+      date: formatMonth(currentMonth, 'YYYY-MM'),
       age,
       balance: currentBalance,
       liquidAssets: liquidAssetsBalance,
