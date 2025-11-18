@@ -236,8 +236,8 @@ describe('Financial Calculator', () => {
 
     // Check first year has both income and expenses
     const firstYear = result.annualSummaries[0]
-    expect(firstYear?.totalIncome).toBeCloseTo(55000, -2) // ~11 months of income (5000 * 11)
-    expect(firstYear?.totalExpenses).toBeCloseTo(16500, -2) // ~11 months of expenses (1500 * 11)
+    expect(firstYear?.totalIncome).toBeCloseTo(60000, -2) // 12 months of income (5000 * 12)
+    expect(firstYear?.totalExpenses).toBeCloseTo(18000, -2) // 12 months of expenses (1500 * 12)
 
     // Balance should grow since income > expenses
     if (firstYear) {
@@ -345,7 +345,7 @@ describe('Financial Calculator', () => {
 
     // First year should have expenses
     const firstYear = result.annualSummaries[0]
-    expect(firstYear?.totalExpenses).toBeCloseTo(16500, -2) // ~11 months
+    expect(firstYear?.totalExpenses).toBeCloseTo(18000, -2) // 12 months
 
     // Last year (near age 100) should also have expenses
     const lastYear = result.annualSummaries[result.annualSummaries.length - 1]
@@ -495,10 +495,10 @@ describe('Financial Calculator', () => {
     // After 1 year with monthly contributions and compound interest
     // Each month: apply interest first, then add income
     // Starting in Jan 2025, we get contributions and compound interest over the year
-    // Result should be ~116348 (11 months of contributions + compound interest)
+    // Result should be ~117395 (12 months of contributions + compound interest)
     const firstYear = result.annualSummaries[0]
-    expect(firstYear?.totalIncome).toBeCloseTo(11000, -2) // 11 months of 1000
-    expect(firstYear?.endingBalance).toBeCloseTo(116348, 0) // Principal + interest + contributions
+    expect(firstYear?.totalIncome).toBeCloseTo(12000, -2) // 12 months of 1000
+    expect(firstYear?.endingBalance).toBeCloseTo(117395, 0) // Principal + interest + contributions
   })
 
   it('should handle negative balances with interest correctly', () => {
@@ -653,6 +653,265 @@ describe('Financial Calculator', () => {
     expect(firstYear?.endingFixedAssets).toBeGreaterThan(300000) // Growth from appreciation
   })
 
+  describe('One-Time Transactions', () => {
+    it('should apply one-time income only once', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
+        liquidAssetsInterestRate: 0,
+        cashFlows: [],
+      })
+
+      // Manually add a one-time income (windfall) for June 2025
+      const windfall = new CashFlow(
+        '1',
+        'Bonus',
+        10000,
+        'income',
+        stringToMonth('2025-06-01')!,
+        undefined,
+        false,
+        true // isOneTime
+      )
+      profile.cashFlows.push(windfall)
+
+      const result = calculateProjections(profile)
+
+      // Check first year total income - should be exactly 10000 (one-time)
+      const firstYear = result.annualSummaries[0]
+      expect(firstYear?.totalIncome).toBe(10000)
+
+      // Check ending balance: starting 50000 + 10000 income = 60000
+      expect(firstYear?.endingBalance).toBe(60000)
+
+      // Check that subsequent years have no income
+      const year2026 = result.annualSummaries.find((s) => s.year === 2026)
+      expect(year2026?.totalIncome).toBe(0)
+    })
+
+    it('should apply one-time expense only once', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
+        liquidAssetsInterestRate: 0,
+        cashFlows: [],
+      })
+
+      // Manually add a one-time expense for March 2025
+      const oneTimeExpense = new CashFlow(
+        '1',
+        'Car Purchase',
+        25000,
+        'expense',
+        stringToMonth('2025-03-01')!,
+        undefined,
+        false,
+        true // isOneTime
+      )
+      profile.cashFlows.push(oneTimeExpense)
+
+      const result = calculateProjections(profile)
+
+      // Check first year total expense - should be exactly 25000 (one-time)
+      const firstYear = result.annualSummaries[0]
+      expect(firstYear?.totalExpenses).toBe(25000)
+
+      // Check ending balance: starting 100000 - 25000 expense = 75000
+      expect(firstYear?.endingBalance).toBe(75000)
+
+      // Check that subsequent years have no expenses
+      const year2026 = result.annualSummaries.find((s) => s.year === 2026)
+      expect(year2026?.totalExpenses).toBe(0)
+    })
+
+    it('should handle multiple one-time transactions in different months', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
+        liquidAssetsInterestRate: 0,
+        cashFlows: [],
+      })
+
+      // Add multiple one-time transactions
+      profile.cashFlows.push(
+        new CashFlow(
+          '1',
+          'Bonus',
+          5000,
+          'income',
+          stringToMonth('2025-02-01')!,
+          undefined,
+          false,
+          true
+        )
+      )
+      profile.cashFlows.push(
+        new CashFlow(
+          '2',
+          'Tax Refund',
+          3000,
+          'income',
+          stringToMonth('2025-04-01')!,
+          undefined,
+          false,
+          true
+        )
+      )
+      profile.cashFlows.push(
+        new CashFlow(
+          '3',
+          'Vacation',
+          4000,
+          'expense',
+          stringToMonth('2025-07-01')!,
+          undefined,
+          false,
+          true
+        )
+      )
+
+      const result = calculateProjections(profile)
+
+      // Check first year totals
+      const firstYear = result.annualSummaries[0]
+      expect(firstYear?.totalIncome).toBe(8000) // 5000 + 3000
+      expect(firstYear?.totalExpenses).toBe(4000)
+
+      // Net change: +8000 - 4000 = +4000
+      expect(firstYear?.endingBalance).toBe(104000)
+    })
+
+    it('should handle mix of one-time and recurring transactions', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [{ id: '1', name: 'Savings', amount: 100000, assetType: 'liquid' }],
+        liquidAssetsInterestRate: 0,
+        cashFlows: [
+          {
+            id: '1',
+            name: 'Salary',
+            monthlyAmount: 5000,
+            type: 'income',
+            startDate: stringToMonth('2025-01-01')!,
+          },
+          {
+            id: '2',
+            name: 'Rent',
+            monthlyAmount: 1500,
+            type: 'expense',
+            startDate: stringToMonth('2025-01-01')!,
+          },
+        ],
+      })
+
+      // Add one-time bonus
+      profile.cashFlows.push(
+        new CashFlow(
+          '3',
+          'Year-end Bonus',
+          15000,
+          'income',
+          stringToMonth('2025-12-01')!,
+          undefined,
+          false,
+          true
+        )
+      )
+
+      const result = calculateProjections(profile)
+
+      // Check first year
+      const firstYear = result.annualSummaries[0]
+      // Recurring: 12 months * 5000 = 60000, One-time: 15000
+      expect(firstYear?.totalIncome).toBeCloseTo(75000, -2)
+      // Recurring: 12 months * 1500 = 18000
+      expect(firstYear?.totalExpenses).toBeCloseTo(18000, -2)
+
+      // Check second year - should only have recurring, no bonus
+      const year2026 = result.annualSummaries.find((s) => s.year === 2026)
+      expect(year2026?.totalIncome).toBeCloseTo(60000, -2) // 12 months * 5000
+      expect(year2026?.totalExpenses).toBeCloseTo(18000, -2) // 12 months * 1500
+    })
+
+    it('should apply inflation to one-time transactions based on their date', () => {
+      // Add one-time transaction 5 years in the future with inflation enabled
+      const futureWindfall = new CashFlow(
+        '1',
+        'Future Windfall',
+        10000,
+        'income',
+        stringToMonth('2030-06-01')!,
+        undefined,
+        true, // followsInflation
+        true // isOneTime
+      )
+
+      // Create profile with inflation rate and the future windfall
+      const profile = new UserProfile(
+        stringToMonth('1995-01-01')!,
+        [new LiquidAsset('1', 'Savings', 100000)],
+        [futureWindfall],
+        0, // liquidAssetsInterestRate
+        [], // debts
+        3 // inflationRate
+      )
+
+      const result = calculateProjections(profile)
+
+      // Check year 2030
+      const year2030 = result.annualSummaries.find((s) => s.year === 2030)
+
+      // After 5.5 years (66 months), amount should be: 10000 * (1.03)^5.5 ≈ 11790
+      // More precisely: from Feb 2025 to Jun 2030 is about 5.4 years
+      expect(year2030?.totalIncome).toBeGreaterThan(11500)
+      expect(year2030?.totalIncome).toBeLessThan(12000)
+    })
+
+    it('should ignore endDate for one-time transactions', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [{ id: '1', name: 'Savings', amount: 50000, assetType: 'liquid' }],
+        liquidAssetsInterestRate: 0,
+        cashFlows: [],
+      })
+
+      // Add one-time transaction with an endDate (which should be ignored)
+      const oneTime = new CashFlow(
+        '1',
+        'One-time Income',
+        10000,
+        'income',
+        stringToMonth('2025-06-01')!,
+        stringToMonth('2025-12-01')!, // This endDate should be ignored
+        false,
+        true // isOneTime
+      )
+      profile.cashFlows.push(oneTime)
+
+      const result = calculateProjections(profile)
+
+      // Should only apply once in June, not affected by December endDate
+      const firstYear = result.annualSummaries[0]
+      expect(firstYear?.totalIncome).toBe(10000)
+    })
+
+    it('should require startDate for one-time transactions', () => {
+      // This test verifies the validation in the CashFlow constructor
+      expect(() => {
+        new CashFlow(
+          '1',
+          'Invalid One-time',
+          10000,
+          'income',
+          undefined, // Missing startDate
+          undefined,
+          false,
+          true // isOneTime
+        )
+      }).toThrow('One-time transactions must have a start date')
+    })
+  })
+
   describe('Debt Calculations', () => {
     it('should handle linear debt with fixed principal payment', () => {
       const debt = new Debt({
@@ -677,8 +936,8 @@ describe('Financial Calculator', () => {
       // Should have debt at start
       expect(firstYear?.startingTotalDebt).toBe(10000)
 
-      // After 11 months (Feb-Dec 2025), principal paid should be ~5500 (500 * 11)
-      expect(firstYear?.totalDebtPrincipalPaid).toBeCloseTo(5500, -2)
+      // After 12 months (Jan-Dec 2025), principal paid should be ~6000 (500 * 12)
+      expect(firstYear?.totalDebtPrincipalPaid).toBeCloseTo(6000, -2)
 
       // Interest should be calculated on declining balance
       // Month 1: 10000 * 0.05/12 ≈ 41.67, Month 2: 9500 * 0.05/12 ≈ 39.58, etc.
@@ -712,10 +971,10 @@ describe('Financial Calculator', () => {
       // Should have debt at start
       expect(firstYear?.startingTotalDebt).toBe(20000)
 
-      // Total payments should be 600 * 11 = 6600 (11 months)
+      // Total payments should be 600 * 12 = 7200 (12 months)
       const totalPayments =
         firstYear!.totalDebtPrincipalPaid + firstYear!.totalDebtInterestPaid
-      expect(totalPayments).toBeCloseTo(6600, -2)
+      expect(totalPayments).toBeCloseTo(7200, -2)
 
       // Ending debt should be significantly reduced
       expect(firstYear?.endingTotalDebt).toBeLessThan(15000)
@@ -748,8 +1007,8 @@ describe('Financial Calculator', () => {
       // No principal should be paid in first year (interest-only)
       expect(firstYear?.totalDebtPrincipalPaid).toBe(0)
 
-      // Interest should be paid: 100000 * 0.04/12 * 11 ≈ 3667
-      expect(firstYear?.totalDebtInterestPaid).toBeCloseTo(3667, -2)
+      // Interest should be paid: 100000 * 0.04/12 * 12 ≈ 4000
+      expect(firstYear?.totalDebtInterestPaid).toBeCloseTo(4000, -2)
 
       // Debt balance should remain unchanged (interest-only)
       expect(firstYear?.endingTotalDebt).toBe(100000)
@@ -1060,14 +1319,14 @@ describe('Financial Calculator', () => {
       const result = calculateProjections(profile)
       const firstYear = result.annualSummaries[0]
 
-      // Debt should be almost paid off (6000 / 500 = 12 months, but only 11 months of payments in first year)
-      // 6000 - (500 * 11) = 500 remaining
-      expect(firstYear?.endingTotalDebt).toBe(500)
+      // Debt should be paid off in 12 months (6000 / 500 = 12 months)
+      // 6000 - (500 * 12) = 0 remaining
+      expect(firstYear?.endingTotalDebt).toBe(0)
 
-      // Check 2026 pays off the remaining 500
+      // Check 2026 has no debt
       const year2026 = result.annualSummaries.find((s) => s.year === 2026)
-      expect(year2026?.startingTotalDebt).toBe(500)
-      expect(year2026?.endingTotalDebt).toBe(0) // Should be fully paid after 1 month
+      expect(year2026?.startingTotalDebt).toBe(0)
+      expect(year2026?.endingTotalDebt).toBe(0) // Should remain at 0
     })
   })
 })

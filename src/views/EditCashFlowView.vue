@@ -22,6 +22,7 @@ const startDate = ref<Month | undefined>(undefined)
 const endDate = ref<Month | undefined>(undefined)
 const cashFlowType = ref<CashFlowType>('income')
 const followsInflation = ref<boolean>(false)
+const isOneTime = ref<boolean>(false)
 
 // UI state
 const isEditMode = computed(() => !!props.id)
@@ -34,6 +35,11 @@ const pageTitle = computed(() => {
   return `New ${typeName}`
 })
 
+// Dynamic labels based on frequency
+const amountLabel = computed(() => isOneTime.value ? 'Amount (€) *' : 'Monthly Amount (€) *')
+const startDateLabel = computed(() => isOneTime.value ? 'Date *' : 'Start Month (optional)')
+const startDateHelpText = computed(() => isOneTime.value ? 'When this transaction occurs' : 'Leave empty to start from current month')
+
 // Load existing cashflow for editing
 onMounted(() => {
   if (isEditMode.value && props.id) {
@@ -45,6 +51,7 @@ onMounted(() => {
       endDate.value = cashFlow.endDate
       cashFlowType.value = cashFlow.type
       followsInflation.value = cashFlow.followsInflation
+      isOneTime.value = cashFlow.isOneTime
     } else {
       // CashFlow not found, redirect to dashboard
       router.push({ name: 'dashboard' })
@@ -60,6 +67,7 @@ onMounted(() => {
       startDate.value = template.startDate
       endDate.value = template.endDate
       followsInflation.value = template.followsInflation ?? false
+      isOneTime.value = template.isOneTime ?? false
     } else {
       cashFlowType.value = props.typeId as CashFlowType
     }
@@ -72,6 +80,12 @@ function handleSave() {
     return
   }
 
+  // Validation: one-time transactions must have a start date
+  if (isOneTime.value && !startDate.value) {
+    alert('One-time transactions must have a date')
+    return
+  }
+
   if (isEditMode.value && props.id) {
     // Update existing cashflow
     const cashFlowData = {
@@ -81,6 +95,7 @@ function handleSave() {
       endDate: endDate.value,
       type: cashFlowType.value,
       followsInflation: followsInflation.value,
+      isOneTime: isOneTime.value,
     }
     store.updateCashFlow(props.id, cashFlowData)
   } else {
@@ -95,6 +110,7 @@ function handleSave() {
         startDate: startDate.value,
         endDate: endDate.value,
         followsInflation: followsInflation.value,
+        isOneTime: isOneTime.value,
       })
     }
   }
@@ -134,6 +150,30 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
+        <label>Frequency</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input
+              type="radio"
+              :value="false"
+              v-model="isOneTime"
+              name="frequency"
+            />
+            <span>Recurring (monthly)</span>
+          </label>
+          <label class="radio-label">
+            <input
+              type="radio"
+              :value="true"
+              v-model="isOneTime"
+              name="frequency"
+            />
+            <span>One-time</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="form-group">
         <label for="name">Name *</label>
         <input
           id="name"
@@ -145,7 +185,7 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <label for="monthly-amount">Monthly Amount (€) *</label>
+        <label for="monthly-amount">{{ amountLabel }}</label>
         <input
           id="monthly-amount"
           v-model.number="monthlyAmount"
@@ -170,11 +210,11 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <MonthEdit v-model="startDate" label="Start Month (optional)" :nullable="true" />
-        <p class="help-text">Leave empty to start from current month</p>
+        <MonthEdit v-model="startDate" :label="startDateLabel" :nullable="!isOneTime" />
+        <p class="help-text">{{ startDateHelpText }}</p>
       </div>
 
-      <div class="form-group">
+      <div v-if="!isOneTime" class="form-group">
         <MonthEdit v-model="endDate" label="End Month (optional)" :nullable="true" />
         <p class="help-text">Leave empty to continue indefinitely</p>
       </div>
@@ -286,6 +326,33 @@ select:disabled {
   margin-top: 0.5rem;
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+.radio-group {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 0;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 400;
+  color: #111827;
+  margin-bottom: 0;
+}
+
+.radio-label input[type='radio'] {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.radio-label span {
+  user-select: none;
 }
 
 .checkbox-group {

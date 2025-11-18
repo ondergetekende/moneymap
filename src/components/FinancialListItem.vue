@@ -17,6 +17,10 @@ const itemType = computed(() => {
   if (isAsset(item)) {
     return isLiquidAsset(item) ? getItemTypeById('liquid') : getItemTypeById('fixed')
   } else if (isCashFlow(item)) {
+    // For one-time cashflows, use specific templates
+    if (item.isOneTime) {
+      return item.type === 'income' ? getItemTypeById('windfall') : getItemTypeById('one-time-expense')
+    }
     return getItemTypeById(item.type)
   } else if (item instanceof Debt) {
     // Return a generic debt type definition
@@ -42,9 +46,15 @@ const formattedAmount = computed(() => {
     // For assets, show total amount
     return formatter.format(item.amount)
   } else if (isCashFlow(item)) {
-    // For cashflows, show annual amount
-    const annualAmount = item.monthlyAmount * 12
-    return `${formatter.format(annualAmount)}/y`
+    // For cashflows, show amount based on frequency
+    if (item.isOneTime) {
+      // One-time transactions: show amount as-is
+      return `${formatter.format(item.monthlyAmount)} (one-time)`
+    } else {
+      // Recurring transactions: show annual amount
+      const annualAmount = item.monthlyAmount * 12
+      return `${formatter.format(annualAmount)}/y`
+    }
   } else if (item instanceof Debt) {
     // For debts, show principal balance
     return formatter.format(item.amount)

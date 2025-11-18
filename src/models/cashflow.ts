@@ -18,6 +18,7 @@ export class CashFlow extends FinancialItem {
   readonly endDate?: Month // Optional - defaults to projection end
   readonly type: CashFlowType
   readonly followsInflation: boolean // Whether this cash flow adjusts for inflation
+  readonly isOneTime: boolean // Whether this is a one-time transaction (vs recurring monthly)
 
   constructor(
     id: string,
@@ -26,7 +27,8 @@ export class CashFlow extends FinancialItem {
     type: CashFlowType,
     startDate?: Month,
     endDate?: Month,
-    followsInflation: boolean = false
+    followsInflation: boolean = false,
+    isOneTime: boolean = false
   ) {
     super(id, name)
 
@@ -34,11 +36,17 @@ export class CashFlow extends FinancialItem {
       throw new Error('CashFlow amount cannot be negative')
     }
 
+    // Validation: one-time transactions must have a startDate
+    if (isOneTime && startDate === undefined) {
+      throw new Error('One-time transactions must have a start date')
+    }
+
     this.monthlyAmount = monthlyAmount
     this.type = type
     this.startDate = startDate
     this.endDate = endDate
     this.followsInflation = followsInflation
+    this.isOneTime = isOneTime
   }
 
   /**
@@ -52,7 +60,7 @@ export class CashFlow extends FinancialItem {
    * Create a copy of this cash flow with updated properties
    */
   with(
-    updates: Partial<Pick<CashFlow, 'name' | 'monthlyAmount' | 'startDate' | 'endDate' | 'type' | 'followsInflation'>>
+    updates: Partial<Pick<CashFlow, 'name' | 'monthlyAmount' | 'startDate' | 'endDate' | 'type' | 'followsInflation' | 'isOneTime'>>
   ): CashFlow {
     return new CashFlow(
       this.id,
@@ -61,7 +69,8 @@ export class CashFlow extends FinancialItem {
       updates.type ?? this.type,
       updates.startDate !== undefined ? updates.startDate : this.startDate,
       updates.endDate !== undefined ? updates.endDate : this.endDate,
-      updates.followsInflation ?? this.followsInflation
+      updates.followsInflation ?? this.followsInflation,
+      updates.isOneTime ?? this.isOneTime
     )
   }
 
@@ -77,6 +86,7 @@ export class CashFlow extends FinancialItem {
       endDate: this.endDate,
       type: this.type,
       followsInflation: this.followsInflation,
+      isOneTime: this.isOneTime,
     }
   }
 
@@ -107,7 +117,8 @@ export class CashFlow extends FinancialItem {
       data.type || 'expense',
       startDate,
       endDate,
-      data.followsInflation ?? false
+      data.followsInflation ?? false,
+      data.isOneTime ?? false
     )
   }
 

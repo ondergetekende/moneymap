@@ -213,7 +213,12 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     const yearsElapsed = monthIndex / 12
 
     for (const cashFlow of cashFlows) {
-      if (isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate)) {
+      // Handle one-time transactions differently from recurring ones
+      const shouldApply = cashFlow.isOneTime
+        ? currentMonth === cashFlow.startDate  // One-time: only on exact date
+        : isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate)  // Recurring: within date range
+
+      if (shouldApply) {
         // Apply inflation adjustment if enabled for this cash flow
         let amount = cashFlow.monthlyAmount
         if (cashFlow.followsInflation && inflationRate !== undefined && inflationRate !== 0) {

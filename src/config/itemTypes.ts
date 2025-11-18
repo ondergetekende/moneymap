@@ -78,6 +78,21 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
     )
   },
   {
+    id: 'windfall',
+    category: 'cashflow',
+    color: '#22c55e', // green
+    template: new CashFlow(
+      'template-windfall',
+      'Windfall',
+      10000, // One-time income (e.g., bonus, inheritance, tax refund)
+      'income',
+      getCurrentMonth(), // Requires a date for one-time transactions
+      undefined,
+      false,
+      true // isOneTime
+    )
+  },
+  {
     id: 'mortgage',
     category: 'debt',
     color: '#f97316', // orange
