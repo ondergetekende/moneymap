@@ -1,5 +1,5 @@
 /**
- * Pinia store for financial planner state management
+ * Pinia store for MoneyMap state management
  */
 
 import { defineStore } from 'pinia'

@@ -33,10 +33,10 @@ jobs:
         id: env
         run: |
           if [ "${{ github.ref }}" = "refs/heads/production" ]; then
-            echo "project_name=financial-planner" >> $GITHUB_OUTPUT
+            echo "project_name=moneymap" >> $GITHUB_OUTPUT
             echo "environment=production" >> $GITHUB_OUTPUT
           else
-            echo "project_name=financial-planner-beta" >> $GITHUB_OUTPUT
+            echo "project_name=moneymap-beta" >> $GITHUB_OUTPUT
             echo "environment=beta" >> $GITHUB_OUTPUT
           fi
 

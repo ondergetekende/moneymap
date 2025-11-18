@@ -4,7 +4,7 @@
 
 import { UserProfile } from '@/models'
 
-const STORAGE_KEY = 'financial-planner-data'
+const STORAGE_KEY = 'moneymap-data'
 
 export const storageService = {
   /**

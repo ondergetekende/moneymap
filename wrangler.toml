@@ -1,7 +1,7 @@
 # Cloudflare Pages configuration
 # This file defines settings for Cloudflare Pages deployments
 
-name = "financial-planner"
+name = "moneymap"
 compatibility_date = "2025-01-17"
 
 # Static assets directory for Pages

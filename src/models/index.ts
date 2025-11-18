@@ -1,7 +1,7 @@
 /**
- * Financial planner models
+ * MoneyMap models
  *
- * This module exports all model classes and types used in the financial planner application.
+ * This module exports all model classes and types used in the MoneyMap application.
  */
 
 // Base class

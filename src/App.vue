@@ -1,8 +1,8 @@
 <template>
   <div id="app">
     <header>
-      <h1>Financial Planner</h1>
-      <p class="subtitle">Plan your long-term financial goals</p>
+      <h1>MoneyMap</h1>
+      <p class="subtitle">Navigate your financial future</p>
     </header>
 
     <main>
