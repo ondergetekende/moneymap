@@ -5,6 +5,8 @@ import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import { LiquidAsset, FixedAsset } from '@/models'
 import type { AssetType } from '@/models'
+import type { Month } from '@/types/month'
+import MonthEdit from '@/components/MonthEdit.vue'
 
 const props = defineProps<{
   id?: string
@@ -18,6 +20,7 @@ const store = usePlannerStore()
 const name = ref('')
 const amount = ref<number>(0)
 const annualInterestRate = ref<number>(0)
+const liquidationDate = ref<Month | undefined>(undefined)
 const assetType = ref<AssetType>('liquid')
 
 // UI state
@@ -43,6 +46,7 @@ onMounted(() => {
       assetType.value = asset instanceof FixedAsset ? 'fixed' : 'liquid'
       if (asset instanceof FixedAsset) {
         annualInterestRate.value = asset.annualInterestRate
+        liquidationDate.value = asset.liquidationDate
       }
     } else {
       // Asset not found, redirect to dashboard
@@ -60,6 +64,7 @@ onMounted(() => {
         assetType.value = 'fixed'
         amount.value = template.amount
         annualInterestRate.value = template.annualInterestRate
+        liquidationDate.value = template.liquidationDate
       } else if (template instanceof LiquidAsset) {
         assetType.value = 'liquid'
         amount.value = template.amount
@@ -84,6 +89,7 @@ function handleSave() {
     }
     if (assetType.value === 'fixed') {
       updates.annualInterestRate = annualInterestRate.value
+      updates.liquidationDate = liquidationDate.value
     }
     store.updateCapitalAccount(props.id, updates)
   } else {
@@ -94,6 +100,7 @@ function handleSave() {
         name: name.value.trim(),
         amount: amount.value,
         annualInterestRate: annualInterestRate.value,
+        liquidationDate: liquidationDate.value,
       })
     } else {
       store.addCapitalAccount({
@@ -175,6 +182,14 @@ function handleDelete() {
         <p class="help-text">
           Annual appreciation or depreciation rate. Use positive for growth, negative for
           depreciation.
+        </p>
+      </div>
+
+      <div v-if="showInterestRate" class="form-group">
+        <MonthEdit v-model="liquidationDate" label="Liquidation Month (optional)" :nullable="true" />
+        <p class="help-text">
+          Optional: Month when this asset will be sold/liquidated. The asset value will be
+          transferred to liquid assets.
         </p>
       </div>
 

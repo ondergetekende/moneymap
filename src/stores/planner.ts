@@ -99,7 +99,7 @@ export const usePlannerStore = defineStore('planner', () => {
   function addCapitalAccount(
     account:
       | { type: 'liquid'; name: string; amount: number }
-      | { type: 'fixed'; name: string; amount: number; annualInterestRate: number }
+      | { type: 'fixed'; name: string; amount: number; annualInterestRate: number; liquidationDate?: Month }
   ) {
     const id = crypto.randomUUID()
     let newAccount: CapitalAccount
@@ -109,7 +109,8 @@ export const usePlannerStore = defineStore('planner', () => {
         id,
         account.name,
         account.amount,
-        account.annualInterestRate
+        account.annualInterestRate,
+        account.liquidationDate
       )
     } else {
       newAccount = new LiquidAsset(id, account.name, account.amount)

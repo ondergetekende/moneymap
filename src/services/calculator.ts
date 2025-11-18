@@ -126,6 +126,14 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       const monthlyRate = asset.annualInterestRate / 100 / 12
       const valueChange = asset.balance * monthlyRate
       asset.balance += valueChange
+
+      // Check for liquidation at start of month (after appreciation for this month)
+      if (asset.liquidationDate !== undefined && currentMonth >= asset.liquidationDate && asset.balance > 0) {
+        // Transfer asset value to liquid assets
+        liquidAssetsBalance += asset.balance
+        // Set asset balance to 0 for rest of projection
+        asset.balance = 0
+      }
     }
 
     // Process debt payments (after interest on liquid assets)

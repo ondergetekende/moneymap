@@ -3,6 +3,7 @@
  */
 
 import { FinancialItem } from './base'
+import type { Month } from '../types/month'
 
 export type AssetType = 'liquid' | 'fixed'
 
@@ -71,8 +72,9 @@ export class LiquidAsset extends FinancialItem {
 export class FixedAsset extends FinancialItem {
   readonly amount: number
   readonly annualInterestRate: number // Annual appreciation/depreciation rate as percentage (e.g., 3 for 3%, -10 for -10%)
+  readonly liquidationDate?: Month // Optional - month when asset will be sold/liquidated
 
-  constructor(id: string, name: string, amount: number, annualInterestRate: number) {
+  constructor(id: string, name: string, amount: number, annualInterestRate: number, liquidationDate?: Month) {
     super(id, name)
 
     if (amount < 0) {
@@ -81,17 +83,19 @@ export class FixedAsset extends FinancialItem {
 
     this.amount = amount
     this.annualInterestRate = annualInterestRate
+    this.liquidationDate = liquidationDate
   }
 
   /**
    * Create a copy of this asset with updated properties
    */
-  with(updates: Partial<Pick<FixedAsset, 'name' | 'amount' | 'annualInterestRate'>>): FixedAsset {
+  with(updates: Partial<Pick<FixedAsset, 'name' | 'amount' | 'annualInterestRate' | 'liquidationDate'>>): FixedAsset {
     return new FixedAsset(
       this.id,
       updates.name ?? this.name,
       updates.amount ?? this.amount,
-      updates.annualInterestRate ?? this.annualInterestRate
+      updates.annualInterestRate ?? this.annualInterestRate,
+      updates.liquidationDate !== undefined ? updates.liquidationDate : this.liquidationDate
     )
   }
 
@@ -105,6 +109,7 @@ export class FixedAsset extends FinancialItem {
       name: this.name,
       amount: this.amount,
       annualInterestRate: this.annualInterestRate,
+      liquidationDate: this.liquidationDate,
       assetType: 'fixed', // For backward compatibility
     }
   }
@@ -117,7 +122,8 @@ export class FixedAsset extends FinancialItem {
       data.id || crypto.randomUUID(),
       data.name || '',
       data.amount || 0,
-      data.annualInterestRate || 0
+      data.annualInterestRate || 0,
+      data.liquidationDate // Optional, will be undefined for old data
     )
   }
 

@@ -7,13 +7,14 @@ import { stringToMonth } from '@/types/month'
 // Helper to create test profiles using classes
 function createTestProfile(data: {
   birthDate: string
-  capitalAccounts: Array<{ id: string; name: string; amount: number; assetType: 'liquid' | 'fixed'; annualInterestRate?: number }>
+  capitalAccounts: Array<{ id: string; name: string; amount: number; assetType: 'liquid' | 'fixed'; annualInterestRate?: number; liquidationDate?: string | Month }>
   liquidAssetsInterestRate: number
   cashFlows: Array<{ id: string; name: string; monthlyAmount: number; type: 'income' | 'expense'; startDate?: string | Month; endDate?: string | Month }>
 }): UserProfile {
   const accounts = data.capitalAccounts.map(acc => {
     if (acc.assetType === 'fixed') {
-      return new FixedAsset(acc.id, acc.name, acc.amount, acc.annualInterestRate || 0)
+      const liquidationDate = typeof acc.liquidationDate === 'string' ? stringToMonth(acc.liquidationDate) : acc.liquidationDate
+      return new FixedAsset(acc.id, acc.name, acc.amount, acc.annualInterestRate || 0, liquidationDate)
     } else {
       return new LiquidAsset(acc.id, acc.name, acc.amount)
     }
@@ -1327,6 +1328,255 @@ describe('Financial Calculator', () => {
       const year2026 = result.annualSummaries.find((s) => s.year === 2026)
       expect(year2026?.startingTotalDebt).toBe(0)
       expect(year2026?.endingTotalDebt).toBe(0) // Should remain at 0
+    })
+  })
+
+  describe('Fixed Asset Liquidation', () => {
+    it('should transfer fixed asset value to liquid assets on liquidation date', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01', // 30 years old in 2025
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 50000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'House',
+            amount: 300000,
+            annualInterestRate: 3,
+            assetType: 'fixed',
+            liquidationDate: '2030-06-01' // Liquidate in June 2030
+          }
+        ],
+        liquidAssetsInterestRate: 5,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // Check year before liquidation (2029) - house should have appreciated
+      const year2029 = result.annualSummaries.find((s) => s.year === 2029)
+      expect(year2029?.endingFixedAssets).toBeGreaterThan(300000) // Appreciated
+      expect(year2029?.endingFixedAssets).toBeLessThan(400000)
+
+      // Check year of liquidation (2030) - house should be liquidated
+      const year2030 = result.annualSummaries.find((s) => s.year === 2030)
+
+      // Fixed assets should be 0 at end of year (liquidated in June)
+      expect(year2030?.endingFixedAssets).toBe(0)
+
+      // Liquid assets should have increased by the house value
+      // They should be > starting liquid assets + appreciation over 5 years
+      expect(year2030?.endingLiquidAssets).toBeGreaterThan(300000)
+
+      // Check year after liquidation (2031) - fixed assets remain at 0
+      const year2031 = result.annualSummaries.find((s) => s.year === 2031)
+      expect(year2031?.startingFixedAssets).toBe(0)
+      expect(year2031?.endingFixedAssets).toBe(0)
+    })
+
+    it('should liquidate at start of specified month after appreciation', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 10000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'Investment Property',
+            amount: 100000,
+            annualInterestRate: 6, // 6% annual appreciation
+            assetType: 'fixed',
+            liquidationDate: '2025-12-01' // Liquidate in December 2025
+          }
+        ],
+        liquidAssetsInterestRate: 0,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+      const firstYear = result.annualSummaries[0]
+
+      // Property should appreciate for 11 months (Jan-Nov) before liquidation in Dec
+      // 100000 * (1 + 0.06/12)^12 ≈ 106167
+      expect(firstYear?.endingFixedAssets).toBe(0) // Liquidated
+
+      // Liquid assets should have the appreciated value
+      // Starting: 10000, Added from liquidation: ~106167
+      expect(firstYear?.endingLiquidAssets).toBeCloseTo(116168, 0)
+    })
+
+    it('should handle multiple fixed assets with different liquidation dates', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 20000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'House',
+            amount: 300000,
+            annualInterestRate: 3,
+            assetType: 'fixed',
+            liquidationDate: '2030-01-01'
+          },
+          {
+            id: '3',
+            name: 'Car',
+            amount: 30000,
+            annualInterestRate: -10, // Depreciation
+            assetType: 'fixed',
+            liquidationDate: '2027-01-01'
+          }
+        ],
+        liquidAssetsInterestRate: 5,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // 2026: Both assets still active
+      const year2026 = result.annualSummaries.find((s) => s.year === 2026)
+      expect(year2026?.endingFixedAssets).toBeGreaterThan(300000) // House appreciated, car depreciated but total > 300k
+
+      // 2027: Car liquidated (in Jan), house still active
+      const year2027 = result.annualSummaries.find((s) => s.year === 2027)
+      expect(year2027?.endingFixedAssets).toBeGreaterThan(300000) // Only house remains
+      expect(year2027?.endingFixedAssets).toBeLessThan(400000)
+
+      // 2030: Both liquidated
+      const year2030 = result.annualSummaries.find((s) => s.year === 2030)
+      expect(year2030?.endingFixedAssets).toBe(0) // All liquidated
+    })
+
+    it('should handle fixed asset without liquidation date (never liquidates)', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 50000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'House',
+            amount: 200000,
+            annualInterestRate: 3,
+            assetType: 'fixed'
+            // No liquidationDate
+          }
+        ],
+        liquidAssetsInterestRate: 5,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // Check multiple years - house should never liquidate
+      const year2030 = result.annualSummaries.find((s) => s.year === 2030)
+      expect(year2030?.endingFixedAssets).toBeGreaterThan(200000) // Still appreciating
+
+      const year2050 = result.annualSummaries.find((s) => s.year === 2050)
+      expect(year2050?.endingFixedAssets).toBeGreaterThan(300000) // Still appreciating
+
+      const lastYear = result.annualSummaries[result.annualSummaries.length - 1]
+      expect(lastYear?.endingFixedAssets).toBeGreaterThan(0) // Never liquidated
+    })
+
+    it('should liquidate once and remain at 0 after liquidation', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 100000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'Property',
+            amount: 150000,
+            annualInterestRate: 4,
+            assetType: 'fixed',
+            liquidationDate: '2028-01-01'
+          }
+        ],
+        liquidAssetsInterestRate: 0,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // Before liquidation
+      const year2027 = result.annualSummaries.find((s) => s.year === 2027)
+      expect(year2027?.endingFixedAssets).toBeGreaterThan(150000)
+
+      // Year of liquidation
+      const year2028 = result.annualSummaries.find((s) => s.year === 2028)
+      expect(year2028?.endingFixedAssets).toBe(0)
+
+      // Multiple years after liquidation - should stay at 0
+      const year2029 = result.annualSummaries.find((s) => s.year === 2029)
+      expect(year2029?.startingFixedAssets).toBe(0)
+      expect(year2029?.endingFixedAssets).toBe(0)
+
+      const year2040 = result.annualSummaries.find((s) => s.year === 2040)
+      expect(year2040?.startingFixedAssets).toBe(0)
+      expect(year2040?.endingFixedAssets).toBe(0)
+    })
+
+    it('should handle deprecating asset liquidation correctly', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 50000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'Car',
+            amount: 40000,
+            annualInterestRate: -15, // Heavy depreciation
+            assetType: 'fixed',
+            liquidationDate: '2027-06-01'
+          }
+        ],
+        liquidAssetsInterestRate: 0,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // Year of liquidation
+      const year2027 = result.annualSummaries.find((s) => s.year === 2027)
+
+      // Car should have depreciated significantly but still transferred
+      // After ~2.5 years at -15%: 40000 * (1 - 0.15)^2.5 ≈ 26000
+      expect(year2027?.endingFixedAssets).toBe(0) // Liquidated
+      expect(year2027?.endingLiquidAssets).toBeGreaterThan(70000) // 50k + depreciated car value
+      expect(year2027?.endingLiquidAssets).toBeLessThan(80000)
+    })
+
+    it('should correctly update net worth when liquidating', () => {
+      const profile = createTestProfile({
+        birthDate: '1995-01-01',
+        capitalAccounts: [
+          { id: '1', name: 'Cash', amount: 100000, assetType: 'liquid' },
+          {
+            id: '2',
+            name: 'Asset',
+            amount: 200000,
+            annualInterestRate: 5,
+            assetType: 'fixed',
+            liquidationDate: '2026-01-01'
+          }
+        ],
+        liquidAssetsInterestRate: 3,
+        cashFlows: []
+      })
+
+      const result = calculateProjections(profile)
+
+      // Before liquidation
+      const year2025 = result.annualSummaries.find((s) => s.year === 2025)
+      const netWorth2025 = year2025!.endingLiquidAssets + year2025!.endingFixedAssets
+
+      // After liquidation
+      const year2026 = result.annualSummaries.find((s) => s.year === 2026)
+
+      // Net worth should continue growing (all liquid now, earning interest)
+      expect(year2026?.endingBalance).toBeGreaterThan(netWorth2025)
+
+      // Total should equal liquid assets only (fixed assets are 0)
+      expect(year2026?.endingBalance).toBe(year2026!.endingLiquidAssets)
+      expect(year2026?.endingFixedAssets).toBe(0)
     })
   })
 })
