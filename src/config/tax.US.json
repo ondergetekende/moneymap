@@ -1,0 +1,157 @@
+{
+  "countryCode": "US",
+  "countryName": "United States of America",
+  "incomeTaxes": [
+    {
+      "id": "us-income-single",
+      "name": "Federal Income Tax (Single Filer)",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 10
+        },
+        {
+          "threshold": 11600,
+          "rate": 12
+        },
+        {
+          "threshold": 47150,
+          "rate": 22
+        },
+        {
+          "threshold": 100525,
+          "rate": 24
+        },
+        {
+          "threshold": 191950,
+          "rate": 32
+        },
+        {
+          "threshold": 243725,
+          "rate": 35
+        },
+        {
+          "threshold": 609350,
+          "rate": 37
+        }
+      ],
+      "exemptionThreshold": 13850,
+      "notes": "2024 tax brackets for single filer status. Standard deduction of $13,850 applies. State taxes may additionally apply."
+    },
+    {
+      "id": "us-income-joint",
+      "name": "Federal Income Tax (Married Filing Jointly)",
+      "type": "income",
+      "isDefault": false,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 10
+        },
+        {
+          "threshold": 23200,
+          "rate": 12
+        },
+        {
+          "threshold": 94300,
+          "rate": 22
+        },
+        {
+          "threshold": 201050,
+          "rate": 24
+        },
+        {
+          "threshold": 383900,
+          "rate": 32
+        },
+        {
+          "threshold": 487450,
+          "rate": 35
+        },
+        {
+          "threshold": 731200,
+          "rate": 37
+        }
+      ],
+      "exemptionThreshold": 27700,
+      "notes": "2024 tax brackets for married couples filing jointly. Standard deduction of $27,700 applies. State taxes may additionally apply."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "us-wealth",
+      "name": "Federal Wealth Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "The United States does not currently have a federal wealth tax. Some states may have property taxes or other asset-based taxes."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "us-capital-gains-short",
+      "name": "Short-Term Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": false,
+      "notes": "Assets held for less than one year are taxed as ordinary income using income tax brackets",
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 10
+        },
+        {
+          "threshold": 11600,
+          "rate": 12
+        },
+        {
+          "threshold": 47150,
+          "rate": 22
+        },
+        {
+          "threshold": 100525,
+          "rate": 24
+        },
+        {
+          "threshold": 191950,
+          "rate": 32
+        },
+        {
+          "threshold": 243725,
+          "rate": 35
+        },
+        {
+          "threshold": 609350,
+          "rate": 37
+        }
+      ]
+    },
+    {
+      "id": "us-capital-gains-long",
+      "name": "Long-Term Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 44625,
+          "rate": 15
+        },
+        {
+          "threshold": 492300,
+          "rate": 20
+        }
+      ],
+      "notes": "2024 rates for assets held longer than one year. Additional 3.8% Net Investment Income Tax may apply for high-income taxpayers."
+    }
+  ],
+  "sources": [
+    "https://www.irs.gov/newsroom/irs-provides-tax-inflation-adjustments-for-tax-year-2024",
+    "https://www.irs.gov/taxtopics/tc409",
+    "https://www.irs.gov/pub/irs-pdf/p17.pdf"
+  ]
+}

@@ -1,0 +1,93 @@
+{
+  "countryCode": "DE",
+  "countryName": "Germany",
+  "incomeTaxes": [
+    {
+      "id": "de-income-single",
+      "name": "Personal Income Tax (Single)",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 11604,
+          "rate": 14
+        },
+        {
+          "threshold": 15999,
+          "rate": 24
+        },
+        {
+          "threshold": 62809,
+          "rate": 42
+        },
+        {
+          "threshold": 277825,
+          "rate": 45
+        }
+      ],
+      "exemptionThreshold": 11604,
+      "notes": "2024 tax year. Progressive tax system with solidarity surcharge of 5.5% on income tax for income above €75,000. Basic personal allowance (Grundfreibetrag) of €11,604."
+    },
+    {
+      "id": "de-income-married",
+      "name": "Personal Income Tax (Married Joint)",
+      "type": "income",
+      "isDefault": false,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 23208,
+          "rate": 14
+        },
+        {
+          "threshold": 31998,
+          "rate": 24
+        },
+        {
+          "threshold": 125618,
+          "rate": 42
+        },
+        {
+          "threshold": 555650,
+          "rate": 45
+        }
+      ],
+      "exemptionThreshold": 23208,
+      "notes": "2024 tax year. Married couples can file jointly (Ehegattensplitting). Thresholds are double those of single filers."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "de-wealth",
+      "name": "Wealth Tax (Vermögensteuer)",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "Germany abolished its wealth tax in 1997. Currently no wealth tax exists."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "de-capital-gains",
+      "name": "Capital Gains Tax (Abgeltungsteuer)",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 25,
+      "exemptionThreshold": 1000,
+      "notes": "2024 tax year. Flat rate of 25% plus solidarity surcharge of 5.5% on the tax. Annual exemption (Sparerpauschbetrag) of €1,000 for single filers, €2,000 for married couples filing jointly."
+    }
+  ],
+  "sources": [
+    "https://www.bundesfinanzministerium.de/",
+    "https://www.gesetze-im-internet.de/estg/",
+    "https://en.wikipedia.org/wiki/Taxation_in_Germany",
+    "https://www.steuerliches-info-center.de/"
+  ]
+}

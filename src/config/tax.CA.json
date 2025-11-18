@@ -1,0 +1,60 @@
+{
+  "countryCode": "CA",
+  "countryName": "Canada",
+  "incomeTaxes": [
+    {
+      "id": "ca-income-federal",
+      "name": "Federal Income Tax",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 15
+        },
+        {
+          "threshold": 55867,
+          "rate": 20.5
+        },
+        {
+          "threshold": 111733,
+          "rate": 26
+        },
+        {
+          "threshold": 173205,
+          "rate": 29
+        },
+        {
+          "threshold": 246752,
+          "rate": 33
+        }
+      ],
+      "exemptionThreshold": 15705,
+      "notes": "2024 federal tax brackets. Basic personal amount (exemption) is $15,705. Provincial taxes apply additionally."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "ca-wealth",
+      "name": "Wealth Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "Canada does not have a federal wealth tax as of 2024"
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "ca-capital-gains",
+      "name": "Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 50,
+      "notes": "50% of capital gains are included in taxable income and taxed at the individual's marginal tax rate. 2024 tax year."
+    }
+  ],
+  "sources": [
+    "https://www.canada.ca/en/revenue-agency/services/tax/individuals/frequently-asked-questions-individuals/canadian-income-tax-rates-individuals-current-previous-years.html",
+    "https://www.canada.ca/en/revenue-agency/services/tax/individuals/topics/about-your-tax-return/tax-return/completing-a-tax-return/deductions-credits-expenses/line-23600-net-income/line-12700-capital-gains-deduction.html"
+  ]
+}

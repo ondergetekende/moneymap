@@ -1,0 +1,120 @@
+{
+  "countryCode": "ES",
+  "countryName": "Spain",
+  "incomeTaxes": [
+    {
+      "id": "es-income-general",
+      "name": "General Income Tax",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 19
+        },
+        {
+          "threshold": 12450,
+          "rate": 24
+        },
+        {
+          "threshold": 20200,
+          "rate": 30
+        },
+        {
+          "threshold": 35200,
+          "rate": 37
+        },
+        {
+          "threshold": 60000,
+          "rate": 45
+        },
+        {
+          "threshold": 300000,
+          "rate": 47
+        }
+      ],
+      "exemptionThreshold": 5550,
+      "notes": "2024 Spanish state income tax (IRPF). Additional regional taxes apply depending on autonomous community. Personal allowance of €5,550 for taxpayers under 65."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "es-wealth",
+      "name": "Wealth Tax (Impuesto sobre el Patrimonio)",
+      "type": "wealth",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0.2
+        },
+        {
+          "threshold": 167129.45,
+          "rate": 0.3
+        },
+        {
+          "threshold": 334252.96,
+          "rate": 0.5
+        },
+        {
+          "threshold": 668499.75,
+          "rate": 0.9
+        },
+        {
+          "threshold": 1336999.51,
+          "rate": 1.3
+        },
+        {
+          "threshold": 2673999.01,
+          "rate": 1.7
+        },
+        {
+          "threshold": 5347998.03,
+          "rate": 2.1
+        },
+        {
+          "threshold": 10695996.06,
+          "rate": 3.5
+        }
+      ],
+      "exemptionThreshold": 700000,
+      "notes": "2024 Spanish wealth tax. Main residence exempt up to €300,000. Total general exemption of €700,000. Rates may vary by autonomous community."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "es-capital-gains",
+      "name": "Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 19
+        },
+        {
+          "threshold": 6000,
+          "rate": 21
+        },
+        {
+          "threshold": 50000,
+          "rate": 23
+        },
+        {
+          "threshold": 200000,
+          "rate": 27
+        },
+        {
+          "threshold": 300000,
+          "rate": 28
+        }
+      ],
+      "notes": "2024 capital gains tax rates. Applies to investment income, dividends, and capital gains. Part of the savings tax base (base del ahorro)."
+    }
+  ],
+  "sources": [
+    "https://www.agenciatributaria.es/",
+    "https://www.agenciatributaria.es/AEAT.internet/Inicio/La_Agencia_Tributaria/Campanas/_Campanas_/Impuesto_sobre_la_Renta_de_las_Personas_Fisicas__IRPF_/",
+    "https://en.wikipedia.org/wiki/Taxation_in_Spain"
+  ]
+}

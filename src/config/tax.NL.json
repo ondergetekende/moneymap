@@ -1,0 +1,67 @@
+{
+  "countryCode": "NL",
+  "countryName": "Netherlands",
+  "incomeTaxes": [
+    {
+      "id": "nl-income-box1",
+      "name": "Box 1 Income Tax (Employment and Housing)",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 36.93
+        },
+        {
+          "threshold": 73031,
+          "rate": 49.5
+        }
+      ],
+      "exemptionThreshold": 3500,
+      "notes": "2024 rates for Box 1 income (employment, business, primary residence). General tax credit up to €3,500 applies. Amount varies based on income."
+    },
+    {
+      "id": "nl-income-box2",
+      "name": "Box 2 Income Tax (Substantial Business Interest)",
+      "type": "income",
+      "isDefault": false,
+      "rate": 33,
+      "notes": "2024 rate for income from substantial business interest (5% or more shares in a company)"
+    },
+    {
+      "id": "nl-income-box3",
+      "name": "Box 3 Income Tax (Savings and Investments)",
+      "type": "income",
+      "isDefault": false,
+      "rate": 36,
+      "exemptionThreshold": 57000,
+      "notes": "2024 rate. Applies to net wealth from savings and investments. Tax-free allowance of €57,000 per person (€114,000 for fiscal partners)"
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "nl-wealth",
+      "name": "Box 3 Wealth Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 36,
+      "exemptionThreshold": 57000,
+      "notes": "2024 rate. Integrated with Box 3 income tax system. Calculated based on deemed returns on assets."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "nl-capital-gains",
+      "name": "Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "Netherlands does not have a separate capital gains tax. Capital gains are taxed through Box 2 (substantial business interest) or Box 3 (savings and investments) system."
+    }
+  ],
+  "sources": [
+    "https://www.belastingdienst.nl/wps/wcm/connect/nl/home/home",
+    "https://www.government.nl/topics/taxation",
+    "https://www.pwc.nl/en/services/tax/news/dutch-tax-plan-2024.html"
+  ]
+}

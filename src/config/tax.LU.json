@@ -1,0 +1,129 @@
+{
+  "countryCode": "LU",
+  "countryName": "Luxembourg",
+  "incomeTaxes": [
+    {
+      "id": "lu-income-single",
+      "name": "Personal Income Tax",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 11265,
+          "rate": 8
+        },
+        {
+          "threshold": 13173,
+          "rate": 9
+        },
+        {
+          "threshold": 15081,
+          "rate": 10
+        },
+        {
+          "threshold": 16989,
+          "rate": 11
+        },
+        {
+          "threshold": 18897,
+          "rate": 12
+        },
+        {
+          "threshold": 20805,
+          "rate": 14
+        },
+        {
+          "threshold": 22713,
+          "rate": 16
+        },
+        {
+          "threshold": 24621,
+          "rate": 18
+        },
+        {
+          "threshold": 26529,
+          "rate": 20
+        },
+        {
+          "threshold": 28437,
+          "rate": 22
+        },
+        {
+          "threshold": 30345,
+          "rate": 24
+        },
+        {
+          "threshold": 32253,
+          "rate": 26
+        },
+        {
+          "threshold": 34161,
+          "rate": 28
+        },
+        {
+          "threshold": 36069,
+          "rate": 30
+        },
+        {
+          "threshold": 37977,
+          "rate": 32
+        },
+        {
+          "threshold": 39885,
+          "rate": 34
+        },
+        {
+          "threshold": 41793,
+          "rate": 36
+        },
+        {
+          "threshold": 43701,
+          "rate": 38
+        },
+        {
+          "threshold": 45609,
+          "rate": 39
+        },
+        {
+          "threshold": 47517,
+          "rate": 40
+        },
+        {
+          "threshold": 200004,
+          "rate": 42
+        }
+      ],
+      "exemptionThreshold": 11265,
+      "notes": "2024 tax rates. Additional 7% employment fund contribution applies. Tax class 1 for single individuals."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "lu-wealth",
+      "name": "Net Wealth Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "Luxembourg abolished personal wealth tax in 2006. Only corporate net wealth tax remains."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "lu-capital-gains",
+      "name": "Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "2024 rates. Capital gains from sale of property held >2 years taxed at half global rate. Gains from substantial shareholdings taxed at standard income tax rates. Some exemptions apply."
+    }
+  ],
+  "sources": [
+    "https://impotsdirects.public.lu/",
+    "https://guichet.public.lu/en/citoyens/impots-taxes.html",
+    "https://www.pwc.lu/en/tax-consulting/docs/pwc-luxembourg-tax-rates-2024.pdf"
+  ]
+}

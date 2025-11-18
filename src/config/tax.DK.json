@@ -1,0 +1,66 @@
+{
+  "countryCode": "DK",
+  "countryName": "Denmark",
+  "incomeTaxes": [
+    {
+      "id": "dk-income-base",
+      "name": "Base Income Tax",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 12.09
+        },
+        {
+          "threshold": 568900,
+          "rate": 15
+        }
+      ],
+      "notes": "2024 base tax rate (bundskat) plus labor market contribution (AM-bidrag) at 8%. Additional municipal tax (kommuneskat) varies by municipality (average 24.98%). Thresholds in DKK."
+    },
+    {
+      "id": "dk-income-municipal",
+      "name": "Municipal Income Tax",
+      "type": "income",
+      "rate": 24.98,
+      "isDefault": false,
+      "notes": "2024 average municipal tax rate (kommuneskat). Actual rates vary by municipality between 22.8% and 26.3%."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "dk-wealth",
+      "name": "Wealth Tax",
+      "type": "wealth",
+      "rate": 0,
+      "isDefault": true,
+      "notes": "Denmark abolished its wealth tax (formueskat) in 1997. No general wealth tax currently exists."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "dk-capital-gains-shares",
+      "name": "Share Income Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 27
+        },
+        {
+          "threshold": 58900,
+          "rate": 42
+        }
+      ],
+      "notes": "2024 tax rates for shares and dividends (aktieindkomst). Thresholds in DKK."
+    }
+  ],
+  "sources": [
+    "https://skat.dk/data.aspx?oid=2035568",
+    "https://tax.dk/pjece/tax_rates.htm",
+    "https://www.nordisketax.net/main.asp?url=files/dan/eng/i07.asp",
+    "https://en.wikipedia.org/wiki/Taxation_in_Denmark"
+  ]
+}

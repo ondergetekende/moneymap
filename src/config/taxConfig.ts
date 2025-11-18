@@ -73,258 +73,21 @@ export interface CountryTaxConfig {
 }
 
 // =============================================================================
-// COUNTRY CONFIGURATIONS
+// JSON IMPORTS
 // =============================================================================
 
-/**
- * Netherlands Tax System (2024)
- *
- * The Dutch tax system uses a "box" system where different types of income
- * are taxed separately.
- *
- * Income Tax:
- * https://en.wikipedia.org/wiki/Income_tax_in_the_Netherlands
- *
- * Box 3 (Wealth Tax):
- * https://en.wikipedia.org/wiki/Taxation_in_the_Netherlands#Box_3
- *
- * Capital Gains:
- * The Netherlands does not have a separate capital gains tax for individuals.
- * Investment income is covered by the Box 3 wealth tax system, which uses
- * a deemed return method.
- */
-export const NL_TAX_CONFIG: CountryTaxConfig = {
-  countryCode: 'NL',
-  countryName: 'Netherlands',
+// Import generated tax configurations from JSON files
+import BE_TAX_CONFIG from './tax.BE.json'
+import CA_TAX_CONFIG from './tax.CA.json'
+import DE_TAX_CONFIG from './tax.DE.json'
+import DK_TAX_CONFIG from './tax.DK.json'
+import ES_TAX_CONFIG from './tax.ES.json'
+import FR_TAX_CONFIG from './tax.FR.json'
+import GB_TAX_CONFIG from './tax.GB.json'
+import LU_TAX_CONFIG from './tax.LU.json'
+import NL_TAX_CONFIG from './tax.NL.json'
+import US_TAX_CONFIG from './tax.US.json'
 
-  incomeTaxes: [
-    {
-      id: 'nl-box1',
-      name: 'Box 1 - Employment & Business Income',
-      type: 'income',
-      isDefault: true,
-      brackets: [
-        { threshold: 0, rate: 36.93 },
-        { threshold: 73031, rate: 49.5 }
-      ],
-      notes: '2024 rates for income from employment, business, and home ownership'
-    },
-    {
-      id: 'nl-box2',
-      name: 'Box 2 - Substantial Interest',
-      type: 'income',
-      isDefault: false,
-      rate: 26.9,
-      notes: 'For income from substantial shareholdings (5% or more)'
-    }
-  ],
-
-  wealthTaxes: [
-    {
-      id: 'nl-box3-wealth',
-      name: 'Box 3 - Savings & Investments Tax',
-      type: 'wealth',
-      isDefault: true,
-      exemptionThreshold: 57000,
-      rate: 36,
-      notes: 'Tax on deemed return from savings and investments. Exemption is per person (€57,000 in 2024). The deemed return is approximately 6%, taxed at 36%.'
-    }
-  ],
-
-  capitalGainsTaxes: [
-    {
-      id: 'nl-no-cgt',
-      name: 'No Separate Capital Gains Tax',
-      type: 'capital_gains',
-      isDefault: true,
-      rate: 0,
-      notes: 'Capital gains are covered by Box 3 wealth tax'
-    }
-  ]
-}
-
-/**
- * United States Federal Tax System (2024)
- *
- * These are federal tax rates only. State and local taxes are not included.
- * Rates shown are for single filers.
- *
- * Income Tax:
- * https://en.wikipedia.org/wiki/Income_tax_in_the_United_States
- *
- * Capital Gains Tax:
- * https://en.wikipedia.org/wiki/Capital_gains_tax_in_the_United_States
- *
- * Wealth Tax:
- * The United States does not have a federal wealth tax.
- * https://en.wikipedia.org/wiki/Wealth_tax#United_States
- */
-export const US_TAX_CONFIG: CountryTaxConfig = {
-  countryCode: 'US',
-  countryName: 'United States',
-
-  incomeTaxes: [
-    {
-      id: 'us-federal-single',
-      name: 'Federal Income Tax (Single Filer)',
-      type: 'income',
-      isDefault: true,
-      brackets: [
-        { threshold: 0, rate: 10 },
-        { threshold: 11000, rate: 12 },
-        { threshold: 44725, rate: 22 },
-        { threshold: 95375, rate: 24 },
-        { threshold: 182100, rate: 32 },
-        { threshold: 231250, rate: 35 },
-        { threshold: 578125, rate: 37 }
-      ],
-      notes: '2024 federal tax brackets for single filers. Does not include state taxes.'
-    }
-  ],
-
-  wealthTaxes: [
-    {
-      id: 'us-no-wealth',
-      name: 'No Wealth Tax',
-      type: 'wealth',
-      isDefault: true,
-      rate: 0,
-      notes: 'The United States does not have a federal wealth tax'
-    }
-  ],
-
-  capitalGainsTaxes: [
-    {
-      id: 'us-ltcg-single',
-      name: 'Long-Term Capital Gains (Single Filer)',
-      type: 'capital_gains',
-      isDefault: true,
-      brackets: [
-        { threshold: 0, rate: 0 },
-        { threshold: 44625, rate: 15 },
-        { threshold: 492300, rate: 20 }
-      ],
-      notes: '2024 rates for assets held more than one year'
-    },
-    {
-      id: 'us-stcg-single',
-      name: 'Short-Term Capital Gains (Single Filer)',
-      type: 'capital_gains',
-      isDefault: false,
-      brackets: [
-        { threshold: 0, rate: 10 },
-        { threshold: 11000, rate: 12 },
-        { threshold: 44725, rate: 22 },
-        { threshold: 95375, rate: 24 },
-        { threshold: 182100, rate: 32 },
-        { threshold: 231250, rate: 35 },
-        { threshold: 578125, rate: 37 }
-      ],
-      notes: 'Short-term gains (held less than one year) taxed as ordinary income'
-    }
-  ]
-}
-
-/**
- * United Kingdom Tax System (2024/2025)
- *
- * Tax year runs from 6 April to 5 April.
- *
- * Income Tax:
- * https://en.wikipedia.org/wiki/Taxation_in_the_United_Kingdom#Income_tax
- *
- * Capital Gains Tax:
- * https://en.wikipedia.org/wiki/Capital_gains_tax_in_the_United_Kingdom
- *
- * Wealth Tax:
- * The UK does not have a wealth tax, though it has various taxes on property
- * and inheritance.
- */
-export const GB_TAX_CONFIG: CountryTaxConfig = {
-  countryCode: 'GB',
-  countryName: 'United Kingdom',
-
-  incomeTaxes: [
-    {
-      id: 'gb-income',
-      name: 'Income Tax (England, Wales & NI)',
-      type: 'income',
-      isDefault: true,
-      exemptionThreshold: 12570,
-      brackets: [
-        { threshold: 12570, rate: 20 },
-        { threshold: 50270, rate: 40 },
-        { threshold: 125140, rate: 45 }
-      ],
-      notes: '2024/25 tax year. Personal allowance of £12,570. Scotland has different rates.'
-    },
-    {
-      id: 'gb-scotland-income',
-      name: 'Income Tax (Scotland)',
-      type: 'income',
-      isDefault: false,
-      exemptionThreshold: 12570,
-      brackets: [
-        { threshold: 12570, rate: 19 },
-        { threshold: 14876, rate: 20 },
-        { threshold: 26561, rate: 21 },
-        { threshold: 43662, rate: 42 },
-        { threshold: 125140, rate: 47 }
-      ],
-      notes: '2024/25 tax year. Scottish income tax rates differ from rest of UK.'
-    }
-  ],
-
-  wealthTaxes: [
-    {
-      id: 'gb-no-wealth',
-      name: 'No Wealth Tax',
-      type: 'wealth',
-      isDefault: true,
-      rate: 0,
-      notes: 'The UK does not have a general wealth tax'
-    }
-  ],
-
-  capitalGainsTaxes: [
-    {
-      id: 'gb-cgt-basic',
-      name: 'Capital Gains Tax (Basic Rate)',
-      type: 'capital_gains',
-      isDefault: true,
-      exemptionThreshold: 3000,
-      rate: 10,
-      notes: '2024/25 annual exempt amount is £3,000. 10% rate for basic rate taxpayers on most assets.'
-    },
-    {
-      id: 'gb-cgt-higher',
-      name: 'Capital Gains Tax (Higher Rate)',
-      type: 'capital_gains',
-      isDefault: false,
-      exemptionThreshold: 3000,
-      rate: 20,
-      notes: '20% rate for higher and additional rate taxpayers on most assets'
-    },
-    {
-      id: 'gb-cgt-property-basic',
-      name: 'CGT on Residential Property (Basic Rate)',
-      type: 'capital_gains',
-      isDefault: false,
-      exemptionThreshold: 3000,
-      rate: 18,
-      notes: '18% rate for basic rate taxpayers on residential property gains'
-    },
-    {
-      id: 'gb-cgt-property-higher',
-      name: 'CGT on Residential Property (Higher Rate)',
-      type: 'capital_gains',
-      isDefault: false,
-      exemptionThreshold: 3000,
-      rate: 24,
-      notes: '24% rate for higher rate taxpayers on residential property gains'
-    }
-  ]
-}
 
 // =============================================================================
 // EXPORTS
@@ -334,9 +97,16 @@ export const GB_TAX_CONFIG: CountryTaxConfig = {
  * All available tax configurations indexed by country code
  */
 export const TAX_CONFIGS: Record<string, CountryTaxConfig> = {
-  NL: NL_TAX_CONFIG,
-  US: US_TAX_CONFIG,
-  GB: GB_TAX_CONFIG
+  BE: BE_TAX_CONFIG as CountryTaxConfig,
+  CA: CA_TAX_CONFIG as CountryTaxConfig,
+  DE: DE_TAX_CONFIG as CountryTaxConfig,
+  DK: DK_TAX_CONFIG as CountryTaxConfig,
+  ES: ES_TAX_CONFIG as CountryTaxConfig,
+  FR: FR_TAX_CONFIG as CountryTaxConfig,
+  GB: GB_TAX_CONFIG as CountryTaxConfig,
+  LU: LU_TAX_CONFIG as CountryTaxConfig,
+  NL: NL_TAX_CONFIG as CountryTaxConfig,
+  US: US_TAX_CONFIG as CountryTaxConfig,
 }
 
 /**

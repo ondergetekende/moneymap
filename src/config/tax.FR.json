@@ -1,0 +1,95 @@
+{
+  "countryCode": "FR",
+  "countryName": "France",
+  "incomeTaxes": [
+    {
+      "id": "fr-income-household",
+      "name": "Personal Income Tax (Household)",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 11294,
+          "rate": 11
+        },
+        {
+          "threshold": 28797,
+          "rate": 30
+        },
+        {
+          "threshold": 82341,
+          "rate": 41
+        },
+        {
+          "threshold": 177106,
+          "rate": 45
+        }
+      ],
+      "notes": "2024 tax rates. France uses household-based taxation with family quotient system. Thresholds shown are for single person (quotient 1). Multiply thresholds by household quotient for family situations."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "fr-wealth-ifi",
+      "name": "Real Estate Wealth Tax (IFI)",
+      "type": "wealth",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 1300000,
+          "rate": 0.5
+        },
+        {
+          "threshold": 2570000,
+          "rate": 0.7
+        },
+        {
+          "threshold": 5000000,
+          "rate": 1
+        },
+        {
+          "threshold": 10000000,
+          "rate": 1.25
+        },
+        {
+          "threshold": 20000000,
+          "rate": 1.5
+        }
+      ],
+      "exemptionThreshold": 1300000,
+      "notes": "2024 IFI (Impôt sur la Fortune Immobilière). Applies only to real estate assets. Primary residence receives 30% deduction."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "fr-capital-gains-securities",
+      "name": "Securities Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 30,
+      "notes": "2024 rate. Flat tax of 30% (12.8% income tax + 17.2% social contributions). Option to use progressive income tax scale available."
+    },
+    {
+      "id": "fr-capital-gains-real-estate",
+      "name": "Real Estate Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": false,
+      "rate": 36.2,
+      "notes": "2024 rate. 19% tax + 17.2% social contributions. Reductions apply based on holding period. Primary residence exempt."
+    }
+  ],
+  "sources": [
+    "https://www.impots.gouv.fr/",
+    "https://www.service-public.fr/particuliers/vosdroits/N247",
+    "https://www.economie.gouv.fr/particuliers/tranches-imposition-impot-revenu",
+    "https://www.impots.gouv.fr/particulier/questions/comment-sont-imposees-mes-plus-values-mobilieres"
+  ]
+}

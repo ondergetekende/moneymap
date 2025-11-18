@@ -1,0 +1,120 @@
+{
+  "countryCode": "GB",
+  "countryName": "United Kingdom",
+  "incomeTaxes": [
+    {
+      "id": "gb-income-standard",
+      "name": "UK Income Tax (Standard)",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 12570,
+          "rate": 20
+        },
+        {
+          "threshold": 50270,
+          "rate": 40
+        },
+        {
+          "threshold": 125140,
+          "rate": 45
+        }
+      ],
+      "exemptionThreshold": 12570,
+      "notes": "Tax year 2023/24. Personal Allowance reduces by £1 for every £2 earned over £100,000. Scotland has different rates."
+    },
+    {
+      "id": "gb-income-scotland",
+      "name": "Scottish Income Tax",
+      "type": "income",
+      "isDefault": false,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 0
+        },
+        {
+          "threshold": 12570,
+          "rate": 19
+        },
+        {
+          "threshold": 14732,
+          "rate": 20
+        },
+        {
+          "threshold": 25688,
+          "rate": 21
+        },
+        {
+          "threshold": 43662,
+          "rate": 42
+        },
+        {
+          "threshold": 125140,
+          "rate": 47
+        }
+      ],
+      "exemptionThreshold": 12570,
+      "notes": "Tax year 2023/24. Applies to Scottish residents only. Personal Allowance same as rest of UK."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "gb-wealth",
+      "name": "UK Wealth Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "The UK does not have a general wealth tax. Property taxes (Council Tax) and inheritance tax exist separately."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "gb-capital-gains-basic",
+      "name": "Capital Gains Tax (Basic Rate)",
+      "type": "capital_gains",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 10
+        },
+        {
+          "threshold": 6000,
+          "rate": 18
+        }
+      ],
+      "exemptionThreshold": 6000,
+      "notes": "Tax year 2023/24. Basic rate taxpayers pay 10% on gains from most assets and 18% on residential property. Annual exempt amount is £6,000."
+    },
+    {
+      "id": "gb-capital-gains-higher",
+      "name": "Capital Gains Tax (Higher Rate)",
+      "type": "capital_gains",
+      "isDefault": false,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 20
+        },
+        {
+          "threshold": 6000,
+          "rate": 28
+        }
+      ],
+      "exemptionThreshold": 6000,
+      "notes": "Tax year 2023/24. Higher/additional rate taxpayers pay 20% on gains from most assets and 28% on residential property."
+    }
+  ],
+  "sources": [
+    "https://www.gov.uk/income-tax-rates",
+    "https://www.gov.uk/capital-gains-tax",
+    "https://www.gov.scot/publications/scottish-income-tax-2023-2024/",
+    "https://www.gov.uk/government/publications/rates-and-allowances-income-tax"
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "countryCode": "BE",
+  "countryName": "Belgium",
+  "incomeTaxes": [
+    {
+      "id": "be-income-standard",
+      "name": "Personal Income Tax",
+      "type": "income",
+      "isDefault": true,
+      "brackets": [
+        {
+          "threshold": 0,
+          "rate": 25
+        },
+        {
+          "threshold": 15200,
+          "rate": 40
+        },
+        {
+          "threshold": 26830,
+          "rate": 45
+        },
+        {
+          "threshold": 46440,
+          "rate": 50
+        }
+      ],
+      "exemptionThreshold": 9790,
+      "notes": "2024 tax year. Basic tax-free allowance applies. Additional allowances for dependents. Municipal taxes (average 7%) apply on top of these rates."
+    }
+  ],
+  "wealthTaxes": [
+    {
+      "id": "be-wealth-securities",
+      "name": "Securities Account Tax",
+      "type": "wealth",
+      "isDefault": true,
+      "rate": 0.15,
+      "exemptionThreshold": 1000000,
+      "notes": "2024 tax year. Applies to securities accounts exceeding €1 million. Not a comprehensive wealth tax but specific to financial instruments."
+    }
+  ],
+  "capitalGainsTaxes": [
+    {
+      "id": "be-capital-gains-standard",
+      "name": "Standard Capital Gains Tax",
+      "type": "capital_gains",
+      "isDefault": true,
+      "rate": 0,
+      "notes": "2024 tax year. Most capital gains from private assets are tax-exempt. Professional trading gains are taxed as regular income."
+    },
+    {
+      "id": "be-capital-gains-shares",
+      "name": "Substantial Shareholding Capital Gains",
+      "type": "capital_gains",
+      "isDefault": false,
+      "rate": 33,
+      "notes": "2024 tax year. Applies to sales of substantial shareholdings (>25%) to companies outside EEA."
+    }
+  ],
+  "sources": [
+    "https://financien.belgium.be/nl/particulieren/belastingaangifte",
+    "https://www.belgium.be/en/taxes",
+    "https://taxsummaries.pwc.com/belgium/individual/taxes-on-personal-income"
+  ]
+}
