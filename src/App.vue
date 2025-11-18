@@ -24,7 +24,7 @@ onMounted(() => {
 
 // Auto-save when data changes
 watch(
-  () => [store.capitalAccounts, store.cashFlows, store.birthDate, store.liquidAssetsInterestRate],
+  () => [store.capitalAccounts, store.cashFlows, store.birthDate, store.liquidAssetsInterestRate, store.inflationRate],
   () => {
     store.saveToStorage()
   },

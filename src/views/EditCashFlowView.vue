@@ -21,6 +21,7 @@ const monthlyAmount = ref<number>(0)
 const startDate = ref<Month | undefined>(undefined)
 const endDate = ref<Month | undefined>(undefined)
 const cashFlowType = ref<CashFlowType>('income')
+const followsInflation = ref<boolean>(false)
 
 // UI state
 const isEditMode = computed(() => !!props.id)
@@ -43,6 +44,7 @@ onMounted(() => {
       startDate.value = cashFlow.startDate
       endDate.value = cashFlow.endDate
       cashFlowType.value = cashFlow.type
+      followsInflation.value = cashFlow.followsInflation
     } else {
       // CashFlow not found, redirect to dashboard
       router.push({ name: 'dashboard' })
@@ -57,6 +59,7 @@ onMounted(() => {
       cashFlowType.value = template.type || 'income'
       startDate.value = template.startDate
       endDate.value = template.endDate
+      followsInflation.value = template.followsInflation ?? false
     } else {
       cashFlowType.value = props.typeId as CashFlowType
     }
@@ -77,6 +80,7 @@ function handleSave() {
       startDate: startDate.value,
       endDate: endDate.value,
       type: cashFlowType.value,
+      followsInflation: followsInflation.value,
     }
     store.updateCashFlow(props.id, cashFlowData)
   } else {
@@ -90,6 +94,7 @@ function handleSave() {
         monthlyAmount: monthlyAmount.value,
         startDate: startDate.value,
         endDate: endDate.value,
+        followsInflation: followsInflation.value,
       })
     }
   }
@@ -150,6 +155,18 @@ function handleDelete() {
           placeholder="0.00"
           required
         />
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input
+            id="follows-inflation"
+            v-model="followsInflation"
+            type="checkbox"
+          />
+          <span>Adjust for inflation</span>
+        </label>
+        <p class="help-text">If enabled, this amount will increase annually based on the inflation rate</p>
       </div>
 
       <div class="form-group">
@@ -269,6 +286,34 @@ select:disabled {
   margin-top: 0.5rem;
   font-size: 0.875rem;
   color: #6b7280;
+}
+
+.checkbox-group {
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  font-weight: 500;
+  color: #111827;
+  margin-bottom: 0;
+}
+
+.checkbox-label input[type='checkbox'] {
+  width: 1.125rem;
+  height: 1.125rem;
+  cursor: pointer;
+  margin: 0;
+}
+
+.checkbox-label span {
+  user-select: none;
 }
 
 .form-actions {

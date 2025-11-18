@@ -25,6 +25,7 @@ export const usePlannerStore = defineStore('planner', () => {
   const cashFlows = ref<CashFlow[]>([])
   const debts = ref<AllDebtTypes[]>([])
   const liquidAssetsInterestRate = ref<number>(5) // Default 5% for all liquid assets
+  const inflationRate = ref<number>(2.5) // Default 2.5% inflation
   const projectionResult = ref<ProjectionResult | null>(null)
 
   // Computed
@@ -34,7 +35,8 @@ export const usePlannerStore = defineStore('planner', () => {
       capitalAccounts.value as CapitalAccount[],
       cashFlows.value as CashFlow[],
       liquidAssetsInterestRate.value,
-      debts.value as AllDebtTypes[]
+      debts.value as AllDebtTypes[],
+      inflationRate.value
     )
   })
 
@@ -89,6 +91,11 @@ export const usePlannerStore = defineStore('planner', () => {
     recalculate()
   }
 
+  function setInflationRate(rate: number) {
+    inflationRate.value = rate
+    recalculate()
+  }
+
   function addCapitalAccount(
     account:
       | { type: 'liquid'; name: string; amount: number }
@@ -139,7 +146,8 @@ export const usePlannerStore = defineStore('planner', () => {
       cashFlow.monthlyAmount,
       cashFlow.type,
       cashFlow.startDate,
-      cashFlow.endDate
+      cashFlow.endDate,
+      cashFlow.followsInflation
     )
     cashFlows.value.push(newCashFlow)
     recalculate()
@@ -201,6 +209,7 @@ export const usePlannerStore = defineStore('planner', () => {
       cashFlows.value = profile.cashFlows
       debts.value = profile.debts as AllDebtTypes[]
       liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
+      inflationRate.value = profile.inflationRate
       recalculate()
       return true
     }
@@ -213,6 +222,7 @@ export const usePlannerStore = defineStore('planner', () => {
     cashFlows.value = []
     debts.value = []
     liquidAssetsInterestRate.value = 5
+    inflationRate.value = 2.5
     projectionResult.value = null
     storageService.clearProfile()
   }
@@ -237,6 +247,7 @@ export const usePlannerStore = defineStore('planner', () => {
     cashFlows,
     debts,
     liquidAssetsInterestRate,
+    inflationRate,
     projectionResult,
     // Computed
     userProfile,
@@ -251,6 +262,7 @@ export const usePlannerStore = defineStore('planner', () => {
     // Actions
     setBirthDate,
     setLiquidAssetsInterestRate,
+    setInflationRate,
     addCapitalAccount,
     updateCapitalAccount,
     removeCapitalAccount,

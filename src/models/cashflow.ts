@@ -17,6 +17,7 @@ export class CashFlow extends FinancialItem {
   readonly startDate?: Month // Optional - defaults to projection start
   readonly endDate?: Month // Optional - defaults to projection end
   readonly type: CashFlowType
+  readonly followsInflation: boolean // Whether this cash flow adjusts for inflation
 
   constructor(
     id: string,
@@ -24,7 +25,8 @@ export class CashFlow extends FinancialItem {
     monthlyAmount: number,
     type: CashFlowType,
     startDate?: Month,
-    endDate?: Month
+    endDate?: Month,
+    followsInflation: boolean = false
   ) {
     super(id, name)
 
@@ -36,6 +38,7 @@ export class CashFlow extends FinancialItem {
     this.type = type
     this.startDate = startDate
     this.endDate = endDate
+    this.followsInflation = followsInflation
   }
 
   /**
@@ -49,7 +52,7 @@ export class CashFlow extends FinancialItem {
    * Create a copy of this cash flow with updated properties
    */
   with(
-    updates: Partial<Pick<CashFlow, 'name' | 'monthlyAmount' | 'startDate' | 'endDate' | 'type'>>
+    updates: Partial<Pick<CashFlow, 'name' | 'monthlyAmount' | 'startDate' | 'endDate' | 'type' | 'followsInflation'>>
   ): CashFlow {
     return new CashFlow(
       this.id,
@@ -57,7 +60,8 @@ export class CashFlow extends FinancialItem {
       updates.monthlyAmount ?? this.monthlyAmount,
       updates.type ?? this.type,
       updates.startDate !== undefined ? updates.startDate : this.startDate,
-      updates.endDate !== undefined ? updates.endDate : this.endDate
+      updates.endDate !== undefined ? updates.endDate : this.endDate,
+      updates.followsInflation ?? this.followsInflation
     )
   }
 
@@ -72,6 +76,7 @@ export class CashFlow extends FinancialItem {
       startDate: this.startDate,
       endDate: this.endDate,
       type: this.type,
+      followsInflation: this.followsInflation,
     }
   }
 
@@ -101,7 +106,8 @@ export class CashFlow extends FinancialItem {
       data.monthlyAmount || 0,
       data.type || 'expense',
       startDate,
-      endDate
+      endDate,
+      data.followsInflation ?? false
     )
   }
 

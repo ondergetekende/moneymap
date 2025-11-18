@@ -44,7 +44,7 @@ function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boo
 export function calculateProjections(profile: UserProfile): ProjectionResult {
   const startTime = performance.now()
 
-  const { birthDate, capitalAccounts, liquidAssetsInterestRate } = profile
+  const { birthDate, capitalAccounts, liquidAssetsInterestRate, inflationRate } = profile
   // Support both legacy 'expenses' and new 'cashFlows' field
   const cashFlows = profile.cashFlows || []
   const debts = profile.debts || []
@@ -209,12 +209,22 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     let monthlyIncome = 0
     let monthlyExpenses = 0
 
+    // Calculate years elapsed since projection start for inflation adjustment
+    const yearsElapsed = monthIndex / 12
+
     for (const cashFlow of cashFlows) {
       if (isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate)) {
+        // Apply inflation adjustment if enabled for this cash flow
+        let amount = cashFlow.monthlyAmount
+        if (cashFlow.followsInflation && inflationRate !== undefined && inflationRate !== 0) {
+          // Compound inflation: amount × (1 + rate/100)^years
+          amount = cashFlow.monthlyAmount * Math.pow(1 + inflationRate / 100, yearsElapsed)
+        }
+
         if (cashFlow.type === 'income') {
-          monthlyIncome += cashFlow.monthlyAmount
+          monthlyIncome += amount
         } else {
-          monthlyExpenses += cashFlow.monthlyAmount
+          monthlyExpenses += amount
         }
       }
     }

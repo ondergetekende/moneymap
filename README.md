@@ -12,12 +12,12 @@ We're in MVP stage, so the features are basic:
 - Visualize financial projections with charts and graphs
 - Interest calculations
 - Debt calculations
+- Adjusting expenses and income for inflation
 
 ## Future plans
 
 - Income tax calculations with brackets
 - Amortization schedules
-- Adjusting expenses and income for inflation
 - Multi-entity support (e.g. business and personal finances) with taxed transfers
 - Templates for common financial scenarios
 - Automatic FIRE (Financial Independence, Retire Early) calculations

@@ -18,13 +18,15 @@ export class UserProfile {
   readonly cashFlows: CashFlow[]
   readonly debts: Debt[]
   readonly liquidAssetsInterestRate: number // Shared annual interest rate for all liquid assets (percentage)
+  readonly inflationRate: number // Annual inflation rate (percentage)
 
   constructor(
     birthDate: Month,
     capitalAccounts: CapitalAccount[],
     cashFlows: CashFlow[],
     liquidAssetsInterestRate: number,
-    debts: Debt[] = []
+    debts: Debt[] = [],
+    inflationRate: number = 2.5
   ) {
     if (birthDate === undefined || typeof birthDate !== 'number') {
       throw new Error('UserProfile birthDate must be a valid Month value')
@@ -35,6 +37,7 @@ export class UserProfile {
     this.cashFlows = cashFlows
     this.debts = debts
     this.liquidAssetsInterestRate = liquidAssetsInterestRate
+    this.inflationRate = inflationRate
   }
 
   /**
@@ -93,13 +96,15 @@ export class UserProfile {
     cashFlows?: CashFlow[]
     debts?: Debt[]
     liquidAssetsInterestRate?: number
+    inflationRate?: number
   }): UserProfile {
     return new UserProfile(
       updates.birthDate ?? this.birthDate,
       updates.capitalAccounts ?? this.capitalAccounts,
       updates.cashFlows ?? this.cashFlows,
       updates.liquidAssetsInterestRate ?? this.liquidAssetsInterestRate,
-      updates.debts ?? this.debts
+      updates.debts ?? this.debts,
+      updates.inflationRate ?? this.inflationRate
     )
   }
 
@@ -113,6 +118,7 @@ export class UserProfile {
       cashFlows: this.cashFlows.map((cf) => cf.toJSON()),
       debts: this.debts.map((debt) => debt.toJSON()),
       liquidAssetsInterestRate: this.liquidAssetsInterestRate,
+      inflationRate: this.inflationRate,
     }
   }
 
@@ -154,7 +160,8 @@ export class UserProfile {
       capitalAccounts,
       cashFlows,
       data.liquidAssetsInterestRate || 0,
-      debts
+      debts,
+      data.inflationRate ?? 2.5 // Default to 2.5% for backward compatibility
     )
   }
 }

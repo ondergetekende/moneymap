@@ -1,7 +1,7 @@
 <script setup lang="ts">
   import { computed } from 'vue'
   import { usePlannerStore } from '@/stores/planner'
-  import BirthDateInput from '@/components/BirthDateInput.vue'
+  import BasicInformationInput from '@/components/BasicInformationInput.vue'
   import FinancialListItem from '@/components/FinancialListItem.vue'
   import ActionButtons from '@/components/ActionButtons.vue'
   import NetWorthChart from '@/components/NetWorthChart.vue'
@@ -14,13 +14,28 @@
     get: () => store.birthDate,
     set: (value: Month) => store.setBirthDate(value),
   })
+
+  const inflationRate = computed({
+    get: () => store.inflationRate,
+    set: (value: number) => store.setInflationRate(value),
+  })
+
+  const liquidAssetsInterestRate = computed({
+    get: () => store.liquidAssetsInterestRate,
+    set: (value: number) => store.setLiquidAssetsInterestRate(value),
+  })
 </script>
 
 <template>
   <div class="dashboard">
     <section class="birth-date-section">
-      <BirthDateInput
-        v-model="birthDate"
+      <BasicInformationInput
+        :birth-date="birthDate"
+        @update:birth-date="birthDate = $event"
+        :inflation-rate="inflationRate"
+        @update:inflation-rate="inflationRate = $event"
+        :liquid-assets-interest-rate="liquidAssetsInterestRate"
+        @update:liquid-assets-interest-rate="liquidAssetsInterestRate = $event"
         :current-age="store.currentAge"
       />
     </section>
