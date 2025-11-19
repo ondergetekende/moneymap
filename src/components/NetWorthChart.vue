@@ -1,9 +1,6 @@
 <template>
   <div class="chart-container">
     <h3>Net Worth Projection</h3>
-    <div v-if="calculationTime !== null && calculationTime !== undefined" class="calculation-time">
-      Calculation time: {{ calculationTime?.toFixed(2) }}ms
-    </div>
     <Line :data="chartData" :options="chartOptions" />
   </div>
 </template>
@@ -157,11 +154,5 @@ function formatCurrency(value: number): string {
 h3 {
   margin-bottom: 1rem;
   color: #2c3e50;
-}
-
-.calculation-time {
-  font-size: 0.9rem;
-  color: #666;
-  margin-bottom: 1rem;
 }
 </style>
