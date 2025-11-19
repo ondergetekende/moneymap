@@ -183,7 +183,7 @@ function handleDelete() {
   <div class="edit-asset-view">
     <header class="view-header">
       <button class="back-button" @click="handleCancel">&larr; Back</button>
-      <h1>{{ pageTitle }}</h1>
+      <h1 class="page-title">{{ pageTitle }}</h1>
     </header>
 
     <form class="edit-form" @submit.prevent="handleSave">
@@ -289,6 +289,9 @@ function handleDelete() {
 }
 
 .view-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 2rem;
 }
 
@@ -299,18 +302,18 @@ function handleDelete() {
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0.5rem 0;
-  margin-bottom: 0.5rem;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 .back-button:hover {
   text-decoration: underline;
 }
 
-.view-header h1 {
+.page-title {
   font-size: 1.75rem;
   font-weight: 700;
   color: #111827;
@@ -422,7 +425,7 @@ select:disabled {
     padding: 1rem;
   }
 
-  .view-header h1 {
+  .page-title {
     font-size: 1.5rem;
   }
 
@@ -446,7 +449,7 @@ select:disabled {
     padding: 0.75rem;
   }
 
-  .view-header h1 {
+  .page-title {
     font-size: 1.375rem;
   }
 
