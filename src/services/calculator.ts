@@ -340,11 +340,13 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
         : isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate)  // Recurring: within date range
 
       if (shouldApply) {
-        // Apply inflation adjustment if enabled for this cash flow
+        // Get the monthly amount (getter handles frequency conversion)
         let amount = cashFlow.monthlyAmount
+
+        // Apply inflation adjustment if enabled for this cash flow
         if (cashFlow.followsInflation && inflationRate !== undefined && inflationRate !== 0) {
           // Compound inflation: amount × (1 + rate/100)^years
-          amount = cashFlow.monthlyAmount * Math.pow(1 + inflationRate / 100, yearsElapsed)
+          amount = amount * Math.pow(1 + inflationRate / 100, yearsElapsed)
         }
 
         if (cashFlow.type === 'income') {

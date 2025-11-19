@@ -22,6 +22,7 @@ export {
   CashFlow,
   isCashFlow,
   type CashFlowType,
+  type CashFlowFrequency,
   type Expense, // Legacy alias
 } from './cashflow'
 

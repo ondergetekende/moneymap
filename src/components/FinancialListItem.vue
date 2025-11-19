@@ -46,7 +46,7 @@ const editableValue = computed(() => {
   if (isAsset(item)) {
     return item.amount
   } else if (isCashFlow(item)) {
-    return item.monthlyAmount
+    return item.amount
   } else if (item instanceof Debt) {
     return item.amount
   }
@@ -65,14 +65,22 @@ const formattedAmount = computed(() => {
     // For assets, show total amount
     return formatter.format(item.amount)
   } else if (isCashFlow(item)) {
-    // For cashflows, show amount based on frequency
+    // For cashflows, show amount based on user's chosen frequency
     if (item.isOneTime) {
       // One-time transactions: show amount as-is
-      return `${formatter.format(item.monthlyAmount)} (one-time)`
+      return `${formatter.format(item.amount)} (one-time)`
     } else {
-      // Recurring transactions: show annual amount
-      const annualAmount = item.monthlyAmount * 12
-      return `${formatter.format(annualAmount)}/y`
+      // Recurring transactions: show in user's preferred frequency
+      switch (item.frequency) {
+        case 'weekly':
+          return `${formatter.format(item.weeklyAmount)}/w`
+        case 'monthly':
+          return `${formatter.format(item.monthlyAmount)}/m`
+        case 'annual':
+          return `${formatter.format(item.annualAmount)}/y`
+        default:
+          return `${formatter.format(item.monthlyAmount)}/m`
+      }
     }
   } else if (item instanceof Debt) {
     // For debts, show principal balance
@@ -136,7 +144,7 @@ function saveAmount() {
   if (isAsset(item)) {
     store.updateCapitalAccount(item.id, { amount: newValue })
   } else if (isCashFlow(item)) {
-    store.updateCashFlow(item.id, { monthlyAmount: newValue })
+    store.updateCashFlow(item.id, { amount: newValue })
   } else if (item instanceof Debt) {
     store.updateDebt(item.id, { amount: newValue })
   }

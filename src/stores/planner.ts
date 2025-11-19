@@ -76,13 +76,13 @@ export const usePlannerStore = defineStore('planner', () => {
   const totalIncome = computed(() =>
     cashFlows.value
       .filter((cf) => cf.type === 'income')
-      .reduce((sum, cf) => sum + cf.monthlyAmount * 12, 0),
+      .reduce((sum, cf) => sum + cf.annualAmount, 0),
   )
 
   const totalExpenses = computed(() =>
     cashFlows.value
       .filter((cf) => cf.type === 'expense')
-      .reduce((sum, cf) => sum + cf.monthlyAmount * 12, 0),
+      .reduce((sum, cf) => sum + cf.annualAmount, 0),
   )
 
   const totalDebt = computed(() => debts.value.reduce((sum: number, debt: AllDebtTypes) => sum + debt.amount, 0))
@@ -191,11 +191,14 @@ export const usePlannerStore = defineStore('planner', () => {
     const newCashFlow = new CashFlow(
       crypto.randomUUID(),
       cashFlow.name,
-      cashFlow.monthlyAmount,
+      cashFlow.amount,
       cashFlow.type,
       cashFlow.startDate,
       cashFlow.endDate,
-      cashFlow.followsInflation
+      cashFlow.followsInflation,
+      cashFlow.isOneTime,
+      cashFlow.incomeTaxId,
+      cashFlow.frequency
     )
     cashFlows.value.push(newCashFlow)
     recalculate()

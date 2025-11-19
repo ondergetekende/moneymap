@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
-import type { CashFlowType } from '@/models'
+import type { CashFlowType, CashFlowFrequency } from '@/models'
 import type { Month } from '@/types/month'
 import MonthEdit from '@/components/MonthEdit.vue'
 import { getTaxOptions, getTaxConfig } from '@/config/taxConfig'
@@ -18,13 +18,15 @@ const store = usePlannerStore()
 
 // Form state
 const name = ref('')
-const monthlyAmount = ref<number>(0)
+const amount = ref<number>(0)
 const startDate = ref<Month | undefined>(undefined)
 const endDate = ref<Month | undefined>(undefined)
 const cashFlowType = ref<CashFlowType>('income')
 const followsInflation = ref<boolean>(false)
 const isOneTime = ref<boolean>(false)
 const incomeTaxId = ref<string | undefined>(undefined)
+const frequency = ref<CashFlowFrequency>('monthly')
+const isInitialLoad = ref<boolean>(true)
 
 // UI state
 const isEditMode = computed(() => !!props.id)
@@ -38,7 +40,20 @@ const pageTitle = computed(() => {
 })
 
 // Dynamic labels based on frequency
-const amountLabel = computed(() => isOneTime.value ? 'Amount (€) *' : 'Monthly Amount (€) *')
+const amountLabel = computed(() => {
+  if (isOneTime.value) {
+    return 'Amount (€) *'
+  }
+  switch (frequency.value) {
+    case 'weekly':
+      return 'Weekly Amount (€) *'
+    case 'annual':
+      return 'Annual Amount (€) *'
+    case 'monthly':
+    default:
+      return 'Monthly Amount (€) *'
+  }
+})
 const startDateLabel = computed(() => isOneTime.value ? 'Date *' : 'Start Month (optional)')
 const startDateHelpText = computed(() => isOneTime.value ? 'When this transaction occurs' : 'Leave empty to start from current month')
 
@@ -67,13 +82,14 @@ onMounted(() => {
     const cashFlow = store.getCashFlowById(props.id)
     if (cashFlow) {
       name.value = cashFlow.name
-      monthlyAmount.value = cashFlow.monthlyAmount
       startDate.value = cashFlow.startDate
       endDate.value = cashFlow.endDate
       cashFlowType.value = cashFlow.type
       followsInflation.value = cashFlow.followsInflation
       isOneTime.value = cashFlow.isOneTime
       incomeTaxId.value = cashFlow.incomeTaxId
+      amount.value = cashFlow.amount
+      frequency.value = cashFlow.frequency
     } else {
       // CashFlow not found, redirect to dashboard
       router.push({ name: 'dashboard' })
@@ -84,13 +100,14 @@ onMounted(() => {
     if (itemTypeConfig && itemTypeConfig.template) {
       const template = itemTypeConfig.template as any
       name.value = template.name || ''
-      monthlyAmount.value = template.monthlyAmount || 0
+      amount.value = template.amount || 0
       cashFlowType.value = template.type || 'income'
       startDate.value = template.startDate
       endDate.value = template.endDate
       followsInflation.value = template.followsInflation ?? false
       isOneTime.value = template.isOneTime ?? false
       incomeTaxId.value = template.incomeTaxId
+      frequency.value = template.frequency ?? 'monthly'
     } else {
       cashFlowType.value = props.typeId as CashFlowType
     }
@@ -98,6 +115,12 @@ onMounted(() => {
 
   // Set default tax for new items
   setDefaultTaxIfNeeded()
+
+  // Mark initial load as complete after Vue finishes all reactive updates
+  // This ensures the frequency watcher doesn't run during the initial load
+  nextTick(() => {
+    isInitialLoad.value = false
+  })
 })
 
 // Watch for changes that should trigger default tax setting
@@ -105,8 +128,50 @@ watch([cashFlowType, taxCountry], () => {
   setDefaultTaxIfNeeded()
 })
 
+// Watch for frequency changes and convert the amount
+watch(frequency, (newFrequency, oldFrequency) => {
+  // Skip conversion during initial load
+  if (isInitialLoad.value) {
+    return
+  }
+
+  // Only convert if we have both old and new frequencies and an amount to convert
+  if (!oldFrequency || newFrequency === oldFrequency || amount.value <= 0) {
+    return
+  }
+
+  // Convert: old frequency -> annual -> new frequency
+  let annualAmount: number
+
+  // Step 1: Convert current amount to annual based on OLD frequency
+  switch (oldFrequency) {
+    case 'weekly':
+      annualAmount = amount.value * 52
+      break
+    case 'monthly':
+      annualAmount = amount.value * 12
+      break
+    case 'annual':
+      annualAmount = amount.value
+      break
+  }
+
+  // Step 2: Convert annual to NEW frequency
+  switch (newFrequency) {
+    case 'weekly':
+      amount.value = Math.round((annualAmount / 52) * 100) / 100
+      break
+    case 'monthly':
+      amount.value = Math.round((annualAmount / 12) * 100) / 100
+      break
+    case 'annual':
+      amount.value = Math.round(annualAmount * 100) / 100
+      break
+  }
+})
+
 function handleSave() {
-  if (!name.value.trim() || monthlyAmount.value <= 0) {
+  if (!name.value.trim() || amount.value <= 0) {
     alert('Please fill in all required fields')
     return
   }
@@ -121,13 +186,14 @@ function handleSave() {
     // Update existing cashflow
     const cashFlowData = {
       name: name.value.trim(),
-      monthlyAmount: monthlyAmount.value,
+      amount: amount.value,
       startDate: startDate.value,
       endDate: endDate.value,
       type: cashFlowType.value,
       followsInflation: followsInflation.value,
       isOneTime: isOneTime.value,
       incomeTaxId: incomeTaxId.value,
+      frequency: frequency.value,
     }
     store.updateCashFlow(props.id, cashFlowData)
   } else {
@@ -138,12 +204,13 @@ function handleSave() {
       store.addCashFlow({
         ...template,
         name: name.value.trim(),
-        monthlyAmount: monthlyAmount.value,
+        amount: amount.value,
         startDate: startDate.value,
         endDate: endDate.value,
         followsInflation: followsInflation.value,
         isOneTime: isOneTime.value,
         incomeTaxId: incomeTaxId.value,
+        frequency: frequency.value,
       })
     }
   }
@@ -209,7 +276,7 @@ function handleDelete() {
               v-model="isOneTime"
               name="frequency"
             />
-            <span>Recurring (monthly)</span>
+            <span>Recurring</span>
           </label>
           <label class="radio-label">
             <input
@@ -221,6 +288,40 @@ function handleDelete() {
             <span>One-time</span>
           </label>
         </div>
+      </div>
+
+      <div v-if="!isOneTime" class="form-group">
+        <label>Amount Entry</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input
+              type="radio"
+              value="weekly"
+              v-model="frequency"
+              name="amount-frequency"
+            />
+            <span>Per Week</span>
+          </label>
+          <label class="radio-label">
+            <input
+              type="radio"
+              value="monthly"
+              v-model="frequency"
+              name="amount-frequency"
+            />
+            <span>Per Month</span>
+          </label>
+          <label class="radio-label">
+            <input
+              type="radio"
+              value="annual"
+              v-model="frequency"
+              name="amount-frequency"
+            />
+            <span>Per Year</span>
+          </label>
+        </div>
+        <p class="help-text">Choose how often you want to enter the amount</p>
       </div>
 
       <div class="form-group">
@@ -235,10 +336,10 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <label for="monthly-amount">{{ amountLabel }}</label>
+        <label for="amount">{{ amountLabel }}</label>
         <input
-          id="monthly-amount"
-          v-model.number="monthlyAmount"
+          id="amount"
+          v-model.number="amount"
           type="number"
           min="0"
           step="0.01"

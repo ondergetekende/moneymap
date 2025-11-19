@@ -14,6 +14,9 @@ import {
   findTaxOption
 } from '../config/taxConfig'
 
+// Re-export for use by calculator
+export type { InflationAdjustment }
+
 /**
  * Adjust an amount for inflation
  *
