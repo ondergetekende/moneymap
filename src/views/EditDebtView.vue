@@ -431,7 +431,7 @@ function handleDelete() {
         </div>
 
         <div v-if="!willPayOff && knowsEndDate" class="form-group">
-          <MonthEdit v-model="endDate" label="Settlement Month *" :required="true" :nullable="false" />
+          <MonthEdit v-model="endDate" label="Settlement Month" :required="true" :nullable="false" />
           <p class="help-text">Month of final balloon payment</p>
         </div>
 
@@ -443,7 +443,7 @@ function handleDelete() {
         </div>
 
         <div v-if="showRepaymentStartDate" class="form-group">
-          <MonthEdit v-model="repaymentStartDate" label="Repayment Start Month *" :required="true" :nullable="false" />
+          <MonthEdit v-model="repaymentStartDate" label="Repayment Start Month" :required="true" :nullable="false" />
         </div>
 
         <div v-if="willPayOff" class="form-group checkbox-group">
@@ -454,7 +454,7 @@ function handleDelete() {
         </div>
 
         <div v-if="showEndDate" class="form-group">
-          <MonthEdit v-model="endDate" label="Payoff Month *" :required="true" :nullable="false" />
+          <MonthEdit v-model="endDate" label="Payoff Month" :required="true" :nullable="false" />
         </div>
 
         <div v-if="willPayOff" class="form-group checkbox-group">
