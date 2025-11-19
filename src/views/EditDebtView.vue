@@ -337,7 +337,9 @@ function handleDelete() {
 
       <div class="form-group">
         <MonthEdit v-model="startDate" label="Start Month" :nullable="false" />
-        <p class="help-text">When the debt begins (defaults to current month)</p>
+        <p class="help-text" title="When the debt begins (defaults to current month)">
+          Loan start date
+        </p>
       </div>
 
       <!-- Repayment Type -->
@@ -383,7 +385,12 @@ function handleDelete() {
       <!-- Optional end date -->
       <div v-if="showEndDate" class="form-group">
         <MonthEdit v-model="endDate" label="Payoff Date (optional)" :nullable="true" />
-        <p class="help-text">Leave empty to calculate from payment amount</p>
+        <p
+          class="help-text"
+          title="When you'll pay off the remaining balance in full. Leave empty to calculate from payment amount"
+        >
+          Final payment date
+        </p>
       </div>
 
       <!-- Monthly payment for annuity -->
@@ -397,7 +404,12 @@ function handleDelete() {
           step="0.01"
           placeholder="Leave empty to calculate"
         />
-        <p class="help-text">Total payment (principal + interest) each month</p>
+        <p
+          class="help-text"
+          title="Total payment stays the same each month, principal portion increases over time"
+        >
+          Includes principal and interest
+        </p>
       </div>
 
       <!-- Monthly principal for linear -->
@@ -411,7 +423,9 @@ function handleDelete() {
           step="0.01"
           placeholder="Leave empty to calculate"
         />
-        <p class="help-text">Principal paid each month (interest will be added on top)</p>
+        <p class="help-text" title="Principal paid each month (interest will be added on top)">
+          Interest added on top
+        </p>
       </div>
 
       <!-- Calculated values display -->
@@ -423,12 +437,22 @@ function handleDelete() {
         <div v-if="calculatedMonthlyPayment" class="calculated-field">
           <span class="label">Required Monthly Payment:</span>
           <span class="value">€{{ calculatedMonthlyPayment.toFixed(2) }}</span>
-          <p class="help-text">Total payment (principal + interest) each month</p>
+          <p
+            class="help-text"
+            title="Total payment stays the same each month, principal portion increases over time"
+          >
+            Includes principal and interest
+          </p>
         </div>
         <div v-if="calculatedPrincipalPayment" class="calculated-field">
           <span class="label">Required Monthly Principal:</span>
           <span class="value">€{{ calculatedPrincipalPayment.toFixed(2) }}</span>
-          <p class="help-text">Principal paid each month (total payment will vary with interest)</p>
+          <p
+            class="help-text"
+            title="Principal paid each month (total payment will vary with interest)"
+          >
+            Total payment varies monthly
+          </p>
         </div>
         <div v-if="calculatedEndDate" class="calculated-field">
           <span class="label">Estimated Payoff Date:</span>
