@@ -27,8 +27,8 @@ export const usePlannerStore = defineStore('planner', () => {
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
   const debts = ref<AllDebtTypes[]>([])
-  const liquidAssetsInterestRate = ref<number>(5) // Default 5% for all liquid assets
-  const inflationRate = ref<number>(2.5) // Default 2.5% inflation
+  const liquidAssetsInterestRate = ref<number>(7) // Default 7% for all liquid assets (moderate)
+  const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
   const taxCountry = ref<string | undefined>(undefined) // ISO country code for tax calculations
   const projectionResult = ref<ProjectionResult | null>(null)
 
@@ -321,8 +321,8 @@ export const usePlannerStore = defineStore('planner', () => {
     capitalAccounts.value = []
     cashFlows.value = []
     debts.value = []
-    liquidAssetsInterestRate.value = 5
-    inflationRate.value = 2.5
+    liquidAssetsInterestRate.value = 7
+    inflationRate.value = 3
     taxCountry.value = undefined
     projectionResult.value = null
     wizardCompleted.value = false
