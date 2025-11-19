@@ -22,40 +22,22 @@ const amount = ref<number>(0)
 const annualInterestRate = ref<number>(0)
 const startDate = ref<Month | undefined>(undefined)
 
-// Scenario selection - what does the user know?
-const willPayOff = ref<boolean>(true) // Will fully repay the debt?
-const hasDelayedStart = ref<boolean>(false) // Will repayment start later?
-const knowsEndDate = ref<boolean>(false) // Do they know when it ends?
-const knowsPaymentAmount = ref<boolean>(false) // Do they know the payment amount?
-const constantPayment = ref<boolean>(true) // Constant total payment vs constant principal
+// Form state - single repayment type selection
+const repaymentType = ref<'annuity' | 'linear' | 'balloon' | 'perpetual'>('annuity')
+const hasDelayedStart = ref<boolean>(false)
 
-// Conditional fields based on scenario
+// Optional fields - user can leave empty to calculate
 const repaymentStartDate = ref<Month | undefined>(undefined)
 const endDate = ref<Month | undefined>(undefined)
-const monthlyPayment = ref<number>(0)
-const monthlyPrincipal = ref<number>(0)
+const monthlyPayment = ref<number | undefined>(undefined)
+const monthlyPrincipal = ref<number | undefined>(undefined)
 
-// Calculated/derived debt type based on scenario (not currently used in UI but available for future use)
-// const _debtType = computed<'linear' | 'annualized' | 'interest-only'>(() => {
-//   if (!willPayOff.value) return 'interest-only'
-//   if (constantPayment.value) return 'annualized' // Fixed total payment
-//   return 'linear' // Fixed principal payment (variable total)
-// })
-
-// Show/hide fields based on scenario choices
+// Show/hide fields based on repayment type
 const showRepaymentStartDate = computed(() => hasDelayedStart.value)
-const showEndDate = computed(() => willPayOff.value && knowsEndDate.value)
-const showPaymentAmount = computed(() => {
-  if (!willPayOff.value) return false
-  if (!knowsPaymentAmount.value) return false
-  return true
-})
-const showPrincipalAmount = computed(() => {
-  if (!willPayOff.value) return false
-  if (constantPayment.value) return false // Only for linear (non-constant payment)
-  if (!knowsPaymentAmount.value) return false
-  return true
-})
+const showDelayedStart = computed(() => repaymentType.value !== 'perpetual')
+const showEndDate = computed(() => repaymentType.value !== 'perpetual')
+const showMonthlyPayment = computed(() => repaymentType.value === 'annuity')
+const showMonthlyPrincipal = computed(() => repaymentType.value === 'linear')
 
 // UI state
 const isEditMode = computed(() => !!props.id)
@@ -82,69 +64,59 @@ function addMonthsToMonth(month: Month, monthsToAdd: number): Month {
 
 // Calculated fields (read-only display)
 const calculatedMonthlyPayment = computed(() => {
-  if (!willPayOff.value || knowsPaymentAmount.value) return null
-  if (!constantPayment.value) return null // Only for annualized/constant payment
+  if (repaymentType.value !== 'annuity') return null
+  if (monthlyPayment.value !== undefined && monthlyPayment.value > 0) return null
+  if (endDate.value === undefined || amount.value <= 0) return null
 
-  if (knowsEndDate.value && endDate.value !== undefined && amount.value > 0) {
-    // Calculate payment needed to pay off by end date (constant payment)
-    const months = calculateMonthsUntil(endDate.value)
-    if (months <= 0) return null
+  const months = calculateMonthsUntil(endDate.value)
+  if (months <= 0) return null
 
-    const monthlyRate = annualInterestRate.value / 100 / 12
-    if (monthlyRate === 0) return amount.value / months
+  const monthlyRate = annualInterestRate.value / 100 / 12
+  if (monthlyRate === 0) return amount.value / months
 
-    // Annuity formula: P = (r * PV) / (1 - (1 + r)^-n)
-    const payment = (monthlyRate * amount.value) / (1 - Math.pow(1 + monthlyRate, -months))
-    return payment
-  }
-
-  return null
+  // Annuity formula: P = (r * PV) / (1 - (1 + r)^-n)
+  return (monthlyRate * amount.value) / (1 - Math.pow(1 + monthlyRate, -months))
 })
 
 const calculatedPrincipalPayment = computed(() => {
-  if (!willPayOff.value || knowsPaymentAmount.value) return null
-  if (constantPayment.value) return null // Only for linear/variable payment
+  if (repaymentType.value !== 'linear') return null
+  if (monthlyPrincipal.value !== undefined && monthlyPrincipal.value > 0) return null
+  if (endDate.value === undefined || amount.value <= 0) return null
 
-  if (knowsEndDate.value && endDate.value !== undefined && amount.value > 0) {
-    // Calculate principal payment for linear repayment
-    const months = calculateMonthsUntil(endDate.value)
-    if (months <= 0) return null
+  const months = calculateMonthsUntil(endDate.value)
+  if (months <= 0) return null
 
-    // Simple: principal / months
-    return amount.value / months
-  }
-
-  return null
+  return amount.value / months
 })
 
 const calculatedEndDate = computed((): Month | null => {
-  if (!willPayOff.value || knowsEndDate.value) return null
+  if (endDate.value !== undefined) return null
+  if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') return null
+  if (amount.value <= 0) return null
 
-  if (knowsPaymentAmount.value && amount.value > 0) {
-    const monthlyRate = annualInterestRate.value / 100 / 12
+  const monthlyRate = annualInterestRate.value / 100 / 12
 
-    if (constantPayment.value && monthlyPayment.value > 0) {
-      // Calculate payoff date for constant total payment (annualized)
-      const minPayment = amount.value * monthlyRate
+  if (repaymentType.value === 'annuity' && monthlyPayment.value && monthlyPayment.value > 0) {
+    const minPayment = amount.value * monthlyRate
+    if (monthlyPayment.value <= minPayment) return null
 
-      if (monthlyPayment.value <= minPayment) return null // Never pays off
-
-      if (monthlyRate === 0) {
-        const months = Math.ceil(amount.value / monthlyPayment.value)
-        return addMonthsToMonth(getStartMonth(), months)
-      }
-
-      // Calculate months: n = -log(1 - (r * PV / PMT)) / log(1 + r)
-      const months = Math.ceil(
-        -Math.log(1 - (monthlyRate * amount.value) / monthlyPayment.value) /
-          Math.log(1 + monthlyRate),
-      )
-      return addMonthsToMonth(getStartMonth(), months)
-    } else if (!constantPayment.value && monthlyPrincipal.value > 0) {
-      // Calculate payoff date for constant principal payment (linear)
-      const months = Math.ceil(amount.value / monthlyPrincipal.value)
+    if (monthlyRate === 0) {
+      const months = Math.ceil(amount.value / monthlyPayment.value)
       return addMonthsToMonth(getStartMonth(), months)
     }
+
+    const months = Math.ceil(
+      -Math.log(1 - (monthlyRate * amount.value) / monthlyPayment.value) /
+        Math.log(1 + monthlyRate),
+    )
+    return addMonthsToMonth(getStartMonth(), months)
+  } else if (
+    repaymentType.value === 'linear' &&
+    monthlyPrincipal.value &&
+    monthlyPrincipal.value > 0
+  ) {
+    const months = Math.ceil(amount.value / monthlyPrincipal.value)
+    return addMonthsToMonth(getStartMonth(), months)
   }
 
   return null
@@ -154,7 +126,7 @@ const calculatedEndDate = computed((): Month | null => {
 const warnings = computed(() => {
   const warns: string[] = []
 
-  if (willPayOff.value && knowsPaymentAmount.value) {
+  if (repaymentType.value === 'annuity' && monthlyPayment.value) {
     const minPayment = (amount.value * annualInterestRate.value) / 100 / 12
     if (monthlyPayment.value <= minPayment) {
       warns.push(
@@ -163,7 +135,7 @@ const warnings = computed(() => {
     }
   }
 
-  if (knowsEndDate.value && endDate.value !== undefined) {
+  if (endDate.value !== undefined) {
     const months = calculateMonthsUntil(endDate.value)
     if (months <= 0) {
       warns.push('End month must be in the future')
@@ -183,38 +155,25 @@ onMounted(() => {
       annualInterestRate.value = debt.annualInterestRate
       startDate.value = debt.startDate
 
-      // Determine scenario from existing debt
+      // Determine repayment type from existing debt
       const type = debt.getDebtType()
-      willPayOff.value = type !== 'interest-only'
+      if (type === 'annualized') {
+        repaymentType.value = 'annuity'
+        monthlyPayment.value = debt.monthlyPayment ?? undefined
+      } else if (type === 'linear') {
+        repaymentType.value = 'linear'
+        monthlyPrincipal.value = debt.monthlyPrincipalPayment ?? undefined
+      } else if (type === 'interest-only') {
+        // Check if there's an end date (balloon) or not (perpetual)
+        repaymentType.value = debt.endDate !== undefined ? 'balloon' : 'perpetual'
+      }
+
+      endDate.value = debt.endDate
       hasDelayedStart.value =
         !!debt.repaymentStartDate && debt.repaymentStartDate !== debt.startDate
 
       if (hasDelayedStart.value) {
         repaymentStartDate.value = debt.repaymentStartDate
-      }
-
-      if (type === 'annualized') {
-        constantPayment.value = true
-        knowsPaymentAmount.value = true
-        monthlyPayment.value = debt.monthlyPayment ?? 0
-        if (debt.endDate !== undefined) {
-          knowsEndDate.value = true
-          endDate.value = debt.endDate
-        }
-      } else if (type === 'linear') {
-        constantPayment.value = false
-        knowsPaymentAmount.value = true
-        monthlyPrincipal.value = debt.monthlyPrincipalPayment ?? 0
-        if (debt.endDate !== undefined) {
-          knowsEndDate.value = true
-          endDate.value = debt.endDate
-        }
-      } else if (type === 'interest-only') {
-        willPayOff.value = false
-        if (debt.endDate !== undefined) {
-          knowsEndDate.value = true
-          endDate.value = debt.endDate
-        }
       }
     } else {
       router.push({ name: 'dashboard' })
@@ -229,19 +188,18 @@ onMounted(() => {
       annualInterestRate.value = template.annualInterestRate || 0
       startDate.value = template.startDate
 
-      // Set default scenario based on template
+      // Set repayment type based on template
       const type = template.getDebtType()
-      willPayOff.value = type !== 'interest-only'
-
       if (type === 'annualized') {
-        knowsPaymentAmount.value = true
-        monthlyPayment.value = template.monthlyPayment || 0
+        repaymentType.value = 'annuity'
+        monthlyPayment.value = template.monthlyPayment || undefined
+      } else if (type === 'linear') {
+        repaymentType.value = 'linear'
+      } else if (type === 'interest-only') {
+        repaymentType.value = template.endDate ? 'balloon' : 'perpetual'
       }
 
-      if (template.endDate) {
-        endDate.value = template.endDate
-        knowsEndDate.value = true
-      }
+      endDate.value = template.endDate
     }
   }
 })
@@ -258,26 +216,6 @@ function handleSave() {
     return
   }
 
-  if (knowsEndDate.value && !endDate.value) {
-    if (willPayOff.value) {
-      alert('Please specify the payoff date')
-    } else {
-      alert('Please specify the settlement date')
-    }
-    return
-  }
-
-  if (willPayOff.value && knowsPaymentAmount.value) {
-    if (constantPayment.value && monthlyPayment.value <= 0) {
-      alert('Please specify the monthly payment amount')
-      return
-    }
-    if (!constantPayment.value && monthlyPrincipal.value <= 0) {
-      alert('Please specify the monthly principal amount')
-      return
-    }
-  }
-
   let debt
   const baseData = {
     id: props.id,
@@ -286,58 +224,44 @@ function handleSave() {
     annualInterestRate: annualInterestRate.value,
     startDate: startDate.value || undefined,
     repaymentStartDate: hasDelayedStart.value ? repaymentStartDate.value || undefined : undefined,
-    endDate: knowsEndDate.value ? endDate.value || undefined : calculatedEndDate.value || undefined,
+    endDate: endDate.value || calculatedEndDate.value || undefined,
   }
 
-  // Determine which debt type to create based on scenario
-  if (!willPayOff.value) {
-    // Interest-only debt
+  // Determine which debt type to create based on repayment type
+  if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') {
+    // Interest-only debt (balloon payment or perpetual)
     debt = new InterestOnlyDebt({
       ...baseData,
       finalBalance: 0, // Always pay off remaining at end
     })
-  } else if (constantPayment.value) {
-    // Constant total payment (annualized)
-    if (knowsPaymentAmount.value && monthlyPayment.value > 0) {
-      debt = new AnnualizedDebt({
-        ...baseData,
-        monthlyPayment: monthlyPayment.value,
-      })
-    } else if (knowsEndDate.value && calculatedMonthlyPayment.value) {
-      debt = new AnnualizedDebt({
-        ...baseData,
-        monthlyPayment: calculatedMonthlyPayment.value,
-      })
-    } else {
-      // Default annualized with reasonable payment
-      const monthlyRate = annualInterestRate.value / 100 / 12
-      const months = 360 // 30 years default
-      const defaultPayment = (monthlyRate * amount.value) / (1 - Math.pow(1 + monthlyRate, -months))
-      debt = new AnnualizedDebt({
-        ...baseData,
-        monthlyPayment: defaultPayment,
-      })
-    }
+  } else if (repaymentType.value === 'annuity') {
+    // Constant total payment (annuity)
+    const payment =
+      monthlyPayment.value && monthlyPayment.value > 0
+        ? monthlyPayment.value
+        : calculatedMonthlyPayment.value ||
+          (() => {
+            // Default annuity with reasonable payment (30 years)
+            const monthlyRate = annualInterestRate.value / 100 / 12
+            const months = 360
+            return (monthlyRate * amount.value) / (1 - Math.pow(1 + monthlyRate, -months))
+          })()
+
+    debt = new AnnualizedDebt({
+      ...baseData,
+      monthlyPayment: payment,
+    })
   } else {
     // Constant principal payment (linear)
-    if (knowsPaymentAmount.value && monthlyPrincipal.value > 0) {
-      debt = new LinearDebt({
-        ...baseData,
-        monthlyPrincipalPayment: monthlyPrincipal.value,
-      })
-    } else if (knowsEndDate.value && calculatedPrincipalPayment.value) {
-      debt = new LinearDebt({
-        ...baseData,
-        monthlyPrincipalPayment: calculatedPrincipalPayment.value,
-      })
-    } else {
-      // Default to linear with reasonable principal
-      const defaultPrincipal = amount.value / 360 // 30 years default
-      debt = new LinearDebt({
-        ...baseData,
-        monthlyPrincipalPayment: defaultPrincipal,
-      })
-    }
+    const principal =
+      monthlyPrincipal.value && monthlyPrincipal.value > 0
+        ? monthlyPrincipal.value
+        : calculatedPrincipalPayment.value || amount.value / 360 // Default 30 years
+
+    debt = new LinearDebt({
+      ...baseData,
+      monthlyPrincipalPayment: principal,
+    })
   }
 
   if (isEditMode.value && props.id) {
@@ -416,115 +340,78 @@ function handleDelete() {
         <p class="help-text">When the debt begins (defaults to current month)</p>
       </div>
 
-      <!-- Scenario selection -->
-      <div class="form-section">
-        <h3>Repayment Plan</h3>
-
-        <div class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="willPayOff" />
-            I will pay this debt off gradually
+      <!-- Repayment Type -->
+      <div class="form-group">
+        <label>Repayment Type</label>
+        <div class="radio-group">
+          <label class="radio-label">
+            <input type="radio" v-model="repaymentType" value="annuity" />
+            Constant payment (annuity)
           </label>
-          <p class="help-text">
-            Uncheck if you'll only pay interest and settle the principal at the end (balloon
-            payment)
-          </p>
-        </div>
-
-        <div v-if="!willPayOff" class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="knowsEndDate" />
-            I know when I will settle this debt
+          <label class="radio-label">
+            <input type="radio" v-model="repaymentType" value="linear" />
+            Constant principal (linear)
           </label>
-          <p class="help-text">When you'll pay off the remaining balance in full</p>
-        </div>
-
-        <div v-if="!willPayOff && knowsEndDate" class="form-group">
-          <MonthEdit
-            v-model="endDate"
-            label="Settlement Month"
-            :required="true"
-            :nullable="false"
-          />
-          <p class="help-text">Month of final balloon payment</p>
-        </div>
-
-        <div v-if="willPayOff" class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="hasDelayedStart" />
-            Repayment will start at a future date
+          <label class="radio-label">
+            <input type="radio" v-model="repaymentType" value="balloon" />
+            Balloon payment
+          </label>
+          <label class="radio-label">
+            <input type="radio" v-model="repaymentType" value="perpetual" />
+            Perpetual (interest only)
           </label>
         </div>
+      </div>
 
-        <div v-if="showRepaymentStartDate" class="form-group">
-          <MonthEdit
-            v-model="repaymentStartDate"
-            label="Repayment Start Month"
-            :required="true"
-            :nullable="false"
-          />
-        </div>
+      <!-- Delayed start checkbox -->
+      <div v-if="showDelayedStart" class="form-group checkbox-group">
+        <label>
+          <input type="checkbox" v-model="hasDelayedStart" />
+          Repayment will start at a future date
+        </label>
+      </div>
 
-        <div v-if="willPayOff" class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="knowsEndDate" />
-            I know when this debt will be paid off
-          </label>
-        </div>
+      <div v-if="showRepaymentStartDate" class="form-group">
+        <MonthEdit
+          v-model="repaymentStartDate"
+          label="Repayment Start Month"
+          :required="true"
+          :nullable="false"
+        />
+      </div>
 
-        <div v-if="showEndDate" class="form-group">
-          <MonthEdit v-model="endDate" label="Payoff Month" :required="true" :nullable="false" />
-        </div>
+      <!-- Optional end date -->
+      <div v-if="showEndDate" class="form-group">
+        <MonthEdit v-model="endDate" label="Payoff Date (optional)" :nullable="true" />
+        <p class="help-text">Leave empty to calculate from payment amount</p>
+      </div>
 
-        <div v-if="willPayOff" class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="constantPayment" />
-            My payment amount will stay constant (recommended for mortgages)
-          </label>
-          <p class="help-text">
-            <template v-if="constantPayment">
-              Total payment stays the same each month, principal portion increases over time
-            </template>
-            <template v-else>
-              Principal payment stays constant, total payment decreases as interest drops
-            </template>
-          </p>
-        </div>
+      <!-- Monthly payment for annuity -->
+      <div v-if="showMonthlyPayment" class="form-group">
+        <label for="monthly-payment">Monthly Payment (€, optional)</label>
+        <input
+          id="monthly-payment"
+          v-model.number="monthlyPayment"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Leave empty to calculate"
+        />
+        <p class="help-text">Total payment (principal + interest) each month</p>
+      </div>
 
-        <div v-if="willPayOff" class="form-group checkbox-group">
-          <label>
-            <input type="checkbox" v-model="knowsPaymentAmount" />
-            I know my {{ constantPayment ? 'monthly payment' : 'monthly principal' }} amount
-          </label>
-        </div>
-
-        <div v-if="showPaymentAmount && constantPayment" class="form-group">
-          <label for="monthly-payment">Monthly Payment (€) *</label>
-          <input
-            id="monthly-payment"
-            v-model.number="monthlyPayment"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            required
-          />
-          <p class="help-text">Total payment (principal + interest) each month</p>
-        </div>
-
-        <div v-if="showPrincipalAmount && !constantPayment" class="form-group">
-          <label for="monthly-principal">Monthly Principal Payment (€) *</label>
-          <input
-            id="monthly-principal"
-            v-model.number="monthlyPrincipal"
-            type="number"
-            min="0"
-            step="0.01"
-            placeholder="0.00"
-            required
-          />
-          <p class="help-text">Principal paid each month (interest will be added on top)</p>
-        </div>
+      <!-- Monthly principal for linear -->
+      <div v-if="showMonthlyPrincipal" class="form-group">
+        <label for="monthly-principal">Monthly Principal Payment (€, optional)</label>
+        <input
+          id="monthly-principal"
+          v-model.number="monthlyPrincipal"
+          type="number"
+          min="0"
+          step="0.01"
+          placeholder="Leave empty to calculate"
+        />
+        <p class="help-text">Principal paid each month (interest will be added on top)</p>
       </div>
 
       <!-- Calculated values display -->
@@ -656,6 +543,41 @@ function handleDelete() {
   width: 18px;
   height: 18px;
   cursor: pointer;
+}
+
+.radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.75rem;
+  border: 2px solid #e5e7eb;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.radio-label:hover {
+  border-color: #42b983;
+  background: #f9fafb;
+}
+
+.radio-label input[type='radio'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.radio-label:has(input[type='radio']:checked) {
+  border-color: #42b983;
+  background: #ecfdf5;
 }
 
 .calculated-values {
