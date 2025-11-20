@@ -5,11 +5,11 @@
       <button @click="startAdding" class="btn-add">Add Life Event</button>
     </div>
 
-    <div v-if="lifeEvents.length === 0" class="empty-state">
+    <div v-if="lifeEvents.length === 0 && !isAdding" class="empty-state">
       No life events defined. Add one to reference it when setting dates.
     </div>
 
-    <div v-else class="life-events-list">
+    <div v-if="lifeEvents.length > 0" class="life-events-list">
       <div v-for="event in lifeEvents" :key="event.id" class="life-event-card">
         <div v-if="editingId !== event.id" class="life-event-view">
           <div class="life-event-header">
@@ -61,34 +61,34 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <div v-if="isAdding" class="life-event-card life-event-add">
-        <h4>Add Life Event</h4>
+    <div v-if="isAdding" class="life-event-card life-event-add">
+      <h4>Add Life Event</h4>
 
-        <div class="form-group">
-          <label>Name</label>
-          <input v-model="addForm.name" type="text" required />
-        </div>
+      <div class="form-group">
+        <label>Name</label>
+        <input v-model="addForm.name" type="text" required />
+      </div>
 
-        <div class="form-group">
-          <label>Date</label>
-          <DateSpecificationEdit
-            v-model="addForm.date"
-            :nullable="true"
-            :allow-age-entry="true"
-            :show-mode-selector="true"
-          />
-        </div>
+      <div class="form-group">
+        <label>Date</label>
+        <DateSpecificationEdit
+          v-model="addForm.date"
+          :nullable="true"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
+        />
+      </div>
 
-        <div class="form-group">
-          <label>Description (optional)</label>
-          <textarea v-model="addForm.description" rows="2"></textarea>
-        </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea v-model="addForm.description" rows="2"></textarea>
+      </div>
 
-        <div class="form-actions">
-          <button @click="saveAdd" class="btn-save">Add</button>
-          <button @click="cancelAdd" class="btn-cancel">Cancel</button>
-        </div>
+      <div class="form-actions">
+        <button @click="saveAdd" class="btn-save">Add</button>
+        <button @click="cancelAdd" class="btn-cancel">Cancel</button>
       </div>
     </div>
   </div>
