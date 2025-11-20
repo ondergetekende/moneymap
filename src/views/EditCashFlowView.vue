@@ -369,6 +369,16 @@ function handleDelete() {
 <style scoped lang="scss">
 // Component-specific styles only - shared styles come from _buttons.scss, _forms.scss, _layout.scss
 
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-3xl;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
 // Custom radio group layout (horizontal layout different from shared vertical radio-group)
 .radio-group {
   display: flex;

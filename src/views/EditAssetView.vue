@@ -306,6 +306,9 @@ function handleDelete() {
   align-items: center;
   gap: $spacing-lg;
   margin-bottom: $spacing-3xl;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
 }
 
 .page-title {
