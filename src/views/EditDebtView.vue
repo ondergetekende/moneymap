@@ -143,8 +143,10 @@ const monthlyPaymentDisplay = computed(() => {
   const monthlyInterest = amount.value * monthlyRate
 
   if (repaymentType.value === 'annuity') {
-    // Fixed payment debt
-    const payment = monthlyPayment.value || calculatedMonthlyPayment.value
+    // Fixed payment debt - use monthlyPayment if user entered it, otherwise use calculated
+    const payment =
+      (paymentInputMode.value === 'payment' ? monthlyPayment.value : null) ||
+      calculatedMonthlyPayment.value
     if (!payment) return null
     return {
       type: 'fixed' as const,
@@ -152,8 +154,10 @@ const monthlyPaymentDisplay = computed(() => {
       description: `Fixed monthly payment of €${payment.toFixed(2)}`,
     }
   } else if (repaymentType.value === 'linear') {
-    // Fixed principal debt
-    const principal = monthlyPrincipal.value || calculatedPrincipalPayment.value
+    // Fixed principal debt - use monthlyPrincipal if user entered it, otherwise use calculated
+    const principal =
+      (principalInputMode.value === 'principal' ? monthlyPrincipal.value : null) ||
+      calculatedPrincipalPayment.value
     if (!principal) return null
     const initialPayment = principal + monthlyInterest
     const finalPayment = principal + principal * monthlyRate
