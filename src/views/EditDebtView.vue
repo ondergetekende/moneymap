@@ -558,10 +558,12 @@ function handleDelete() {
         <p class="help-text">When you'll pay off the remaining balance</p>
       </div>
 
-      <!-- Monthly Payment Summary -->
-      <div v-if="monthlyPaymentDisplay" class="payment-summary">
-        <h3>Monthly Payment</h3>
-        <div class="payment-info">
+      <!-- Payment Summary -->
+      <div v-if="monthlyPaymentDisplay || calculatedEndDate" class="payment-summary">
+        <h3>Payment Summary</h3>
+
+        <!-- Monthly payment info -->
+        <div v-if="monthlyPaymentDisplay" class="payment-info">
           <div v-if="monthlyPaymentDisplay.type === 'fixed'" class="payment-display">
             <div class="payment-amount">€{{ monthlyPaymentDisplay.payment.toFixed(2) }}/month</div>
             <p class="help-text">Fixed payment throughout the loan term</p>
@@ -589,12 +591,9 @@ function handleDelete() {
             <p class="help-text">Interest only - principal due at end</p>
           </div>
         </div>
-      </div>
 
-      <!-- Calculated values display -->
-      <div v-if="calculatedEndDate" class="calculated-values">
-        <h3>Calculated Values</h3>
-        <div class="calculated-field">
+        <!-- Calculated end date -->
+        <div v-if="calculatedEndDate" class="calculated-field">
           <span class="label">Estimated Payoff Date:</span>
           <span class="value">{{ calculatedEndDate }}</span>
         </div>
@@ -672,6 +671,14 @@ function handleDelete() {
     color: #2c3e50;
   }
 
+  .payment-info {
+    margin-bottom: 1rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
   .payment-display {
     display: flex;
     flex-direction: column;
@@ -714,6 +721,27 @@ function handleDelete() {
     }
   }
 
+  .calculated-field {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding-top: 1rem;
+    margin-top: 1rem;
+    border-top: 1px solid #dee2e6;
+
+    .label {
+      font-size: 0.95rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .value {
+      font-size: 1.1rem;
+      color: #2c3e50;
+      font-weight: 600;
+    }
+  }
+
   .help-text {
     margin: 0;
     font-size: 0.9rem;
@@ -733,6 +761,12 @@ function handleDelete() {
 
     .payment-amount {
       font-size: 1.25rem;
+    }
+
+    .calculated-field {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
     }
   }
 }
