@@ -44,8 +44,9 @@
             <label>Date</label>
             <DateSpecificationEdit
               v-model="editForm.date"
-              :nullable="true"
+              :nullable="false"
               :allow-age-entry="true"
+              :allow-event-entry="false"
               :show-mode-selector="true"
             />
           </div>
@@ -75,8 +76,9 @@
         <label>Date</label>
         <DateSpecificationEdit
           v-model="addForm.date"
-          :nullable="true"
+          :nullable="false"
           :allow-age-entry="true"
+          :allow-event-entry="false"
           :show-mode-selector="true"
         />
       </div>
@@ -99,8 +101,7 @@ import { ref, computed } from 'vue'
 import { usePlannerStore } from '@/stores/planner'
 import type { LifeEvent } from '@/models'
 import type { DateSpecification } from '@/types/month'
-import { formatMonth } from '@/types/month'
-import { resolveDate } from '@/types/month'
+import { formatMonth, resolveDate, getCurrentMonth, createAbsoluteDate } from '@/types/month'
 import DateSpecificationEdit from './DateSpecificationEdit.vue'
 
 const store = usePlannerStore()
@@ -112,21 +113,21 @@ const editingId = ref<string | null>(null)
 
 const addForm = ref<{
   name: string
-  date?: DateSpecification
+  date: DateSpecification
   description?: string
 }>({
   name: '',
-  date: undefined,
+  date: createAbsoluteDate(getCurrentMonth()),
   description: '',
 })
 
 const editForm = ref<{
   name: string
-  date?: DateSpecification
+  date: DateSpecification
   description?: string
 }>({
   name: '',
-  date: undefined,
+  date: createAbsoluteDate(getCurrentMonth()),
   description: '',
 })
 
@@ -134,7 +135,7 @@ function startAdding() {
   isAdding.value = true
   addForm.value = {
     name: '',
-    date: undefined,
+    date: createAbsoluteDate(getCurrentMonth()),
     description: '',
   }
 }
@@ -143,7 +144,7 @@ function cancelAdd() {
   isAdding.value = false
   addForm.value = {
     name: '',
-    date: undefined,
+    date: createAbsoluteDate(getCurrentMonth()),
     description: '',
   }
 }
@@ -167,7 +168,7 @@ function startEditing(event: LifeEvent) {
   editingId.value = event.id
   editForm.value = {
     name: event.name,
-    date: event.date,
+    date: event.date || createAbsoluteDate(getCurrentMonth()),
     description: event.description,
   }
 }
@@ -176,7 +177,7 @@ function cancelEdit() {
   editingId.value = null
   editForm.value = {
     name: '',
-    date: undefined,
+    date: createAbsoluteDate(getCurrentMonth()),
     description: '',
   }
 }

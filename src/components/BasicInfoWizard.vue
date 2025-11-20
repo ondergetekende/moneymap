@@ -41,6 +41,7 @@
             @update:liquidAssetsInterestRate="tempLiquidAssetsInterestRate = $event"
             @update:inflationRate="tempInflationRate = $event"
           />
+          <LifeEventsStep v-if="currentStep === 4" />
         </div>
 
         <div class="wizard-footer">
@@ -77,6 +78,7 @@ import { getAgeInYears } from '@/types/month'
 import BirthDateStep from './wizard/BirthDateStep.vue'
 import JurisdictionStep from './wizard/JurisdictionStep.vue'
 import ReturnsInflationStep from './wizard/ReturnsInflationStep.vue'
+import LifeEventsStep from './wizard/LifeEventsStep.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -99,7 +101,7 @@ const emit = defineEmits<{
 }>()
 
 const currentStep = ref(1)
-const totalSteps = 3
+const totalSteps = 4
 
 // Temporary state for wizard
 const tempBirthDate = ref<Month>(props.birthDate)
@@ -139,6 +141,8 @@ const canProceed = computed(() => {
         tempInflationRate.value >= 0 &&
         tempInflationRate.value <= 20
       )
+    case 4:
+      return true // Life events are optional
     default:
       return false
   }
@@ -152,6 +156,8 @@ function getStepLabel(step: number): string {
       return 'Jurisdiction'
     case 3:
       return 'Returns & Inflation'
+    case 4:
+      return 'Life Events'
     default:
       return ''
   }
