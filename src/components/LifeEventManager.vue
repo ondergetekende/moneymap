@@ -25,10 +25,6 @@
           </div>
           <div v-else class="life-event-date unset">Date not set</div>
 
-          <div v-if="event.description" class="life-event-description">
-            {{ event.description }}
-          </div>
-
           <div class="life-event-references">
             {{ getReferenceCount(event.id) }}
           </div>
@@ -49,11 +45,6 @@
               :allow-event-entry="false"
               :show-mode-selector="true"
             />
-          </div>
-
-          <div class="form-group">
-            <label>Description (optional)</label>
-            <textarea v-model="editForm.description" rows="2"></textarea>
           </div>
 
           <div class="form-actions">
@@ -83,11 +74,6 @@
         />
       </div>
 
-      <div class="form-group">
-        <label>Description (optional)</label>
-        <textarea v-model="addForm.description" rows="2"></textarea>
-      </div>
-
       <div class="form-actions">
         <button @click="saveAdd" class="btn-save">Add</button>
         <button @click="cancelAdd" class="btn-cancel">Cancel</button>
@@ -114,21 +100,17 @@ const editingId = ref<string | null>(null)
 const addForm = ref<{
   name: string
   date: DateSpecification
-  description?: string
 }>({
   name: '',
   date: createAbsoluteDate(getCurrentMonth()),
-  description: '',
 })
 
 const editForm = ref<{
   name: string
   date: DateSpecification
-  description?: string
 }>({
   name: '',
   date: createAbsoluteDate(getCurrentMonth()),
-  description: '',
 })
 
 function startAdding() {
@@ -136,7 +118,6 @@ function startAdding() {
   addForm.value = {
     name: '',
     date: createAbsoluteDate(getCurrentMonth()),
-    description: '',
   }
 }
 
@@ -145,7 +126,6 @@ function cancelAdd() {
   addForm.value = {
     name: '',
     date: createAbsoluteDate(getCurrentMonth()),
-    description: '',
   }
 }
 
@@ -158,7 +138,6 @@ function saveAdd() {
   store.addLifeEvent({
     name: addForm.value.name,
     date: addForm.value.date,
-    description: addForm.value.description,
   })
 
   cancelAdd()
@@ -169,7 +148,6 @@ function startEditing(event: LifeEvent) {
   editForm.value = {
     name: event.name,
     date: event.date || createAbsoluteDate(getCurrentMonth()),
-    description: event.description,
   }
 }
 
@@ -178,7 +156,6 @@ function cancelEdit() {
   editForm.value = {
     name: '',
     date: createAbsoluteDate(getCurrentMonth()),
-    description: '',
   }
 }
 
@@ -192,7 +169,6 @@ function saveEdit() {
     store.updateLifeEvent(editingId.value, {
       name: editForm.value.name,
       date: editForm.value.date,
-      description: editForm.value.description,
     })
   }
 
@@ -343,11 +319,6 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 .life-event-date.unset {
   color: #999;
   font-style: italic;
-}
-
-.life-event-description {
-  font-size: 0.85rem;
-  color: #666;
 }
 
 .life-event-references {
