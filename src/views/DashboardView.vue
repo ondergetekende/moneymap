@@ -16,6 +16,21 @@ const showInflationAdjusted = ref(false)
 
 // Auto-open wizard on first visit
 onMounted(() => {
+  // Check for skipOnboarding URL parameter (only in development)
+  const urlParams = new URLSearchParams(window.location.search)
+  const skipOnboarding = urlParams.get('skipOnboarding') === 'true'
+
+  // Only allow skipOnboarding in development/debug mode
+  const isDevelopment = import.meta.env.DEV
+
+  if (skipOnboarding && isDevelopment) {
+    // Skip the wizard - mark as completed without opening
+    if (!store.wizardCompleted) {
+      store.completeWizard()
+    }
+    return
+  }
+
   // If user hasn't completed the wizard yet, open it automatically
   if (!store.wizardCompleted) {
     store.openWizard()

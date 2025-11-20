@@ -15,7 +15,9 @@
             :class="{
               active: step === currentStep,
               completed: step < currentStep,
+              clickable: true,
             }"
+            @click="goToStep(step)"
           >
             <div class="progress-circle">{{ step }}</div>
             <div class="progress-label">{{ getStepLabel(step) }}</div>
@@ -169,6 +171,12 @@ function goBack() {
   }
 }
 
+function goToStep(step: number) {
+  if (step >= 1 && step <= totalSteps) {
+    currentStep.value = step
+  }
+}
+
 function finish() {
   if (canProceed.value) {
     emit('save', {
@@ -276,6 +284,10 @@ function handleCancel() {
   z-index: 1;
 }
 
+.progress-step.clickable {
+  cursor: pointer;
+}
+
 .progress-circle {
   width: 2.5rem;
   height: 2.5rem;
@@ -287,6 +299,11 @@ function handleCancel() {
   justify-content: center;
   font-weight: 700;
   transition: all 0.3s;
+}
+
+.progress-step.clickable:hover .progress-circle {
+  background-color: #dee2e6;
+  transform: scale(1.05);
 }
 
 .progress-step.active .progress-circle {
