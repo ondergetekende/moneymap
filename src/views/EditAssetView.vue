@@ -36,6 +36,11 @@ const pageTitle = computed(() => {
   }
   return `New ${typeName}`
 })
+const assetTypeName = computed(() => {
+  return assetType.value === 'liquid'
+    ? 'Liquid Asset (Savings, Cash)'
+    : 'Fixed Asset (Property, House)'
+})
 
 const showInterestRate = computed(() => assetType.value === 'fixed')
 
@@ -188,12 +193,8 @@ function handleDelete() {
 
     <form class="edit-form" @submit.prevent="handleSave">
       <div class="form-group">
-        <label for="asset-type">Asset Type</label>
-        <select id="asset-type" v-model="assetType" :disabled="isEditMode">
-          <option value="liquid">Liquid Asset (Savings, Cash)</option>
-          <option value="fixed">Fixed Asset (Property, House)</option>
-        </select>
-        <p v-if="isEditMode" class="help-text">Asset type cannot be changed</p>
+        <p class="field-label">Asset Type</p>
+        <p class="field-value">{{ assetTypeName }}</p>
       </div>
 
       <div class="form-group">
@@ -283,6 +284,20 @@ function handleDelete() {
 
 <style scoped lang="scss">
 // Component-specific styles only - shared styles come from _buttons.scss, _forms.scss, _layout.scss
+
+.field-label {
+  font-weight: $font-semibold;
+  color: $text-secondary;
+  margin: 0 0 $spacing-xs 0;
+  font-size: $font-sm;
+}
+
+.field-value {
+  color: $text-primary;
+  margin: 0;
+  padding: $spacing-sm 0;
+  font-size: $font-base;
+}
 
 .view-header {
   display: flex;
