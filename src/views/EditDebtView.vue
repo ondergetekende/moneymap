@@ -5,7 +5,7 @@ import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
 import { LinearDebt, AnnualizedDebt, InterestOnlyDebt } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
-import { getCurrentMonth, addMonths, monthDiff, resolveDate } from '@/types/month'
+import { getCurrentMonth, addMonths, monthDiff, resolveDate, formatMonth } from '@/types/month'
 import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
 
 const props = defineProps<{
@@ -595,7 +595,7 @@ function handleDelete() {
         <!-- Calculated end date -->
         <div v-if="calculatedEndDate" class="calculated-field">
           <span class="label">Estimated Payoff Date:</span>
-          <span class="value">{{ calculatedEndDate }}</span>
+          <span class="value">{{ formatMonth(calculatedEndDate, 'full') }}</span>
         </div>
       </div>
 
