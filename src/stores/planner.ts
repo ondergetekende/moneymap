@@ -14,6 +14,7 @@ import {
   type AllDebtTypes,
   type CashFlowType,
   type CashFlowFrequency,
+  type LifeEvent,
 } from '@/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
@@ -27,6 +28,7 @@ export const usePlannerStore = defineStore('planner', () => {
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
   const debts = ref<AllDebtTypes[]>([])
+  const lifeEvents = ref<LifeEvent[]>([])
   const liquidAssetsInterestRate = ref<number>(7) // Default 7% for all liquid assets (moderate)
   const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
   const taxCountry = ref<string | undefined>(undefined) // ISO country code for tax calculations
@@ -46,6 +48,7 @@ export const usePlannerStore = defineStore('planner', () => {
       debts.value as AllDebtTypes[],
       inflationRate.value,
       taxCountry.value,
+      lifeEvents.value,
     )
   })
 
@@ -294,6 +297,112 @@ export const usePlannerStore = defineStore('planner', () => {
     recalculate()
   }
 
+  // Life Event actions
+  function addLifeEvent(data: { name: string; date?: DateSpecification; description?: string }) {
+    const newLifeEvent: LifeEvent = {
+      id: crypto.randomUUID(),
+      name: data.name,
+      date: data.date,
+      description: data.description,
+    }
+    lifeEvents.value.push(newLifeEvent)
+    recalculate() // Recalculate because dependent items may now resolve
+  }
+
+  function updateLifeEvent(id: string, updates: Partial<Omit<LifeEvent, 'id'>>) {
+    const index = lifeEvents.value.findIndex((le: LifeEvent) => le.id === id)
+    if (index !== -1) {
+      const existing = lifeEvents.value[index]
+      if (existing) {
+        lifeEvents.value[index] = {
+          id: existing.id,
+          name: updates.name ?? existing.name,
+          date: updates.date !== undefined ? updates.date : existing.date,
+          description:
+            updates.description !== undefined ? updates.description : existing.description,
+        }
+        recalculate() // Recalculate because dependent items may have changed
+      }
+    }
+  }
+
+  function removeLifeEvent(id: string) {
+    // Check if any items reference this life event
+    const references = findItemsReferencingLifeEvent(id)
+    const totalReferences =
+      references.cashFlows.length + references.debts.length + references.assets.length
+
+    if (totalReferences > 0) {
+      // For now, prevent deletion if items reference this event
+      // In the future, we could offer to convert references to absolute dates
+      throw new Error(
+        `Cannot delete life event: ${totalReferences} item(s) still reference it. Please update those items first.`,
+      )
+    }
+
+    lifeEvents.value = lifeEvents.value.filter((le: LifeEvent) => le.id !== id)
+    recalculate()
+  }
+
+  function getLifeEventById(id: string): LifeEvent | undefined {
+    return lifeEvents.value.find((le: LifeEvent) => le.id === id)
+  }
+
+  function findItemsReferencingLifeEvent(eventId: string): {
+    cashFlows: CashFlow[]
+    debts: AllDebtTypes[]
+    assets: CapitalAccount[]
+  } {
+    const referencedCashFlows = cashFlows.value.filter(
+      (cf) =>
+        (cf.startDate?.type === 'lifeEvent' && cf.startDate.eventId === eventId) ||
+        (cf.endDate?.type === 'lifeEvent' && cf.endDate.eventId === eventId),
+    )
+
+    const referencedDebts = debts.value.filter(
+      (d) =>
+        (d.startDate?.type === 'lifeEvent' && d.startDate.eventId === eventId) ||
+        (d.endDate?.type === 'lifeEvent' && d.endDate.eventId === eventId) ||
+        (d.repaymentStartDate?.type === 'lifeEvent' && d.repaymentStartDate.eventId === eventId),
+    )
+
+    const referencedAssets = capitalAccounts.value.filter((a) => {
+      if (a instanceof FixedAsset) {
+        return a.liquidationDate?.type === 'lifeEvent' && a.liquidationDate.eventId === eventId
+      }
+      return false
+    })
+
+    return {
+      cashFlows: referencedCashFlows,
+      debts: referencedDebts,
+      assets: referencedAssets,
+    }
+  }
+
+  // Auto-generate retirement life event if not exists
+  function ensureRetirementEvent(): LifeEvent {
+    let retirement = lifeEvents.value.find(
+      (le: LifeEvent) => le.name.toLowerCase() === 'retirement',
+    )
+
+    if (!retirement) {
+      // Determine default retirement age based on tax country
+      const defaultAge = taxCountry.value === 'NL' ? 67 : 65
+
+      retirement = {
+        id: crypto.randomUUID(),
+        name: 'Retirement',
+        date: { type: 'age', age: defaultAge },
+        description: 'Default retirement life event',
+      }
+
+      lifeEvents.value.push(retirement)
+    }
+
+    return retirement
+  }
+
   function recalculate() {
     if (birthDate.value) {
       projectionResult.value = calculateProjections(userProfile.value)
@@ -343,6 +452,7 @@ export const usePlannerStore = defineStore('planner', () => {
     capitalAccounts.value = []
     cashFlows.value = []
     debts.value = []
+    lifeEvents.value = []
     liquidAssetsInterestRate.value = 7
     inflationRate.value = 3
     taxCountry.value = undefined
@@ -376,6 +486,7 @@ export const usePlannerStore = defineStore('planner', () => {
     capitalAccounts,
     cashFlows,
     debts,
+    lifeEvents,
     liquidAssetsInterestRate,
     inflationRate,
     taxCountry,
@@ -410,6 +521,9 @@ export const usePlannerStore = defineStore('planner', () => {
     addDebt,
     updateDebt,
     removeDebt,
+    addLifeEvent,
+    updateLifeEvent,
+    removeLifeEvent,
     recalculate,
     saveToStorage,
     loadFromStorage,
@@ -418,5 +532,8 @@ export const usePlannerStore = defineStore('planner', () => {
     getCapitalAccountById,
     getCashFlowById,
     getDebtById,
+    getLifeEventById,
+    findItemsReferencingLifeEvent,
+    ensureRetirementEvent,
   }
 })

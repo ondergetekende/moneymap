@@ -41,6 +41,7 @@ export type AllDebtTypes = DebtClass
 // Profile and projection models
 export {
   UserProfile,
+  type LifeEvent,
   type MonthlyProjection,
   type AnnualSummary,
   type ProjectionResult,
