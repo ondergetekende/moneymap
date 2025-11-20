@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
@@ -196,6 +196,43 @@ const warnings = computed(() => {
   }
 
   return warns
+})
+
+// Watch for input mode changes and sync values
+watch(paymentInputMode, (newMode, oldMode) => {
+  if (!oldMode) return // Skip initial setup
+
+  if (newMode === 'payment') {
+    // Switching from endDate to payment - calculate payment from end date
+    const calculated = calculatedMonthlyPayment.value
+    if (calculated && calculated > 0) {
+      monthlyPayment.value = calculated
+    }
+  } else if (newMode === 'endDate') {
+    // Switching from payment to endDate - calculate end date from payment
+    const calculated = calculatedEndDate.value
+    if (calculated) {
+      endDate.value = { type: 'absolute', month: calculated }
+    }
+  }
+})
+
+watch(principalInputMode, (newMode, oldMode) => {
+  if (!oldMode) return // Skip initial setup
+
+  if (newMode === 'principal') {
+    // Switching from endDate to principal - calculate principal from end date
+    const calculated = calculatedPrincipalPayment.value
+    if (calculated && calculated > 0) {
+      monthlyPrincipal.value = calculated
+    }
+  } else if (newMode === 'endDate') {
+    // Switching from principal to endDate - calculate end date from principal
+    const calculated = calculatedEndDate.value
+    if (calculated) {
+      endDate.value = { type: 'absolute', month: calculated }
+    }
+  }
 })
 
 // Load existing debt for editing
