@@ -106,11 +106,13 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0) -
     initialTotalDebt
 
-  // Calculate end month (when user turns 100)
-  const endMonth = addMonths(birthDate, MAX_AGE * 12)
+  // Calculate end month (December of the year when user turns 100)
+  const age100Month = addMonths(birthDate, MAX_AGE * 12)
+  const age100Year = Math.floor(age100Month / 12) + 1900
+  const endMonth = (age100Year - 1900) * 12 + 11 // December = month index 11
 
-  // Calculate total months from now until age 100
-  const monthsFromNow = monthDiff(endMonth, projectionStart)
+  // Calculate total months from now until end of that year (inclusive)
+  const monthsFromNow = monthDiff(endMonth, projectionStart) + 1
 
   for (let monthIndex = 0; monthIndex < monthsFromNow; monthIndex++) {
     const currentMonth = addMonths(projectionStart, monthIndex)
