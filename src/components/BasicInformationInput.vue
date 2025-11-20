@@ -65,12 +65,16 @@
       </select>
       <span class="hint">Select your tax country to enable tax calculations</span>
     </div>
+    <div class="life-events-section">
+      <LifeEventManager />
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import DateSpecificationEdit from './DateSpecificationEdit.vue'
+import LifeEventManager from './LifeEventManager.vue'
 import type { Month, DateSpecification } from '@/types/month'
 import { getCurrentMonth, createAbsoluteDate } from '@/types/month'
 import { TAX_CONFIGS } from '@/config/taxConfig'
@@ -215,5 +219,11 @@ h3 {
 .age-value {
   color: #42b983;
   font-weight: 700;
+}
+
+.life-events-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #ddd;
 }
 </style>
