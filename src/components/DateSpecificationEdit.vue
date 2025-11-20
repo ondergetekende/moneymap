@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { usePlannerStore } from '@/stores/planner'
 import type { Month, DateSpecification } from '@/types/month'
+import type { LifeEvent } from '@/models'
 import {
   getYear,
   getMonthIndex,
@@ -10,6 +11,7 @@ import {
   resolveDate,
   createAbsoluteDate,
   createAgeDate,
+  createLifeEventDate,
   formatMonth,
 } from '@/types/month'
 
@@ -21,6 +23,7 @@ interface Props {
   maxMonth?: Month
   minMonth?: Month
   allowAgeEntry?: boolean
+  allowEventEntry?: boolean
   showModeSelector?: boolean
 }
 
@@ -28,6 +31,7 @@ const props = withDefaults(defineProps<Props>(), {
   required: false,
   nullable: true,
   allowAgeEntry: true,
+  allowEventEntry: true,
   showModeSelector: true,
 })
 
@@ -57,12 +61,13 @@ const monthNames = [
 const isSet = ref<boolean>(props.modelValue !== undefined)
 
 // Determine initial mode from modelValue
-const getInitialMode = (): 'absolute' | 'age' => {
+const getInitialMode = (): 'absolute' | 'age' | 'lifeEvent' => {
   if (props.modelValue?.type === 'age') return 'age'
+  if (props.modelValue?.type === 'lifeEvent') return 'lifeEvent'
   return 'absolute'
 }
 
-const mode = ref<'absolute' | 'age'>(getInitialMode())
+const mode = ref<'absolute' | 'age' | 'lifeEvent'>(getInitialMode())
 
 // Initialize absolute mode values
 const currentMonth =
@@ -72,6 +77,14 @@ const monthIndex = ref<number>(getMonthIndex(currentMonth))
 
 // Initialize age mode value
 const ageString = ref<string>(props.modelValue?.type === 'age' ? String(props.modelValue.age) : '')
+
+// Initialize life event mode value
+const selectedLifeEventId = ref<string>(
+  props.modelValue?.type === 'lifeEvent' ? props.modelValue.eventId : '',
+)
+
+// Get available life events from store
+const lifeEvents = computed(() => store.lifeEvents)
 
 // Watch for external changes to modelValue
 watch(
@@ -86,6 +99,9 @@ watch(
       } else if (newValue.type === 'age') {
         mode.value = 'age'
         ageString.value = String(newValue.age)
+      } else if (newValue.type === 'lifeEvent') {
+        mode.value = 'lifeEvent'
+        selectedLifeEventId.value = newValue.eventId
       }
     }
   },
@@ -131,8 +147,56 @@ const resolvedAgePreview = computed<string | null>(() => {
   return `${formatMonth(resolvedMonth, 'full')} (based on your birth date)`
 })
 
+// Resolved life event preview
+const resolvedLifeEventPreview = computed<string | null>(() => {
+  if (mode.value !== 'lifeEvent' || !isSet.value) return null
+
+  if (!selectedLifeEventId.value) {
+    return 'No life event selected'
+  }
+
+  const event = lifeEvents.value.find((e) => e.id === selectedLifeEventId.value)
+  if (!event) {
+    return 'Life event not found'
+  }
+
+  if (!event.date) {
+    return 'Date not set for this event'
+  }
+
+  const resolvedMonth = resolveDate(event.date, store.birthDate, lifeEvents.value)
+  if (resolvedMonth === undefined) {
+    return 'Cannot resolve date'
+  }
+
+  // Show the resolved date with additional context
+  if (event.date.type === 'age') {
+    return `${formatMonth(resolvedMonth, 'full')} (Age ${event.date.age})`
+  } else {
+    return formatMonth(resolvedMonth, 'full')
+  }
+})
+
+// Format life event option text for dropdown
+function formatLifeEventOption(event: LifeEvent): string {
+  if (!event.date) {
+    return `${event.name} (date not set)`
+  }
+
+  const resolvedMonth = resolveDate(event.date, store.birthDate, lifeEvents.value)
+  if (resolvedMonth === undefined) {
+    return `${event.name} (cannot resolve)`
+  }
+
+  if (event.date.type === 'age') {
+    return `${event.name} (${formatMonth(resolvedMonth, 'full')} - Age ${event.date.age})`
+  } else {
+    return `${event.name} (${formatMonth(resolvedMonth, 'full')})`
+  }
+}
+
 // Emit changes when relevant fields change
-watch([yearString, monthIndex, ageString, mode, isSet], () => {
+watch([yearString, monthIndex, ageString, selectedLifeEventId, mode, isSet], () => {
   // If not set and nullable, emit undefined
   if (!isSet.value && props.nullable) {
     emit('update:modelValue', undefined)
@@ -164,6 +228,12 @@ watch([yearString, monthIndex, ageString, mode, isSet], () => {
     }
 
     emit('update:modelValue', createAgeDate(ageValue))
+  } else if (mode.value === 'lifeEvent') {
+    if (!selectedLifeEventId.value) {
+      return
+    }
+
+    emit('update:modelValue', createLifeEventDate(selectedLifeEventId.value))
   }
 })
 
@@ -195,7 +265,7 @@ const isValid = computed(() => {
       </label>
     </div>
 
-    <div v-if="showModeSelector && allowAgeEntry" class="mode-selector">
+    <div v-if="showModeSelector && (allowAgeEntry || allowEventEntry)" class="mode-selector">
       <label class="mode-option">
         <input
           v-model="mode"
@@ -206,7 +276,7 @@ const isValid = computed(() => {
         />
         <span class="mode-label">Month + Year</span>
       </label>
-      <label class="mode-option">
+      <label v-if="allowAgeEntry" class="mode-option">
         <input
           v-model="mode"
           type="radio"
@@ -215,6 +285,16 @@ const isValid = computed(() => {
           class="mode-radio"
         />
         <span class="mode-label">Age</span>
+      </label>
+      <label v-if="allowEventEntry" class="mode-option">
+        <input
+          v-model="mode"
+          type="radio"
+          value="lifeEvent"
+          :disabled="!isSet && nullable"
+          class="mode-radio"
+        />
+        <span class="mode-label">Life Event</span>
       </label>
     </div>
 
@@ -256,6 +336,27 @@ const isValid = computed(() => {
       />
       <div v-if="resolvedAgePreview && isSet" class="age-preview">
         {{ resolvedAgePreview }}
+      </div>
+    </div>
+
+    <div v-else-if="mode === 'lifeEvent'" class="life-event-controls">
+      <div v-if="lifeEvents.length === 0" class="no-life-events">
+        No life events defined. Go to Basic Information to create one.
+      </div>
+      <select
+        v-else
+        v-model="selectedLifeEventId"
+        class="life-event-select"
+        :required="required && isSet"
+        :disabled="!isSet && nullable"
+      >
+        <option value="">Select a life event</option>
+        <option v-for="event in lifeEvents" :key="event.id" :value="event.id">
+          {{ formatLifeEventOption(event) }}
+        </option>
+      </select>
+      <div v-if="resolvedLifeEventPreview && isSet" class="life-event-preview">
+        {{ resolvedLifeEventPreview }}
       </div>
     </div>
   </div>
@@ -397,9 +498,47 @@ const isValid = computed(() => {
   font-style: italic;
 }
 
+.life-event-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.life-event-select {
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background-color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.life-event-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.5);
+}
+
+.life-event-preview {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.no-life-events {
+  padding: 0.75rem;
+  background-color: #fef3c7;
+  border: 1px solid #fbbf24;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  color: #92400e;
+}
+
 .month-select:disabled,
 .year-input:disabled,
-.age-input:disabled {
+.age-input:disabled,
+.life-event-select:disabled {
   background-color: #f3f4f6;
   color: #9ca3af;
   cursor: not-allowed;
@@ -408,7 +547,8 @@ const isValid = computed(() => {
 
 .date-spec-edit.invalid .month-select,
 .date-spec-edit.invalid .year-input,
-.date-spec-edit.invalid .age-input {
+.date-spec-edit.invalid .age-input,
+.date-spec-edit.invalid .life-event-select {
   border-color: #ef4444;
 }
 
@@ -433,7 +573,8 @@ const isValid = computed(() => {
 
   .month-select,
   .year-input,
-  .age-input {
+  .age-input,
+  .life-event-select {
     padding: 0.4rem;
     font-size: 0.8125rem;
   }
@@ -448,10 +589,16 @@ const isValid = computed(() => {
 
   .mode-selector {
     gap: 0.75rem;
+    flex-wrap: wrap;
   }
 
   .mode-label {
     font-size: 0.8125rem;
+  }
+
+  .no-life-events {
+    font-size: 0.8125rem;
+    padding: 0.6rem;
   }
 }
 </style>
