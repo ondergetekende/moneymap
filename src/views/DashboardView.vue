@@ -2,8 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { usePlannerStore } from '@/stores/planner'
 import BasicInfoSummary from '@/components/BasicInfoSummary.vue'
-import InlineOnboarding from '@/components/InlineOnboarding.vue'
-import EditBasicInfoForm from '@/components/EditBasicInfoForm.vue'
+import BasicInfoWizard from '@/components/BasicInfoWizard.vue'
 import FinancialListItem from '@/components/FinancialListItem.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import NetWorthChart from '@/components/NetWorthChart.vue'
@@ -15,84 +14,51 @@ const store = usePlannerStore()
 // Toggle for showing inflation-adjusted values
 const showInflationAdjusted = ref(false)
 
-// Toggle for showing edit form
-const showEditForm = ref(false)
-
 // Auto-open wizard on first visit
 onMounted(() => {
-  // Check for skipOnboarding URL parameter (only in development)
-  const urlParams = new URLSearchParams(window.location.search)
-  const skipOnboarding = urlParams.get('skipOnboarding') === 'true'
-
-  // Only allow skipOnboarding in development/debug mode
-  const isDevelopment = import.meta.env.DEV
-
-  if (skipOnboarding && isDevelopment) {
-    // Skip the wizard - mark as completed without opening
-    if (!store.wizardCompleted) {
-      store.completeWizard()
-    }
-    return
+  // If user hasn't completed the wizard yet, open it automatically
+  if (!store.wizardCompleted) {
+    store.openWizard()
   }
-
-  // Wizard opens automatically via v-if in template
 })
 
-function handleOnboardingComplete(data: { birthDate: Month; taxCountry?: string }) {
-  store.saveBasicInfo({
-    birthDate: data.birthDate,
-    taxCountry: data.taxCountry,
-    liquidAssetsInterestRate: store.liquidAssetsInterestRate,
-    inflationRate: store.inflationRate,
-  })
-}
-
 function handleEditBasicInfo() {
-  showEditForm.value = true
+  store.openWizard()
 }
 
-function handleSaveBasicInfo(data: {
+function handleWizardSave(data: {
   birthDate: Month
   taxCountry?: string
   liquidAssetsInterestRate: number
   inflationRate: number
 }) {
   store.saveBasicInfo(data)
-  showEditForm.value = false
 }
 
-function handleCancelEdit() {
-  showEditForm.value = false
+function handleWizardClose() {
+  store.closeWizard()
 }
 </script>
 
 <template>
   <div class="dashboard">
-    <section v-if="!store.wizardCompleted" class="onboarding-section">
-      <InlineOnboarding
-        :initial-birth-date="store.birthDate"
-        :initial-tax-country="store.taxCountry"
-        @complete="handleOnboardingComplete"
-      />
-    </section>
-
-    <section v-else class="birth-date-section">
-      <EditBasicInfoForm
-        v-if="showEditForm"
-        :birth-date="store.birthDate"
-        :tax-country="store.taxCountry"
-        :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
-        :inflation-rate="store.inflationRate"
-        @save="handleSaveBasicInfo"
-        @cancel="handleCancelEdit"
-      />
+    <section class="birth-date-section">
       <BasicInfoSummary
-        v-else
         :current-age="store.currentAge"
         :tax-country="store.taxCountry"
         :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
         :inflation-rate="store.inflationRate"
         @edit="handleEditBasicInfo"
+      />
+
+      <BasicInfoWizard
+        :is-open="store.showWizard"
+        :birth-date="store.birthDate"
+        :tax-country="store.taxCountry"
+        :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
+        :inflation-rate="store.inflationRate"
+        @close="handleWizardClose"
+        @save="handleWizardSave"
       />
     </section>
 

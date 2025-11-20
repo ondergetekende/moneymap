@@ -33,7 +33,8 @@ export const usePlannerStore = defineStore('planner', () => {
   const projectionResult = ref<ProjectionResult | null>(null)
 
   // Wizard state
-  const wizardCompleted = ref<boolean>(false) // Track if user has completed onboarding at least once
+  const wizardCompleted = ref<boolean>(false) // Track if user has completed wizard at least once
+  const showWizard = ref<boolean>(false) // Control wizard modal visibility
 
   // Computed
   const userProfile = computed<UserProfile>(() => {
@@ -110,8 +111,17 @@ export const usePlannerStore = defineStore('planner', () => {
     recalculate()
   }
 
+  function openWizard() {
+    showWizard.value = true
+  }
+
+  function closeWizard() {
+    showWizard.value = false
+  }
+
   function completeWizard() {
     wizardCompleted.value = true
+    showWizard.value = false
   }
 
   function saveBasicInfo(data: {
@@ -316,6 +326,7 @@ export const usePlannerStore = defineStore('planner', () => {
     taxCountry.value = undefined
     projectionResult.value = null
     wizardCompleted.value = false
+    showWizard.value = false
     storageService.clearProfile()
     try {
       localStorage.removeItem('moneymap-wizard-completed')
@@ -348,6 +359,7 @@ export const usePlannerStore = defineStore('planner', () => {
     taxCountry,
     projectionResult,
     wizardCompleted,
+    showWizard,
     // Computed
     userProfile,
     currentAge,
@@ -363,6 +375,8 @@ export const usePlannerStore = defineStore('planner', () => {
     setLiquidAssetsInterestRate,
     setInflationRate,
     setTaxCountry,
+    openWizard,
+    closeWizard,
     completeWizard,
     saveBasicInfo,
     addCapitalAccount,
