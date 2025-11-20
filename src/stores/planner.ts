@@ -133,10 +133,86 @@ export const usePlannerStore = defineStore('planner', () => {
     liquidAssetsInterestRate: number
     inflationRate: number
   }) {
+    const isFirstTime = !wizardCompleted.value
+
     birthDate.value = data.birthDate
     taxCountry.value = data.taxCountry
     liquidAssetsInterestRate.value = data.liquidAssetsInterestRate
     inflationRate.value = data.inflationRate
+
+    // Add default items on first-time wizard completion
+    if (isFirstTime) {
+      // Create life events
+      const retirementEvent: LifeEvent = {
+        id: crypto.randomUUID(),
+        name: 'Retirement',
+        date: { type: 'age', age: 67 },
+        description: 'Default retirement life event',
+      }
+      const lifeExpectancyEvent: LifeEvent = {
+        id: crypto.randomUUID(),
+        name: 'Life expectancy',
+        date: { type: 'age', age: 90 },
+        description: 'Expected life span',
+      }
+      lifeEvents.value.push(retirementEvent, lifeExpectancyEvent)
+
+      // Add savings account
+      const savingsAccount = new LiquidAsset(
+        crypto.randomUUID(),
+        'Savings',
+        10000,
+        undefined,
+        undefined,
+      )
+      capitalAccounts.value.push(savingsAccount)
+
+      // Add salary income (from now until retirement)
+      const salaryIncome = new CashFlow(
+        crypto.randomUUID(),
+        'Salary',
+        2500,
+        'income',
+        undefined, // Start immediately
+        { type: 'lifeEvent', eventId: retirementEvent.id },
+        true, // Follows inflation
+        false, // Not one-time
+        undefined,
+        'monthly',
+      )
+      cashFlows.value.push(salaryIncome)
+
+      // Add pension income (from retirement onward)
+      const pensionIncome = new CashFlow(
+        crypto.randomUUID(),
+        'Pension',
+        1500,
+        'income',
+        { type: 'lifeEvent', eventId: retirementEvent.id },
+        undefined, // No end date
+        true, // Follows inflation
+        false, // Not one-time
+        undefined,
+        'monthly',
+      )
+      cashFlows.value.push(pensionIncome)
+
+      // Add living expenses
+      const livingExpenses = new CashFlow(
+        crypto.randomUUID(),
+        'Living expenses',
+        1500,
+        'expense',
+        undefined, // Start immediately
+        undefined, // No end date
+        true, // Follows inflation
+        false, // Not one-time
+        undefined,
+        'monthly',
+      )
+      cashFlows.value.push(livingExpenses)
+    }
+
     completeWizard()
     recalculate()
   }
