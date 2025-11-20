@@ -4,9 +4,18 @@ import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import { CashFlow, type CashFlowType, type CashFlowFrequency } from '@/models'
-import type { Month } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
+import { createAbsoluteDate } from '@/types/month'
 import MonthEdit from '@/components/MonthEdit.vue'
 import { getTaxOptions, getTaxConfig } from '@/config/taxConfig'
+
+// Helper to extract Month from DateSpecification (temporary until Task 4)
+function dateSpecToMonth(spec: DateSpecification | undefined): Month | undefined {
+  if (!spec) return undefined
+  if (spec.type === 'absolute') return spec.month
+  // For now, only handle absolute dates in the UI
+  return undefined
+}
 
 const props = defineProps<{
   id?: string
@@ -84,8 +93,8 @@ onMounted(() => {
     const cashFlow = store.getCashFlowById(props.id)
     if (cashFlow) {
       name.value = cashFlow.name
-      startDate.value = cashFlow.startDate
-      endDate.value = cashFlow.endDate
+      startDate.value = dateSpecToMonth(cashFlow.startDate)
+      endDate.value = dateSpecToMonth(cashFlow.endDate)
       cashFlowType.value = cashFlow.type
       followsInflation.value = cashFlow.followsInflation
       isOneTime.value = cashFlow.isOneTime
@@ -104,8 +113,8 @@ onMounted(() => {
       name.value = template.name || ''
       amount.value = template.amount || 0
       cashFlowType.value = template.type || 'income'
-      startDate.value = template.startDate
-      endDate.value = template.endDate
+      startDate.value = dateSpecToMonth(template.startDate)
+      endDate.value = dateSpecToMonth(template.endDate)
       followsInflation.value = template.followsInflation ?? false
       isOneTime.value = template.isOneTime ?? false
       incomeTaxId.value = template.incomeTaxId
@@ -189,8 +198,8 @@ function handleSave() {
     const cashFlowData = {
       name: name.value.trim(),
       amount: amount.value,
-      startDate: startDate.value,
-      endDate: endDate.value,
+      startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
+      endDate: endDate.value !== undefined ? createAbsoluteDate(endDate.value) : undefined,
       type: cashFlowType.value,
       followsInflation: followsInflation.value,
       isOneTime: isOneTime.value,
@@ -207,8 +216,8 @@ function handleSave() {
         name: name.value.trim(),
         amount: amount.value,
         type: template.type,
-        startDate: startDate.value,
-        endDate: endDate.value,
+        startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
+        endDate: endDate.value !== undefined ? createAbsoluteDate(endDate.value) : undefined,
         followsInflation: followsInflation.value,
         isOneTime: isOneTime.value,
         incomeTaxId: incomeTaxId.value,

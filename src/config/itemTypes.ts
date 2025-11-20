@@ -1,5 +1,5 @@
 import { FinancialItem, LiquidAsset, FixedAsset, CashFlow, AnnualizedDebt } from '@/models'
-import { getCurrentMonth, addMonths } from '@/types/month'
+import { getCurrentMonth, addMonths, createAbsoluteDate } from '@/types/month'
 
 export interface ItemTypeDefinition {
   id: string
@@ -78,7 +78,7 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       'Windfall',
       10000, // One-time income (e.g., bonus, inheritance, tax refund)
       'income',
-      getCurrentMonth(), // Requires a date for one-time transactions
+      createAbsoluteDate(getCurrentMonth()), // Requires a date for one-time transactions
       undefined,
       false,
       true, // isOneTime
@@ -94,8 +94,8 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       amount: 300000, // Typical mortgage amount
       annualInterestRate: 3.5, // Current mortgage rates
       monthlyPayment: 1500, // Standard monthly payment
-      startDate: getCurrentMonth(), // Current month
-      endDate: addMonths(getCurrentMonth(), 360), // 30 years from now (30 * 12 = 360 months)
+      startDate: createAbsoluteDate(getCurrentMonth()), // Current month
+      endDate: createAbsoluteDate(addMonths(getCurrentMonth(), 360)), // 30 years from now (30 * 12 = 360 months)
     }),
   },
   {
@@ -108,8 +108,8 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       amount: 30000, // Average car loan
       annualInterestRate: 4.5,
       monthlyPayment: 600,
-      startDate: getCurrentMonth(), // Current month
-      endDate: addMonths(getCurrentMonth(), 360), // 30 years from now (30 * 12 = 360 months)
+      startDate: createAbsoluteDate(getCurrentMonth()), // Current month
+      endDate: createAbsoluteDate(addMonths(getCurrentMonth(), 360)), // 30 years from now (30 * 12 = 360 months)
     }),
   },
 ]

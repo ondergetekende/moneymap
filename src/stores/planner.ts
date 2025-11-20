@@ -17,8 +17,8 @@ import {
 } from '@/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
-import type { Month } from '@/types/month'
-import { getCurrentMonth, addMonths } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
+import { getCurrentMonth, addMonths, createAbsoluteDate } from '@/types/month'
 
 export const usePlannerStore = defineStore('planner', () => {
   // State
@@ -152,7 +152,7 @@ export const usePlannerStore = defineStore('planner', () => {
           name: string
           amount: number
           annualInterestRate: number
-          liquidationDate?: Month
+          liquidationDate?: Month | DateSpecification
           wealthTaxId?: string
           capitalGainsTaxId?: string
         },
@@ -161,12 +161,20 @@ export const usePlannerStore = defineStore('planner', () => {
     let newAccount: CapitalAccount
 
     if (account.type === 'fixed') {
+      // Convert Month to DateSpecification if needed
+      const liquidationDate =
+        account.liquidationDate !== undefined
+          ? typeof account.liquidationDate === 'number'
+            ? createAbsoluteDate(account.liquidationDate)
+            : account.liquidationDate
+          : undefined
+
       newAccount = new FixedAsset(
         id,
         account.name,
         account.amount,
         account.annualInterestRate,
-        account.liquidationDate,
+        liquidationDate,
         account.wealthTaxId,
         account.capitalGainsTaxId,
       )
@@ -212,20 +220,34 @@ export const usePlannerStore = defineStore('planner', () => {
     name: string
     amount: number
     type: CashFlowType
-    startDate?: Month
-    endDate?: Month
+    startDate?: Month | DateSpecification
+    endDate?: Month | DateSpecification
     followsInflation: boolean
     isOneTime: boolean
     incomeTaxId?: string
     frequency: CashFlowFrequency
   }) {
+    // Convert Month values to DateSpecification if needed
+    const startDate =
+      cashFlow.startDate !== undefined
+        ? typeof cashFlow.startDate === 'number'
+          ? createAbsoluteDate(cashFlow.startDate)
+          : cashFlow.startDate
+        : undefined
+    const endDate =
+      cashFlow.endDate !== undefined
+        ? typeof cashFlow.endDate === 'number'
+          ? createAbsoluteDate(cashFlow.endDate)
+          : cashFlow.endDate
+        : undefined
+
     const newCashFlow = new CashFlow(
       crypto.randomUUID(),
       cashFlow.name,
       cashFlow.amount,
       cashFlow.type,
-      cashFlow.startDate,
-      cashFlow.endDate,
+      startDate,
+      endDate,
       cashFlow.followsInflation,
       cashFlow.isOneTime,
       cashFlow.incomeTaxId,

@@ -4,8 +4,8 @@
 
 import type { UserProfile, MonthlyProjection, AnnualSummary, ProjectionResult } from '@/models'
 import { LiquidAsset, FixedAsset } from '@/models'
-import type { Month } from '@/types/month'
-import { getCurrentMonth, addMonths, formatMonth, monthDiff } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
+import { getCurrentMonth, addMonths, formatMonth, monthDiff, resolveDate } from '@/types/month'
 import {
   resolveTaxOption,
   calculateTax,
@@ -14,6 +14,16 @@ import {
 } from './taxCalculator'
 
 const MAX_AGE = 100
+
+/**
+ * Resolve a DateSpecification to an absolute Month value
+ */
+function resolveDateSpec(
+  spec: DateSpecification | undefined,
+  profile: UserProfile,
+): Month | undefined {
+  return resolveDate(spec, profile.birthDate, profile.lifeEvents)
+}
 
 /**
  * Check if a month is within a range (inclusive start, exclusive end)
@@ -60,10 +70,11 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   // Initialize liquid assets pool (all liquid accounts combined)
   let liquidAssetsBalance = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
 
-  // Track each fixed asset separately with its own rate
+  // Track each fixed asset separately with its own rate, resolving liquidation dates
   const fixedAssetBalances = fixedAccounts.map((account) => ({
     ...account,
     balance: account.amount,
+    resolvedLiquidationDate: resolveDateSpec(account.liquidationDate, profile),
   }))
 
   const monthlyProjections: MonthlyProjection[] = []
@@ -76,9 +87,9 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   const debtBalances = debts.map((debt) => {
     let currentBalance = debt.amount
 
-    // If debt has a start date in the past, calculate how much would have been paid off
-    const debtStartMonth = debt.startDate
-    const repaymentStartMonth = debt.repaymentStartDate ?? debtStartMonth
+    // Resolve debt dates
+    const debtStartMonth = resolveDateSpec(debt.startDate, profile)
+    const repaymentStartMonth = resolveDateSpec(debt.repaymentStartDate, profile) ?? debtStartMonth
 
     if (repaymentStartMonth !== undefined && repaymentStartMonth < projectionStart) {
       // Calculate months between repayment start and simulation start
@@ -94,6 +105,9 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       debt,
       balance: currentBalance,
       isPaidOff: currentBalance <= 0,
+      resolvedStartDate: debtStartMonth,
+      resolvedRepaymentStartDate: repaymentStartMonth,
+      resolvedEndDate: resolveDateSpec(debt.endDate, profile),
     }
   })
 
@@ -190,8 +204,8 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
       // Check for liquidation at start of month (after appreciation for this month)
       if (
-        asset.liquidationDate !== undefined &&
-        currentMonth >= asset.liquidationDate &&
+        asset.resolvedLiquidationDate !== undefined &&
+        currentMonth >= asset.resolvedLiquidationDate &&
         asset.balance > 0
       ) {
         // Transfer asset value to liquid assets
@@ -262,9 +276,9 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       const debt = debtTracking.debt
 
       // Check if we've reached or passed the end month - trigger final payment
-      if (debt.endDate !== undefined) {
+      if (debtTracking.resolvedEndDate !== undefined) {
         // If current month is at or after end month, trigger final payment
-        if (currentMonth >= debt.endDate) {
+        if (currentMonth >= debtTracking.resolvedEndDate) {
           // Use the debt's calculateMonthlyPayment with monthsRemaining=1 to get final payment
           const payment = debt.calculateMonthlyPayment(debtTracking.balance, 1)
 
@@ -289,14 +303,21 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       }
 
       // Check if repayment is active at this month
-      if (!debt.isRepaymentActive(currentMonth)) {
+      if (
+        !debt.isRepaymentActive(
+          currentMonth,
+          debtTracking.resolvedStartDate,
+          debtTracking.resolvedRepaymentStartDate,
+          debtTracking.resolvedEndDate,
+        )
+      ) {
         continue
       }
 
       // Calculate months remaining until end month (if specified)
       let monthsRemaining: number | undefined
-      if (debt.endDate !== undefined) {
-        const monthsDiff = monthDiff(debt.endDate, currentMonth)
+      if (debtTracking.resolvedEndDate !== undefined) {
+        const monthsDiff = monthDiff(debtTracking.resolvedEndDate, currentMonth)
         monthsRemaining = Math.max(1, monthsDiff)
       }
 
@@ -327,10 +348,14 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     const yearsElapsed = monthIndex / 12
 
     for (const cashFlow of cashFlows) {
+      // Resolve cash flow dates
+      const resolvedStartDate = resolveDateSpec(cashFlow.startDate, profile)
+      const resolvedEndDate = resolveDateSpec(cashFlow.endDate, profile)
+
       // Handle one-time transactions differently from recurring ones
       const shouldApply = cashFlow.isOneTime
-        ? currentMonth === cashFlow.startDate // One-time: only on exact date
-        : isMonthInRange(currentMonth, cashFlow.startDate, cashFlow.endDate) // Recurring: within date range
+        ? currentMonth === resolvedStartDate // One-time: only on exact date
+        : isMonthInRange(currentMonth, resolvedStartDate, resolvedEndDate) // Recurring: within date range
 
       if (shouldApply) {
         // Get the monthly amount (getter handles frequency conversion)

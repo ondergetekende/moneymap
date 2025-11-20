@@ -206,3 +206,110 @@ export function getAgeInYears(birthMonth: Month): number {
   const monthsSinceBirth = monthDiff(getCurrentMonth(), birthMonth)
   return Math.floor(monthsSinceBirth / 12)
 }
+
+/**
+ * DateSpecification represents a date in one of three formats:
+ * - absolute: A specific month (e.g., January 2035)
+ * - age: A user's age (e.g., 67 years old)
+ * - lifeEvent: A reference to a life event (e.g., "Retirement")
+ */
+export type DateSpecification =
+  | { type: 'absolute'; month: Month }
+  | { type: 'age'; age: number }
+  | { type: 'lifeEvent'; eventId: string }
+
+/**
+ * LifeEvent interface for resolving life event date specifications.
+ * Note: The full LifeEvent model is defined in models/profile.ts
+ */
+export interface LifeEventLike {
+  id: string
+  date: DateSpecification | undefined
+}
+
+/**
+ * Resolve a DateSpecification to an absolute Month value.
+ * @param spec The DateSpecification to resolve
+ * @param birthDate The user's birth date (required for age-based specs)
+ * @param lifeEvents Optional array of life events (required for life event specs)
+ * @param visitedEvents Set of visited event IDs for circular reference detection
+ * @returns Resolved Month value, or undefined if cannot be resolved
+ */
+export function resolveDate(
+  spec: DateSpecification | undefined,
+  birthDate: Month,
+  lifeEvents?: LifeEventLike[],
+  visitedEvents: Set<string> = new Set(),
+): Month | undefined {
+  if (!spec) return undefined
+
+  switch (spec.type) {
+    case 'absolute':
+      return spec.month
+
+    case 'age':
+      // Calculate month from birth date + age in years
+      return birthDate + spec.age * 12
+
+    case 'lifeEvent': {
+      // Check for circular reference
+      if (visitedEvents.has(spec.eventId)) {
+        console.warn(`Circular reference detected in life event: ${spec.eventId}`)
+        return undefined
+      }
+
+      // Find the life event
+      const event = lifeEvents?.find((e) => e.id === spec.eventId)
+      if (!event) {
+        console.warn(`Life event not found: ${spec.eventId}`)
+        return undefined
+      }
+
+      // Recursively resolve the life event's date
+      const newVisited = new Set(visitedEvents)
+      newVisited.add(spec.eventId)
+      return resolveDate(event.date, birthDate, lifeEvents, newVisited)
+    }
+
+    default:
+      // TypeScript exhaustiveness check
+      spec satisfies never
+      return undefined
+  }
+}
+
+/**
+ * Create an absolute DateSpecification from a Month value.
+ * @param month The Month value
+ * @returns DateSpecification with type 'absolute'
+ */
+export function createAbsoluteDate(month: Month): DateSpecification {
+  return { type: 'absolute', month }
+}
+
+/**
+ * Create an age-based DateSpecification.
+ * @param age The age in years
+ * @returns DateSpecification with type 'age'
+ */
+export function createAgeDate(age: number): DateSpecification {
+  return { type: 'age', age }
+}
+
+/**
+ * Create a life event DateSpecification.
+ * @param eventId The life event ID
+ * @returns DateSpecification with type 'lifeEvent'
+ */
+export function createLifeEventDate(eventId: string): DateSpecification {
+  return { type: 'lifeEvent', eventId }
+}
+
+/**
+ * Validate that an age is reasonable (0-120 years).
+ * @param age The age to validate
+ * @returns True if the age is valid
+ */
+export function isValidAge(age: number): boolean {
+  return typeof age === 'number' && Number.isFinite(age) && age >= 0 && age <= 120
+}

@@ -3,7 +3,8 @@
  */
 
 import { FinancialItem } from './base'
-import type { Month } from '../types/month'
+import type { DateSpecification } from '../types/month'
+import { createAbsoluteDate } from '../types/month'
 
 export type AssetType = 'liquid' | 'fixed'
 
@@ -90,7 +91,7 @@ export class LiquidAsset extends FinancialItem {
 export class FixedAsset extends FinancialItem {
   readonly amount: number
   readonly annualInterestRate: number // Annual appreciation/depreciation rate as percentage (e.g., 3 for 3%, -10 for -10%)
-  readonly liquidationDate?: Month // Optional - month when asset will be sold/liquidated
+  readonly liquidationDate?: DateSpecification // Optional - month when asset will be sold/liquidated
   readonly wealthTaxId?: string // Wealth tax: tax option ID, 'none', 'default', or undefined
   readonly capitalGainsTaxId?: string // Capital gains tax: tax option ID, 'none', 'default', or undefined
 
@@ -99,7 +100,7 @@ export class FixedAsset extends FinancialItem {
     name: string,
     amount: number,
     annualInterestRate: number,
-    liquidationDate?: Month,
+    liquidationDate?: DateSpecification,
     wealthTaxId?: string,
     capitalGainsTaxId?: string,
   ) {
@@ -164,12 +165,22 @@ export class FixedAsset extends FinancialItem {
    * Deserialize from JSON
    */
   static fromJSON(data: Record<string, unknown>): FixedAsset {
+    // Handle liquidationDate - migrate old Month (number) to DateSpecification
+    let liquidationDate: DateSpecification | undefined
+    if (data.liquidationDate !== undefined && data.liquidationDate !== null) {
+      if (typeof data.liquidationDate === 'number') {
+        liquidationDate = createAbsoluteDate(data.liquidationDate)
+      } else if (typeof data.liquidationDate === 'object') {
+        liquidationDate = data.liquidationDate as DateSpecification
+      }
+    }
+
     return new FixedAsset(
       (data.id as string) || crypto.randomUUID(),
       (data.name as string) || '',
       (data.amount as number) || 0,
       (data.annualInterestRate as number) || 0,
-      data.liquidationDate as number | undefined, // Optional, will be undefined for old data
+      liquidationDate,
       data.wealthTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
       data.capitalGainsTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
     )

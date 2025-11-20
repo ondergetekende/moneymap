@@ -6,8 +6,18 @@ import type { CapitalAccount } from './assets'
 import { LiquidAsset, FixedAsset } from './assets'
 import { CashFlow } from './cashflow'
 import { Debt } from './debt'
-import type { Month } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
 import { getCurrentMonth, monthDiff, stringToMonth } from '@/types/month'
+
+/**
+ * Life event that can be referenced in date specifications
+ */
+export interface LifeEvent {
+  id: string
+  name: string
+  date: DateSpecification | undefined
+  description?: string
+}
 
 /**
  * User's complete financial profile
@@ -20,6 +30,7 @@ export class UserProfile {
   readonly liquidAssetsInterestRate: number // Shared annual interest rate for all liquid assets (percentage)
   readonly inflationRate: number // Annual inflation rate (percentage)
   readonly taxCountry?: string // ISO country code for tax calculations (e.g., 'NL', 'US', 'GB')
+  readonly lifeEvents: LifeEvent[] // Life events that can be referenced in date specifications
 
   constructor(
     birthDate: Month,
@@ -29,6 +40,7 @@ export class UserProfile {
     debts: Debt[] = [],
     inflationRate: number = 2.5,
     taxCountry?: string,
+    lifeEvents: LifeEvent[] = [],
   ) {
     if (birthDate === undefined || typeof birthDate !== 'number') {
       throw new Error('UserProfile birthDate must be a valid Month value')
@@ -41,6 +53,7 @@ export class UserProfile {
     this.liquidAssetsInterestRate = liquidAssetsInterestRate
     this.inflationRate = inflationRate
     this.taxCountry = taxCountry
+    this.lifeEvents = lifeEvents
   }
 
   /**
@@ -101,6 +114,7 @@ export class UserProfile {
     liquidAssetsInterestRate?: number
     inflationRate?: number
     taxCountry?: string
+    lifeEvents?: LifeEvent[]
   }): UserProfile {
     return new UserProfile(
       updates.birthDate ?? this.birthDate,
@@ -110,6 +124,7 @@ export class UserProfile {
       updates.debts ?? this.debts,
       updates.inflationRate ?? this.inflationRate,
       updates.taxCountry ?? this.taxCountry,
+      updates.lifeEvents ?? this.lifeEvents,
     )
   }
 
@@ -125,6 +140,7 @@ export class UserProfile {
       liquidAssetsInterestRate: this.liquidAssetsInterestRate,
       inflationRate: this.inflationRate,
       taxCountry: this.taxCountry,
+      lifeEvents: this.lifeEvents,
     }
   }
 
@@ -168,6 +184,9 @@ export class UserProfile {
       birthDate = getCurrentMonth()
     }
 
+    // Handle life events - default to empty array for backward compatibility
+    const lifeEvents = (data.lifeEvents as LifeEvent[]) || []
+
     return new UserProfile(
       birthDate,
       capitalAccounts,
@@ -176,6 +195,7 @@ export class UserProfile {
       debts,
       (data.inflationRate as number) ?? 2.5, // Default to 2.5% for backward compatibility
       data.taxCountry as string | undefined, // Optional, undefined if not present for backward compatibility
+      lifeEvents,
     )
   }
 }

@@ -1,6 +1,6 @@
 import { FinancialItem } from './base'
-import type { Month } from '@/types/month'
-import { stringToMonth } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
+import { stringToMonth, createAbsoluteDate } from '@/types/month'
 
 /**
  * Payment breakdown for a single month
@@ -20,9 +20,9 @@ export interface DebtPayment {
 export class Debt extends FinancialItem {
   readonly amount: number
   readonly annualInterestRate: number
-  readonly startDate?: Month
-  readonly repaymentStartDate?: Month
-  readonly endDate?: Month
+  readonly startDate?: DateSpecification
+  readonly repaymentStartDate?: DateSpecification
+  readonly endDate?: DateSpecification
 
   // Payment strategy fields - only one should be set
   readonly monthlyPrincipalPayment?: number // Linear
@@ -34,9 +34,9 @@ export class Debt extends FinancialItem {
     name: string
     amount: number
     annualInterestRate: number
-    startDate?: Month
-    repaymentStartDate?: Month
-    endDate?: Month
+    startDate?: DateSpecification
+    repaymentStartDate?: DateSpecification
+    endDate?: DateSpecification
     monthlyPrincipalPayment?: number
     monthlyPayment?: number
     finalBalance?: number
@@ -175,24 +175,31 @@ export class Debt extends FinancialItem {
 
   /**
    * Check if debt exists at this month
+   * Note: This method now requires resolved dates - call from calculator with resolved dates
    */
-  isActive(month: Month): boolean {
-    if (this.startDate !== undefined) {
-      if (month < this.startDate) return false
+  isActive(month: Month, resolvedStartDate?: Month, resolvedEndDate?: Month): boolean {
+    if (resolvedStartDate !== undefined) {
+      if (month < resolvedStartDate) return false
     }
-    if (this.endDate !== undefined) {
-      if (month > this.endDate) return false
+    if (resolvedEndDate !== undefined) {
+      if (month > resolvedEndDate) return false
     }
     return true
   }
 
   /**
    * Check if repayments should occur at this month
+   * Note: This method now requires resolved dates - call from calculator with resolved dates
    */
-  isRepaymentActive(month: Month): boolean {
-    if (!this.isActive(month)) return false
+  isRepaymentActive(
+    month: Month,
+    resolvedStartDate?: Month,
+    resolvedRepaymentStartDate?: Month,
+    resolvedEndDate?: Month,
+  ): boolean {
+    if (!this.isActive(month, resolvedStartDate, resolvedEndDate)) return false
 
-    const repaymentStart = this.repaymentStartDate ?? this.startDate
+    const repaymentStart = resolvedRepaymentStartDate ?? resolvedStartDate
 
     if (repaymentStart !== undefined && month < repaymentStart) return false
 
@@ -214,9 +221,9 @@ export class Debt extends FinancialItem {
       name: string
       amount: number
       annualInterestRate: number
-      startDate: Month | undefined
-      repaymentStartDate: Month | undefined
-      endDate: Month | undefined
+      startDate: DateSpecification | undefined
+      repaymentStartDate: DateSpecification | undefined
+      endDate: DateSpecification | undefined
       monthlyPrincipalPayment: number | undefined
       monthlyPayment: number | undefined
       finalBalance: number | undefined
@@ -266,28 +273,49 @@ export class Debt extends FinancialItem {
    * Deserialize from JSON
    */
   static fromJSON(data: Record<string, unknown>): Debt {
-    // Handle startDate - could be Month (number), legacy string, or undefined
-    let startDate: Month | undefined
-    if (typeof data.startDate === 'number') {
-      startDate = data.startDate
-    } else if (typeof data.startDate === 'string') {
-      startDate = stringToMonth(data.startDate)
+    // Handle startDate - migrate old Month (number) to DateSpecification
+    let startDate: DateSpecification | undefined
+    if (data.startDate !== undefined && data.startDate !== null) {
+      if (typeof data.startDate === 'number') {
+        startDate = createAbsoluteDate(data.startDate)
+      } else if (typeof data.startDate === 'string') {
+        const month = stringToMonth(data.startDate)
+        if (month !== undefined) {
+          startDate = createAbsoluteDate(month)
+        }
+      } else if (typeof data.startDate === 'object') {
+        startDate = data.startDate as DateSpecification
+      }
     }
 
-    // Handle repaymentStartDate - could be Month (number), legacy string, or undefined
-    let repaymentStartDate: Month | undefined
-    if (typeof data.repaymentStartDate === 'number') {
-      repaymentStartDate = data.repaymentStartDate
-    } else if (typeof data.repaymentStartDate === 'string') {
-      repaymentStartDate = stringToMonth(data.repaymentStartDate)
+    // Handle repaymentStartDate - migrate old Month (number) to DateSpecification
+    let repaymentStartDate: DateSpecification | undefined
+    if (data.repaymentStartDate !== undefined && data.repaymentStartDate !== null) {
+      if (typeof data.repaymentStartDate === 'number') {
+        repaymentStartDate = createAbsoluteDate(data.repaymentStartDate)
+      } else if (typeof data.repaymentStartDate === 'string') {
+        const month = stringToMonth(data.repaymentStartDate)
+        if (month !== undefined) {
+          repaymentStartDate = createAbsoluteDate(month)
+        }
+      } else if (typeof data.repaymentStartDate === 'object') {
+        repaymentStartDate = data.repaymentStartDate as DateSpecification
+      }
     }
 
-    // Handle endDate - could be Month (number), legacy string, or undefined
-    let endDate: Month | undefined
-    if (typeof data.endDate === 'number') {
-      endDate = data.endDate
-    } else if (typeof data.endDate === 'string') {
-      endDate = stringToMonth(data.endDate)
+    // Handle endDate - migrate old Month (number) to DateSpecification
+    let endDate: DateSpecification | undefined
+    if (data.endDate !== undefined && data.endDate !== null) {
+      if (typeof data.endDate === 'number') {
+        endDate = createAbsoluteDate(data.endDate)
+      } else if (typeof data.endDate === 'string') {
+        const month = stringToMonth(data.endDate)
+        if (month !== undefined) {
+          endDate = createAbsoluteDate(month)
+        }
+      } else if (typeof data.endDate === 'object') {
+        endDate = data.endDate as DateSpecification
+      }
     }
 
     return new Debt({

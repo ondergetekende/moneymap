@@ -4,8 +4,8 @@
 
 import { FinancialItem } from './base'
 import type { CapitalAccount } from './assets'
-import type { Month } from '@/types/month'
-import { stringToMonth } from '@/types/month'
+import type { DateSpecification } from '@/types/month'
+import { stringToMonth, createAbsoluteDate } from '@/types/month'
 
 export type CashFlowType = 'income' | 'expense'
 export type CashFlowFrequency = 'weekly' | 'monthly' | 'annual'
@@ -15,8 +15,8 @@ export type CashFlowFrequency = 'weekly' | 'monthly' | 'annual'
  */
 export class CashFlow extends FinancialItem {
   readonly amount: number // The amount in the frequency specified
-  readonly startDate?: Month // Optional - defaults to projection start
-  readonly endDate?: Month // Optional - defaults to projection end
+  readonly startDate?: DateSpecification // Optional - defaults to projection start
+  readonly endDate?: DateSpecification // Optional - defaults to projection end
   readonly type: CashFlowType
   readonly followsInflation: boolean // Whether this cash flow adjusts for inflation
   readonly isOneTime: boolean // Whether this is a one-time transaction (vs recurring monthly)
@@ -28,8 +28,8 @@ export class CashFlow extends FinancialItem {
     name: string,
     amount: number,
     type: CashFlowType,
-    startDate?: Month,
-    endDate?: Month,
+    startDate?: DateSpecification,
+    endDate?: DateSpecification,
     followsInflation: boolean = false,
     isOneTime: boolean = false,
     incomeTaxId?: string,
@@ -159,20 +159,40 @@ export class CashFlow extends FinancialItem {
    * Deserialize from JSON
    */
   static fromJSON(data: Record<string, unknown>): CashFlow {
-    // Handle startDate - could be Month (number), legacy string, or undefined
-    let startDate: Month | undefined
-    if (typeof data.startDate === 'number') {
-      startDate = data.startDate
-    } else if (typeof data.startDate === 'string') {
-      startDate = stringToMonth(data.startDate)
+    // Handle startDate - migrate old Month (number) to DateSpecification
+    let startDate: DateSpecification | undefined
+    if (data.startDate !== undefined && data.startDate !== null) {
+      if (typeof data.startDate === 'number') {
+        // Migrate old format: wrap Month as absolute DateSpecification
+        startDate = createAbsoluteDate(data.startDate)
+      } else if (typeof data.startDate === 'string') {
+        // Legacy string format
+        const month = stringToMonth(data.startDate)
+        if (month !== undefined) {
+          startDate = createAbsoluteDate(month)
+        }
+      } else if (typeof data.startDate === 'object') {
+        // New format: already a DateSpecification
+        startDate = data.startDate as DateSpecification
+      }
     }
 
-    // Handle endDate - could be Month (number), legacy string, or undefined
-    let endDate: Month | undefined
-    if (typeof data.endDate === 'number') {
-      endDate = data.endDate
-    } else if (typeof data.endDate === 'string') {
-      endDate = stringToMonth(data.endDate)
+    // Handle endDate - migrate old Month (number) to DateSpecification
+    let endDate: DateSpecification | undefined
+    if (data.endDate !== undefined && data.endDate !== null) {
+      if (typeof data.endDate === 'number') {
+        // Migrate old format: wrap Month as absolute DateSpecification
+        endDate = createAbsoluteDate(data.endDate)
+      } else if (typeof data.endDate === 'string') {
+        // Legacy string format
+        const month = stringToMonth(data.endDate)
+        if (month !== undefined) {
+          endDate = createAbsoluteDate(month)
+        }
+      } else if (typeof data.endDate === 'object') {
+        // New format: already a DateSpecification
+        endDate = data.endDate as DateSpecification
+      }
     }
 
     // Handle backward compatibility: old data has 'monthlyAmount', new data has 'amount'

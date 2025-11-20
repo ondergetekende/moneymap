@@ -4,9 +4,17 @@ import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
 import { LinearDebt, AnnualizedDebt, InterestOnlyDebt } from '@/models'
-import type { Month } from '@/types/month'
-import { getCurrentMonth, addMonths, monthDiff } from '@/types/month'
+import type { Month, DateSpecification } from '@/types/month'
+import { getCurrentMonth, addMonths, monthDiff, createAbsoluteDate } from '@/types/month'
 import MonthEdit from '@/components/MonthEdit.vue'
+
+// Helper to extract Month from DateSpecification (temporary until Task 4)
+function dateSpecToMonth(spec: DateSpecification | undefined): Month | undefined {
+  if (!spec) return undefined
+  if (spec.type === 'absolute') return spec.month
+  // For now, only handle absolute dates in the UI
+  return undefined
+}
 
 const props = defineProps<{
   id?: string
@@ -153,7 +161,7 @@ onMounted(() => {
       name.value = debt.name
       amount.value = debt.amount
       annualInterestRate.value = debt.annualInterestRate
-      startDate.value = debt.startDate
+      startDate.value = dateSpecToMonth(debt.startDate)
 
       // Determine repayment type from existing debt
       const type = debt.getDebtType()
@@ -168,12 +176,12 @@ onMounted(() => {
         repaymentType.value = debt.endDate !== undefined ? 'balloon' : 'perpetual'
       }
 
-      endDate.value = debt.endDate
+      endDate.value = dateSpecToMonth(debt.endDate)
       hasDelayedStart.value =
         !!debt.repaymentStartDate && debt.repaymentStartDate !== debt.startDate
 
       if (hasDelayedStart.value) {
-        repaymentStartDate.value = debt.repaymentStartDate
+        repaymentStartDate.value = dateSpecToMonth(debt.repaymentStartDate)
       }
     } else {
       router.push({ name: 'dashboard' })
@@ -186,7 +194,7 @@ onMounted(() => {
       name.value = template.name || ''
       amount.value = template.amount || 0
       annualInterestRate.value = template.annualInterestRate || 0
-      startDate.value = template.startDate
+      startDate.value = dateSpecToMonth(template.startDate)
 
       // Set repayment type based on template
       const type = template.getDebtType()
@@ -199,7 +207,7 @@ onMounted(() => {
         repaymentType.value = template.endDate ? 'balloon' : 'perpetual'
       }
 
-      endDate.value = template.endDate
+      endDate.value = dateSpecToMonth(template.endDate)
     }
   }
 })
@@ -222,9 +230,17 @@ function handleSave() {
     name: name.value.trim(),
     amount: amount.value,
     annualInterestRate: annualInterestRate.value,
-    startDate: startDate.value || undefined,
-    repaymentStartDate: hasDelayedStart.value ? repaymentStartDate.value || undefined : undefined,
-    endDate: endDate.value || calculatedEndDate.value || undefined,
+    startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
+    repaymentStartDate:
+      hasDelayedStart.value && repaymentStartDate.value !== undefined
+        ? createAbsoluteDate(repaymentStartDate.value)
+        : undefined,
+    endDate:
+      endDate.value !== undefined
+        ? createAbsoluteDate(endDate.value)
+        : calculatedEndDate.value !== null
+          ? createAbsoluteDate(calculatedEndDate.value)
+          : undefined,
   }
 
   // Determine which debt type to create based on repayment type
