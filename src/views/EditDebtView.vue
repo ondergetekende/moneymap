@@ -663,6 +663,16 @@ function handleDelete() {
 <style scoped lang="scss">
 // Component-specific styles only - shared styles come from _buttons.scss, _forms.scss, _layout.scss
 
+.view-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-lg;
+  margin-bottom: $spacing-3xl;
+  background: transparent;
+  padding: 0;
+  box-shadow: none;
+}
+
 // Edit view uses shared styles, only need responsive adjustments
 .edit-debt-view {
   @include mobile {
