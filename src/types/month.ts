@@ -224,6 +224,7 @@ export type DateSpecification =
  */
 export interface LifeEventLike {
   id: string
+  name: string
   date: DateSpecification | undefined
 }
 
@@ -312,4 +313,88 @@ export function createLifeEventDate(eventId: string): DateSpecification {
  */
 export function isValidAge(age: number): boolean {
   return typeof age === 'number' && Number.isFinite(age) && age >= 0 && age <= 120
+}
+
+/**
+ * Options for formatting DateSpecification
+ */
+export interface FormatDateSpecOptions {
+  /** Whether to show the resolved absolute date */
+  showResolved?: boolean
+  /** Format for the date display */
+  format?: 'short' | 'long'
+}
+
+/**
+ * Format a DateSpecification as a human-readable string.
+ * Shows the semantic meaning (age, life event) when applicable.
+ *
+ * @param spec The DateSpecification to format
+ * @param birthDate The user's birth date (required for resolving age and life events)
+ * @param lifeEvents Optional array of life events (required for life event specs)
+ * @param options Optional formatting options
+ * @returns Formatted string with semantic label and optionally resolved date
+ *
+ * @example
+ * formatDateSpecification({ type: 'age', age: 67 }, birthDate)
+ * // Returns: "Age 67"
+ *
+ * formatDateSpecification({ type: 'age', age: 67 }, birthDate, undefined, { showResolved: true })
+ * // Returns: "Age 67 (Jan 2035)"
+ *
+ * formatDateSpecification({ type: 'lifeEvent', eventId: 'retirement-id' }, birthDate, lifeEvents)
+ * // Returns: "Retirement"
+ */
+export function formatDateSpecification(
+  spec: DateSpecification | undefined,
+  birthDate: Month | undefined,
+  lifeEvents?: LifeEventLike[],
+  options: FormatDateSpecOptions = {},
+): string {
+  if (!spec) return ''
+
+  const { showResolved = false, format = 'short' } = options
+  const dateFormat = format === 'short' ? 'short' : 'full'
+
+  switch (spec.type) {
+    case 'absolute': {
+      // For absolute dates, just show the date
+      return formatMonth(spec.month, dateFormat)
+    }
+
+    case 'age': {
+      const label = `Age ${spec.age}`
+      if (!showResolved || !birthDate) {
+        return label
+      }
+
+      const resolved = resolveDate(spec, birthDate, lifeEvents)
+      if (resolved === undefined) {
+        return label
+      }
+
+      return `${label} (${formatMonth(resolved, dateFormat)})`
+    }
+
+    case 'lifeEvent': {
+      const event = lifeEvents?.find((e) => e.id === spec.eventId)
+      const eventName = event?.name || 'Unknown Event'
+
+      if (!showResolved || !birthDate) {
+        return eventName
+      }
+
+      const resolved = resolveDate(spec, birthDate, lifeEvents)
+      if (resolved === undefined) {
+        return eventName
+      }
+
+      return `${eventName} (${formatMonth(resolved, dateFormat)})`
+    }
+
+    default:
+      // TypeScript exhaustiveness check
+      spec satisfies never
+      return ''
+  }
 }

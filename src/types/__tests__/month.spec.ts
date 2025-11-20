@@ -106,6 +106,7 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'retirement',
+            name: 'Retirement',
             date: { type: 'absolute', month: eventDate },
           },
         ]
@@ -120,6 +121,7 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'retirement',
+            name: 'Retirement',
             date: { type: 'age', age: 67 },
           },
         ]
@@ -143,6 +145,7 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'retirement',
+            name: 'Retirement',
             date: undefined,
           },
         ]
@@ -167,6 +170,7 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'event-a',
+            name: 'Event A',
             date: { type: 'lifeEvent', eventId: 'event-a' },
           },
         ]
@@ -181,10 +185,12 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'event-a',
+            name: 'Event A',
             date: { type: 'lifeEvent', eventId: 'event-b' },
           },
           {
             id: 'event-b',
+            name: 'Event B',
             date: { type: 'lifeEvent', eventId: 'event-a' },
           },
         ]
@@ -199,14 +205,17 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'event-a',
+            name: 'Event A',
             date: { type: 'lifeEvent', eventId: 'event-b' },
           },
           {
             id: 'event-b',
+            name: 'Event B',
             date: { type: 'lifeEvent', eventId: 'event-c' },
           },
           {
             id: 'event-c',
+            name: 'Event C',
             date: { type: 'lifeEvent', eventId: 'event-a' },
           },
         ]
@@ -223,6 +232,7 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'retirement',
+            name: 'Retirement',
             date: { type: 'age', age: 67 },
           },
         ]
@@ -237,10 +247,12 @@ describe('DateSpecification', () => {
         const lifeEvents: LifeEventLike[] = [
           {
             id: 'early-retirement',
+            name: 'Early Retirement',
             date: { type: 'age', age: 65 },
           },
           {
             id: 'full-retirement',
+            name: 'Full Retirement',
             date: { type: 'lifeEvent', eventId: 'early-retirement' },
           },
         ]
