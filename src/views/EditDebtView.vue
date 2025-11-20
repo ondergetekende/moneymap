@@ -26,6 +26,10 @@ const startDate = ref<DateSpecification | undefined>(undefined)
 const repaymentType = ref<'annuity' | 'linear' | 'balloon' | 'perpetual'>('annuity')
 const hasDelayedStart = ref<boolean>(false)
 
+// Input mode selection - what the user wants to specify
+const paymentInputMode = ref<'payment' | 'endDate'>('endDate')
+const principalInputMode = ref<'principal' | 'endDate'>('endDate')
+
 // Optional fields - user can leave empty to calculate
 const repaymentStartDate = ref<DateSpecification | undefined>(undefined)
 const endDate = ref<DateSpecification | undefined>(undefined)
@@ -35,7 +39,6 @@ const monthlyPrincipal = ref<number | undefined>(undefined)
 // Show/hide fields based on repayment type
 const showRepaymentStartDate = computed(() => hasDelayedStart.value)
 const showDelayedStart = computed(() => repaymentType.value !== 'perpetual')
-const showEndDate = computed(() => repaymentType.value !== 'perpetual')
 const showMonthlyPayment = computed(() => repaymentType.value === 'annuity')
 const showMonthlyPrincipal = computed(() => repaymentType.value === 'linear')
 
@@ -71,7 +74,7 @@ function addMonthsToMonth(month: Month, monthsToAdd: number): Month {
 // Calculated fields (read-only display)
 const calculatedMonthlyPayment = computed(() => {
   if (repaymentType.value !== 'annuity') return null
-  if (monthlyPayment.value !== undefined && monthlyPayment.value > 0) return null
+  if (paymentInputMode.value !== 'endDate') return null
   if (endDate.value === undefined || amount.value <= 0) return null
 
   const months = calculateMonthsUntil(endDate.value)
@@ -86,7 +89,7 @@ const calculatedMonthlyPayment = computed(() => {
 
 const calculatedPrincipalPayment = computed(() => {
   if (repaymentType.value !== 'linear') return null
-  if (monthlyPrincipal.value !== undefined && monthlyPrincipal.value > 0) return null
+  if (principalInputMode.value !== 'endDate') return null
   if (endDate.value === undefined || amount.value <= 0) return null
 
   const months = calculateMonthsUntil(endDate.value)
@@ -96,13 +99,16 @@ const calculatedPrincipalPayment = computed(() => {
 })
 
 const calculatedEndDate = computed((): Month | null => {
-  if (endDate.value !== undefined) return null
-  if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') return null
   if (amount.value <= 0) return null
 
   const monthlyRate = annualInterestRate.value / 100 / 12
 
-  if (repaymentType.value === 'annuity' && monthlyPayment.value && monthlyPayment.value > 0) {
+  if (
+    repaymentType.value === 'annuity' &&
+    paymentInputMode.value === 'payment' &&
+    monthlyPayment.value &&
+    monthlyPayment.value > 0
+  ) {
     const minPayment = amount.value * monthlyRate
     if (monthlyPayment.value <= minPayment) return null
 
@@ -118,11 +124,52 @@ const calculatedEndDate = computed((): Month | null => {
     return addMonthsToMonth(getStartMonth(), months)
   } else if (
     repaymentType.value === 'linear' &&
+    principalInputMode.value === 'principal' &&
     monthlyPrincipal.value &&
     monthlyPrincipal.value > 0
   ) {
     const months = Math.ceil(amount.value / monthlyPrincipal.value)
     return addMonthsToMonth(getStartMonth(), months)
+  }
+
+  return null
+})
+
+// Monthly payment displays for each debt type
+const monthlyPaymentDisplay = computed(() => {
+  if (amount.value <= 0) return null
+
+  const monthlyRate = annualInterestRate.value / 100 / 12
+  const monthlyInterest = amount.value * monthlyRate
+
+  if (repaymentType.value === 'annuity') {
+    // Fixed payment debt
+    const payment = monthlyPayment.value || calculatedMonthlyPayment.value
+    if (!payment) return null
+    return {
+      type: 'fixed' as const,
+      payment: payment,
+      description: `Fixed monthly payment of €${payment.toFixed(2)}`,
+    }
+  } else if (repaymentType.value === 'linear') {
+    // Fixed principal debt
+    const principal = monthlyPrincipal.value || calculatedPrincipalPayment.value
+    if (!principal) return null
+    const initialPayment = principal + monthlyInterest
+    const finalPayment = principal + principal * monthlyRate
+    return {
+      type: 'declining' as const,
+      initialPayment: initialPayment,
+      finalPayment: finalPayment,
+      description: `Initial: €${initialPayment.toFixed(2)}/month → Final: €${finalPayment.toFixed(2)}/month`,
+    }
+  } else if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') {
+    // Interest-only debt
+    return {
+      type: 'interest-only' as const,
+      payment: monthlyInterest,
+      description: `Interest only: €${monthlyInterest.toFixed(2)}/month`,
+    }
   }
 
   return null
@@ -166,9 +213,13 @@ onMounted(() => {
       if (type === 'annualized') {
         repaymentType.value = 'annuity'
         monthlyPayment.value = debt.monthlyPayment ?? undefined
+        // Set input mode based on what was saved
+        paymentInputMode.value = monthlyPayment.value ? 'payment' : 'endDate'
       } else if (type === 'linear') {
         repaymentType.value = 'linear'
         monthlyPrincipal.value = debt.monthlyPrincipalPayment ?? undefined
+        // Set input mode based on what was saved
+        principalInputMode.value = monthlyPrincipal.value ? 'principal' : 'endDate'
       } else if (type === 'interest-only') {
         // Check if there's an end date (balloon) or not (perpetual)
         repaymentType.value = debt.endDate !== undefined ? 'balloon' : 'perpetual'
@@ -417,85 +468,133 @@ function handleDelete() {
         />
       </div>
 
-      <!-- Optional end date -->
-      <div v-if="showEndDate" class="form-group">
+      <!-- Annuity payment specification -->
+      <div v-if="showMonthlyPayment" class="form-group">
+        <label>Payment Specification</label>
+        <div class="radio-group-inline">
+          <label class="radio-label-inline">
+            <input type="radio" v-model="paymentInputMode" value="endDate" />
+            Enter end date
+          </label>
+          <label class="radio-label-inline">
+            <input type="radio" v-model="paymentInputMode" value="payment" />
+            Enter monthly payment
+          </label>
+        </div>
+
+        <div v-if="paymentInputMode === 'endDate'" class="input-field">
+          <DateSpecificationEdit
+            v-model="endDate"
+            label="Payoff Date"
+            :nullable="false"
+            :allow-age-entry="true"
+            :show-mode-selector="true"
+          />
+          <p class="help-text">When you'll pay off the loan in full</p>
+        </div>
+
+        <div v-else class="input-field">
+          <label for="monthly-payment">Monthly Payment (€)</label>
+          <input
+            id="monthly-payment"
+            v-model.number="monthlyPayment"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+          />
+          <p class="help-text">Total payment including principal and interest</p>
+        </div>
+      </div>
+
+      <!-- Linear payment specification -->
+      <div v-if="showMonthlyPrincipal" class="form-group">
+        <label>Payment Specification</label>
+        <div class="radio-group-inline">
+          <label class="radio-label-inline">
+            <input type="radio" v-model="principalInputMode" value="endDate" />
+            Enter end date
+          </label>
+          <label class="radio-label-inline">
+            <input type="radio" v-model="principalInputMode" value="principal" />
+            Enter monthly principal
+          </label>
+        </div>
+
+        <div v-if="principalInputMode === 'endDate'" class="input-field">
+          <DateSpecificationEdit
+            v-model="endDate"
+            label="Payoff Date"
+            :nullable="false"
+            :allow-age-entry="true"
+            :show-mode-selector="true"
+          />
+          <p class="help-text">When you'll pay off the loan in full</p>
+        </div>
+
+        <div v-else class="input-field">
+          <label for="monthly-principal">Monthly Principal Payment (€)</label>
+          <input
+            id="monthly-principal"
+            v-model.number="monthlyPrincipal"
+            type="number"
+            min="0"
+            step="0.01"
+            required
+          />
+          <p class="help-text">Principal paid each month (interest added on top)</p>
+        </div>
+      </div>
+
+      <!-- End date for balloon payment -->
+      <div v-if="repaymentType === 'balloon'" class="form-group">
         <DateSpecificationEdit
           v-model="endDate"
-          label="Payoff Date (optional)"
-          :nullable="true"
+          label="Balloon Payment Date"
+          :nullable="false"
           :allow-age-entry="true"
           :show-mode-selector="true"
         />
-        <p
-          class="help-text"
-          title="When you'll pay off the remaining balance in full. Leave empty to calculate from payment amount"
-        >
-          Final payment date
-        </p>
+        <p class="help-text">When you'll pay off the remaining balance</p>
       </div>
 
-      <!-- Monthly payment for annuity -->
-      <div v-if="showMonthlyPayment" class="form-group">
-        <label for="monthly-payment">Monthly Payment (€, optional)</label>
-        <input
-          id="monthly-payment"
-          v-model.number="monthlyPayment"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Leave empty to calculate"
-        />
-        <p
-          class="help-text"
-          title="Total payment stays the same each month, principal portion increases over time"
-        >
-          Includes principal and interest
-        </p>
-      </div>
-
-      <!-- Monthly principal for linear -->
-      <div v-if="showMonthlyPrincipal" class="form-group">
-        <label for="monthly-principal">Monthly Principal Payment (€, optional)</label>
-        <input
-          id="monthly-principal"
-          v-model.number="monthlyPrincipal"
-          type="number"
-          min="0"
-          step="0.01"
-          placeholder="Leave empty to calculate"
-        />
-        <p class="help-text" title="Principal paid each month (interest will be added on top)">
-          Interest added on top
-        </p>
+      <!-- Monthly Payment Summary -->
+      <div v-if="monthlyPaymentDisplay" class="payment-summary">
+        <h3>Monthly Payment</h3>
+        <div class="payment-info">
+          <div v-if="monthlyPaymentDisplay.type === 'fixed'" class="payment-display">
+            <div class="payment-amount">€{{ monthlyPaymentDisplay.payment.toFixed(2) }}/month</div>
+            <p class="help-text">Fixed payment throughout the loan term</p>
+          </div>
+          <div v-else-if="monthlyPaymentDisplay.type === 'declining'" class="payment-display">
+            <div class="payment-range">
+              <div class="payment-initial">
+                <span class="label">Initial:</span>
+                <span class="amount"
+                  >€{{ monthlyPaymentDisplay.initialPayment.toFixed(2) }}/month</span
+                >
+              </div>
+              <div class="payment-arrow">→</div>
+              <div class="payment-final">
+                <span class="label">Final:</span>
+                <span class="amount"
+                  >€{{ monthlyPaymentDisplay.finalPayment.toFixed(2) }}/month</span
+                >
+              </div>
+            </div>
+            <p class="help-text">Payments decrease as principal is paid down</p>
+          </div>
+          <div v-else-if="monthlyPaymentDisplay.type === 'interest-only'" class="payment-display">
+            <div class="payment-amount">€{{ monthlyPaymentDisplay.payment.toFixed(2) }}/month</div>
+            <p class="help-text">Interest only - principal due at end</p>
+          </div>
+        </div>
       </div>
 
       <!-- Calculated values display -->
-      <div
-        v-if="calculatedMonthlyPayment || calculatedPrincipalPayment || calculatedEndDate"
-        class="calculated-values"
-      >
+      <div v-if="calculatedEndDate" class="calculated-values">
         <h3>Calculated Values</h3>
-        <div v-if="calculatedMonthlyPayment" class="calculated-field">
-          <span class="label">Required Monthly Payment:</span>
-          <span class="value">€{{ calculatedMonthlyPayment.toFixed(2) }}</span>
-          <p
-            class="help-text"
-            title="Total payment stays the same each month, principal portion increases over time"
-          >
-            Includes principal and interest
-          </p>
-        </div>
-        <div v-if="calculatedPrincipalPayment" class="calculated-field">
-          <span class="label">Required Monthly Principal:</span>
-          <span class="value">€{{ calculatedPrincipalPayment.toFixed(2) }}</span>
-          <p
-            class="help-text"
-            title="Principal paid each month (total payment will vary with interest)"
-          >
-            Total payment varies monthly
-          </p>
-        </div>
-        <div v-if="calculatedEndDate" class="calculated-field">
+        <div class="calculated-field">
           <span class="label">Estimated Payoff Date:</span>
           <span class="value">{{ calculatedEndDate }}</span>
         </div>
@@ -532,6 +631,109 @@ function handleDelete() {
 
   @include mobile-small {
     padding: $spacing-base;
+  }
+}
+
+// Inline radio group styles
+.radio-group-inline {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0.75rem 0;
+  flex-wrap: wrap;
+
+  .radio-label-inline {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+
+    input[type='radio'] {
+      cursor: pointer;
+    }
+  }
+}
+
+.input-field {
+  margin-top: 1rem;
+}
+
+// Payment summary specific styles
+.payment-summary {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: #f8f9fa;
+  border: 2px solid #007bff;
+  border-radius: 4px;
+
+  h3 {
+    margin: 0 0 1rem 0;
+    font-size: 1.1rem;
+    color: #2c3e50;
+  }
+
+  .payment-display {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .payment-amount {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #007bff;
+  }
+
+  .payment-range {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+
+    .payment-initial,
+    .payment-final {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+
+      .label {
+        font-size: 0.85rem;
+        color: #666;
+      }
+
+      .amount {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #007bff;
+      }
+    }
+
+    .payment-arrow {
+      font-size: 1.5rem;
+      color: #666;
+    }
+  }
+
+  .help-text {
+    margin: 0;
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  @include mobile-small {
+    .payment-range {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+
+      .payment-arrow {
+        display: none;
+      }
+    }
+
+    .payment-amount {
+      font-size: 1.25rem;
+    }
   }
 }
 </style>
