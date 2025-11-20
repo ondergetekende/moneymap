@@ -8,12 +8,14 @@
     </p>
 
     <div class="form-section">
-      <MonthEdit
-        :modelValue="birthDate"
+      <DateSpecificationEdit
+        :modelValue="birthDateSpec"
         @update:modelValue="handleBirthDateUpdate"
         label="Birth Month and Year"
         :maxMonth="maxMonth"
         :nullable="false"
+        :allowAgeEntry="false"
+        :showModeSelector="false"
       />
 
       <div v-if="currentAge !== null" class="age-display">
@@ -35,11 +37,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import MonthEdit from '../MonthEdit.vue'
-import type { Month } from '@/types/month'
-import { getCurrentMonth } from '@/types/month'
+import DateSpecificationEdit from '../DateSpecificationEdit.vue'
+import type { Month, DateSpecification } from '@/types/month'
+import { getCurrentMonth, createAbsoluteDate } from '@/types/month'
 
-defineProps<{
+const props = defineProps<{
   birthDate: Month
   currentAge: number | null
 }>()
@@ -52,9 +54,15 @@ const maxMonth = computed(() => {
   return getCurrentMonth()
 })
 
-function handleBirthDateUpdate(value: Month | undefined) {
-  if (value !== undefined) {
-    emit('update:birthDate', value)
+// Convert Month to DateSpecification for the component
+const birthDateSpec = computed((): DateSpecification => {
+  return createAbsoluteDate(props.birthDate)
+})
+
+// Handle updates from DateSpecificationEdit
+function handleBirthDateUpdate(value: DateSpecification | undefined) {
+  if (value && value.type === 'absolute') {
+    emit('update:birthDate', value.month)
   }
 }
 </script>

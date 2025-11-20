@@ -4,18 +4,9 @@ import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import { CashFlow, type CashFlowType, type CashFlowFrequency } from '@/models'
-import type { Month, DateSpecification } from '@/types/month'
-import { createAbsoluteDate } from '@/types/month'
-import MonthEdit from '@/components/MonthEdit.vue'
+import type { DateSpecification } from '@/types/month'
+import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
 import { getTaxOptions, getTaxConfig } from '@/config/taxConfig'
-
-// Helper to extract Month from DateSpecification (temporary until Task 4)
-function dateSpecToMonth(spec: DateSpecification | undefined): Month | undefined {
-  if (!spec) return undefined
-  if (spec.type === 'absolute') return spec.month
-  // For now, only handle absolute dates in the UI
-  return undefined
-}
 
 const props = defineProps<{
   id?: string
@@ -28,8 +19,8 @@ const store = usePlannerStore()
 // Form state
 const name = ref('')
 const amount = ref<number>(0)
-const startDate = ref<Month | undefined>(undefined)
-const endDate = ref<Month | undefined>(undefined)
+const startDate = ref<DateSpecification | undefined>(undefined)
+const endDate = ref<DateSpecification | undefined>(undefined)
 const cashFlowType = ref<CashFlowType>('income')
 const followsInflation = ref<boolean>(false)
 const isOneTime = ref<boolean>(false)
@@ -93,8 +84,8 @@ onMounted(() => {
     const cashFlow = store.getCashFlowById(props.id)
     if (cashFlow) {
       name.value = cashFlow.name
-      startDate.value = dateSpecToMonth(cashFlow.startDate)
-      endDate.value = dateSpecToMonth(cashFlow.endDate)
+      startDate.value = cashFlow.startDate
+      endDate.value = cashFlow.endDate
       cashFlowType.value = cashFlow.type
       followsInflation.value = cashFlow.followsInflation
       isOneTime.value = cashFlow.isOneTime
@@ -113,8 +104,8 @@ onMounted(() => {
       name.value = template.name || ''
       amount.value = template.amount || 0
       cashFlowType.value = template.type || 'income'
-      startDate.value = dateSpecToMonth(template.startDate)
-      endDate.value = dateSpecToMonth(template.endDate)
+      startDate.value = template.startDate
+      endDate.value = template.endDate
       followsInflation.value = template.followsInflation ?? false
       isOneTime.value = template.isOneTime ?? false
       incomeTaxId.value = template.incomeTaxId
@@ -198,8 +189,8 @@ function handleSave() {
     const cashFlowData = {
       name: name.value.trim(),
       amount: amount.value,
-      startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
-      endDate: endDate.value !== undefined ? createAbsoluteDate(endDate.value) : undefined,
+      startDate: startDate.value,
+      endDate: endDate.value,
       type: cashFlowType.value,
       followsInflation: followsInflation.value,
       isOneTime: isOneTime.value,
@@ -216,8 +207,8 @@ function handleSave() {
         name: name.value.trim(),
         amount: amount.value,
         type: template.type,
-        startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
-        endDate: endDate.value !== undefined ? createAbsoluteDate(endDate.value) : undefined,
+        startDate: startDate.value,
+        endDate: endDate.value,
         followsInflation: followsInflation.value,
         isOneTime: isOneTime.value,
         incomeTaxId: incomeTaxId.value,
@@ -341,12 +332,24 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <MonthEdit v-model="startDate" :label="startDateLabel" :nullable="!isOneTime" />
+        <DateSpecificationEdit
+          v-model="startDate"
+          :label="startDateLabel"
+          :nullable="!isOneTime"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
+        />
         <p class="help-text">{{ startDateHelpText }}</p>
       </div>
 
       <div v-if="!isOneTime" class="form-group">
-        <MonthEdit v-model="endDate" label="End Month (optional)" :nullable="true" />
+        <DateSpecificationEdit
+          v-model="endDate"
+          label="End Month (optional)"
+          :nullable="true"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
+        />
         <p class="help-text">Leave empty to continue indefinitely</p>
       </div>
 

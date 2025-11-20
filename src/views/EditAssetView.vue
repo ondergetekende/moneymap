@@ -5,18 +5,9 @@ import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
 import { LiquidAsset, FixedAsset } from '@/models'
 import type { AssetType } from '@/models'
-import type { Month, DateSpecification } from '@/types/month'
-import { createAbsoluteDate } from '@/types/month'
-import MonthEdit from '@/components/MonthEdit.vue'
+import type { DateSpecification } from '@/types/month'
+import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
 import { getTaxOptions, getTaxConfig } from '@/config/taxConfig'
-
-// Helper to extract Month from DateSpecification (temporary until Task 4)
-function dateSpecToMonth(spec: DateSpecification | undefined): Month | undefined {
-  if (!spec) return undefined
-  if (spec.type === 'absolute') return spec.month
-  // For now, only handle absolute dates in the UI
-  return undefined
-}
 
 const props = defineProps<{
   id?: string
@@ -30,7 +21,7 @@ const store = usePlannerStore()
 const name = ref('')
 const amount = ref<number>(0)
 const annualInterestRate = ref<number>(0)
-const liquidationDate = ref<Month | undefined>(undefined)
+const liquidationDate = ref<DateSpecification | undefined>(undefined)
 const assetType = ref<AssetType>('liquid')
 const wealthTaxId = ref<string | undefined>(undefined)
 const capitalGainsTaxId = ref<string | undefined>(undefined)
@@ -93,7 +84,7 @@ onMounted(() => {
       capitalGainsTaxId.value = asset.capitalGainsTaxId
       if (asset instanceof FixedAsset) {
         annualInterestRate.value = asset.annualInterestRate
-        liquidationDate.value = dateSpecToMonth(asset.liquidationDate)
+        liquidationDate.value = asset.liquidationDate
       }
     } else {
       // Asset not found, redirect to dashboard
@@ -111,7 +102,7 @@ onMounted(() => {
         assetType.value = 'fixed'
         amount.value = template.amount
         annualInterestRate.value = template.annualInterestRate
-        liquidationDate.value = dateSpecToMonth(template.liquidationDate)
+        liquidationDate.value = template.liquidationDate
         wealthTaxId.value = template.wealthTaxId
         capitalGainsTaxId.value = template.capitalGainsTaxId
       } else if (template instanceof LiquidAsset) {
@@ -150,8 +141,7 @@ function handleSave() {
     }
     if (assetType.value === 'fixed') {
       updates.annualInterestRate = annualInterestRate.value
-      updates.liquidationDate =
-        liquidationDate.value !== undefined ? createAbsoluteDate(liquidationDate.value) : undefined
+      updates.liquidationDate = liquidationDate.value
     }
     store.updateCapitalAccount(props.id, updates)
   } else {
@@ -245,10 +235,12 @@ function handleDelete() {
       </div>
 
       <div v-if="showInterestRate" class="form-group">
-        <MonthEdit
+        <DateSpecificationEdit
           v-model="liquidationDate"
           label="Liquidation Month (optional)"
           :nullable="true"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
         />
         <p class="help-text">When will you sell this asset?</p>
       </div>

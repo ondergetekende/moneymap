@@ -5,16 +5,8 @@ import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
 import { LinearDebt, AnnualizedDebt, InterestOnlyDebt } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
-import { getCurrentMonth, addMonths, monthDiff, createAbsoluteDate } from '@/types/month'
-import MonthEdit from '@/components/MonthEdit.vue'
-
-// Helper to extract Month from DateSpecification (temporary until Task 4)
-function dateSpecToMonth(spec: DateSpecification | undefined): Month | undefined {
-  if (!spec) return undefined
-  if (spec.type === 'absolute') return spec.month
-  // For now, only handle absolute dates in the UI
-  return undefined
-}
+import { getCurrentMonth, addMonths, monthDiff, resolveDate } from '@/types/month'
+import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
 
 const props = defineProps<{
   id?: string
@@ -28,15 +20,15 @@ const store = usePlannerStore()
 const name = ref('')
 const amount = ref<number>(0)
 const annualInterestRate = ref<number>(0)
-const startDate = ref<Month | undefined>(undefined)
+const startDate = ref<DateSpecification | undefined>(undefined)
 
 // Form state - single repayment type selection
 const repaymentType = ref<'annuity' | 'linear' | 'balloon' | 'perpetual'>('annuity')
 const hasDelayedStart = ref<boolean>(false)
 
 // Optional fields - user can leave empty to calculate
-const repaymentStartDate = ref<Month | undefined>(undefined)
-const endDate = ref<Month | undefined>(undefined)
+const repaymentStartDate = ref<DateSpecification | undefined>(undefined)
+const endDate = ref<DateSpecification | undefined>(undefined)
 const monthlyPayment = ref<number | undefined>(undefined)
 const monthlyPrincipal = ref<number | undefined>(undefined)
 
@@ -59,10 +51,16 @@ const pageTitle = computed(() => {
 
 // Helper functions
 function getStartMonth(): Month {
-  return startDate.value ?? getCurrentMonth()
+  if (startDate.value) {
+    const resolved = resolveDate(startDate.value, store.birthDate)
+    if (resolved !== undefined) return resolved
+  }
+  return getCurrentMonth()
 }
 
-function calculateMonthsUntil(month: Month): number {
+function calculateMonthsUntil(dateSpec: DateSpecification): number {
+  const month = resolveDate(dateSpec, store.birthDate)
+  if (month === undefined) return 0
   return monthDiff(month, getStartMonth())
 }
 
@@ -161,7 +159,7 @@ onMounted(() => {
       name.value = debt.name
       amount.value = debt.amount
       annualInterestRate.value = debt.annualInterestRate
-      startDate.value = dateSpecToMonth(debt.startDate)
+      startDate.value = debt.startDate
 
       // Determine repayment type from existing debt
       const type = debt.getDebtType()
@@ -176,12 +174,12 @@ onMounted(() => {
         repaymentType.value = debt.endDate !== undefined ? 'balloon' : 'perpetual'
       }
 
-      endDate.value = dateSpecToMonth(debt.endDate)
+      endDate.value = debt.endDate
       hasDelayedStart.value =
         !!debt.repaymentStartDate && debt.repaymentStartDate !== debt.startDate
 
       if (hasDelayedStart.value) {
-        repaymentStartDate.value = dateSpecToMonth(debt.repaymentStartDate)
+        repaymentStartDate.value = debt.repaymentStartDate
       }
     } else {
       router.push({ name: 'dashboard' })
@@ -194,7 +192,7 @@ onMounted(() => {
       name.value = template.name || ''
       amount.value = template.amount || 0
       annualInterestRate.value = template.annualInterestRate || 0
-      startDate.value = dateSpecToMonth(template.startDate)
+      startDate.value = template.startDate
 
       // Set repayment type based on template
       const type = template.getDebtType()
@@ -207,7 +205,7 @@ onMounted(() => {
         repaymentType.value = template.endDate ? 'balloon' : 'perpetual'
       }
 
-      endDate.value = dateSpecToMonth(template.endDate)
+      endDate.value = template.endDate
     }
   }
 })
@@ -225,22 +223,23 @@ function handleSave() {
   }
 
   let debt
+
+  // Resolve calculatedEndDate to DateSpecification if needed
+  const finalEndDate =
+    endDate.value !== undefined
+      ? endDate.value
+      : calculatedEndDate.value !== null
+        ? { type: 'absolute' as const, month: calculatedEndDate.value }
+        : undefined
+
   const baseData = {
     id: props.id,
     name: name.value.trim(),
     amount: amount.value,
     annualInterestRate: annualInterestRate.value,
-    startDate: startDate.value !== undefined ? createAbsoluteDate(startDate.value) : undefined,
-    repaymentStartDate:
-      hasDelayedStart.value && repaymentStartDate.value !== undefined
-        ? createAbsoluteDate(repaymentStartDate.value)
-        : undefined,
-    endDate:
-      endDate.value !== undefined
-        ? createAbsoluteDate(endDate.value)
-        : calculatedEndDate.value !== null
-          ? createAbsoluteDate(calculatedEndDate.value)
-          : undefined,
+    startDate: startDate.value,
+    repaymentStartDate: hasDelayedStart.value ? repaymentStartDate.value : undefined,
+    endDate: finalEndDate,
   }
 
   // Determine which debt type to create based on repayment type
@@ -352,7 +351,13 @@ function handleDelete() {
       </div>
 
       <div class="form-group">
-        <MonthEdit v-model="startDate" label="Start Month" :nullable="false" />
+        <DateSpecificationEdit
+          v-model="startDate"
+          label="Start Month"
+          :nullable="false"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
+        />
         <p class="help-text" title="When the debt begins (defaults to current month)">
           Loan start date
         </p>
@@ -402,17 +407,25 @@ function handleDelete() {
       </div>
 
       <div v-if="showRepaymentStartDate" class="form-group">
-        <MonthEdit
+        <DateSpecificationEdit
           v-model="repaymentStartDate"
           label="Repayment Start Month"
           :required="true"
           :nullable="false"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
         />
       </div>
 
       <!-- Optional end date -->
       <div v-if="showEndDate" class="form-group">
-        <MonthEdit v-model="endDate" label="Payoff Date (optional)" :nullable="true" />
+        <DateSpecificationEdit
+          v-model="endDate"
+          label="Payoff Date (optional)"
+          :nullable="true"
+          :allow-age-entry="true"
+          :show-mode-selector="true"
+        />
         <p
           class="help-text"
           title="When you'll pay off the remaining balance in full. Leave empty to calculate from payment amount"

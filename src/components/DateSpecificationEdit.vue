@@ -1,0 +1,457 @@
+<script setup lang="ts">
+import { computed, ref, watch } from 'vue'
+import { usePlannerStore } from '@/stores/planner'
+import type { Month, DateSpecification } from '@/types/month'
+import {
+  getYear,
+  getMonthIndex,
+  fromYearMonth,
+  getCurrentMonth,
+  resolveDate,
+  createAbsoluteDate,
+  createAgeDate,
+  formatMonth,
+} from '@/types/month'
+
+interface Props {
+  modelValue?: DateSpecification
+  label?: string
+  required?: boolean
+  nullable?: boolean
+  maxMonth?: Month
+  minMonth?: Month
+  allowAgeEntry?: boolean
+  showModeSelector?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  required: false,
+  nullable: true,
+  allowAgeEntry: true,
+  showModeSelector: true,
+})
+
+const emit = defineEmits<{
+  'update:modelValue': [value: DateSpecification | undefined]
+}>()
+
+const store = usePlannerStore()
+
+// Month names for the dropdown
+const monthNames = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
+
+// Track whether the value is set (for nullable mode)
+const isSet = ref<boolean>(props.modelValue !== undefined)
+
+// Determine initial mode from modelValue
+const getInitialMode = (): 'absolute' | 'age' => {
+  if (props.modelValue?.type === 'age') return 'age'
+  return 'absolute'
+}
+
+const mode = ref<'absolute' | 'age'>(getInitialMode())
+
+// Initialize absolute mode values
+const currentMonth =
+  props.modelValue?.type === 'absolute' ? props.modelValue.month : getCurrentMonth()
+const yearString = ref<string>(String(getYear(currentMonth)))
+const monthIndex = ref<number>(getMonthIndex(currentMonth))
+
+// Initialize age mode value
+const ageString = ref<string>(props.modelValue?.type === 'age' ? String(props.modelValue.age) : '')
+
+// Watch for external changes to modelValue
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    isSet.value = newValue !== undefined
+    if (newValue !== undefined) {
+      if (newValue.type === 'absolute') {
+        mode.value = 'absolute'
+        yearString.value = String(getYear(newValue.month))
+        monthIndex.value = getMonthIndex(newValue.month)
+      } else if (newValue.type === 'age') {
+        mode.value = 'age'
+        ageString.value = String(newValue.age)
+      }
+    }
+  },
+)
+
+// Parsed year value
+const year = computed<number>(() => {
+  const parsed = parseInt(yearString.value, 10)
+  return isNaN(parsed) ? getYear(getCurrentMonth()) : parsed
+})
+
+// Parsed age value
+const age = computed<number>(() => {
+  const parsed = parseInt(ageString.value, 10)
+  return isNaN(parsed) ? 0 : parsed
+})
+
+// Computed Month value (for absolute mode)
+const absoluteMonthValue = computed<Month>(() => {
+  return fromYearMonth(year.value, monthIndex.value)
+})
+
+// Resolved month preview (for age mode)
+const resolvedAgePreview = computed<string | null>(() => {
+  if (mode.value !== 'age' || !isSet.value) return null
+
+  const birthDate = store.birthDate
+  if (birthDate === undefined) {
+    return 'Birth date not set'
+  }
+
+  const ageValue = age.value
+  if (ageValue < 0 || ageValue > 120) {
+    return 'Invalid age'
+  }
+
+  const ageSpec = createAgeDate(ageValue)
+  const resolvedMonth = resolveDate(ageSpec, birthDate)
+  if (resolvedMonth === undefined) {
+    return 'Cannot resolve'
+  }
+
+  return `${formatMonth(resolvedMonth, 'full')} (based on your birth date)`
+})
+
+// Emit changes when relevant fields change
+watch([yearString, monthIndex, ageString, mode, isSet], () => {
+  // If not set and nullable, emit undefined
+  if (!isSet.value && props.nullable) {
+    emit('update:modelValue', undefined)
+    return
+  }
+
+  if (mode.value === 'absolute') {
+    // Only emit if year is a valid number
+    const yearNum = parseInt(yearString.value, 10)
+    if (isNaN(yearNum) || yearNum < 1900 || yearNum > 2200) {
+      return
+    }
+
+    const newMonth = fromYearMonth(yearNum, monthIndex.value)
+
+    // Validate against min/max if provided
+    if (props.minMonth !== undefined && newMonth < props.minMonth) {
+      return
+    }
+    if (props.maxMonth !== undefined && newMonth > props.maxMonth) {
+      return
+    }
+
+    emit('update:modelValue', createAbsoluteDate(newMonth))
+  } else if (mode.value === 'age') {
+    const ageValue = age.value
+    if (isNaN(ageValue) || ageValue < 0 || ageValue > 120) {
+      return
+    }
+
+    emit('update:modelValue', createAgeDate(ageValue))
+  }
+})
+
+// Validation state
+const isValid = computed(() => {
+  if (mode.value === 'absolute') {
+    const month = absoluteMonthValue.value
+    if (props.minMonth !== undefined && month < props.minMonth) return false
+    if (props.maxMonth !== undefined && month > props.maxMonth) return false
+  } else if (mode.value === 'age') {
+    const ageValue = age.value
+    if (ageValue < 0 || ageValue > 120) return false
+  }
+  return true
+})
+</script>
+
+<template>
+  <div class="date-spec-edit" :class="{ invalid: !isValid }">
+    <label v-if="label" class="date-spec-label">
+      {{ label }}
+      <span v-if="required" class="required-indicator">*</span>
+    </label>
+
+    <div v-if="nullable" class="checkbox-container">
+      <label class="checkbox-label">
+        <input v-model="isSet" type="checkbox" class="checkbox-input" />
+        <span class="checkbox-text">Set value</span>
+      </label>
+    </div>
+
+    <div v-if="showModeSelector && allowAgeEntry" class="mode-selector">
+      <label class="mode-option">
+        <input
+          v-model="mode"
+          type="radio"
+          value="absolute"
+          :disabled="!isSet && nullable"
+          class="mode-radio"
+        />
+        <span class="mode-label">Month + Year</span>
+      </label>
+      <label class="mode-option">
+        <input
+          v-model="mode"
+          type="radio"
+          value="age"
+          :disabled="!isSet && nullable"
+          class="mode-radio"
+        />
+        <span class="mode-label">Age</span>
+      </label>
+    </div>
+
+    <div v-if="mode === 'absolute'" class="date-controls">
+      <select
+        v-model.number="monthIndex"
+        class="month-select"
+        :required="required && isSet"
+        :disabled="!isSet && nullable"
+      >
+        <option v-for="(name, index) in monthNames" :key="index" :value="index">
+          {{ name }}
+        </option>
+      </select>
+      <input
+        v-model="yearString"
+        type="text"
+        inputmode="numeric"
+        pattern="[0-9]*"
+        class="year-input"
+        :required="required && isSet"
+        :disabled="!isSet && nullable"
+        placeholder="YYYY"
+      />
+    </div>
+
+    <div v-else-if="mode === 'age'" class="age-controls">
+      <label class="age-label">Age:</label>
+      <input
+        v-model="ageString"
+        type="number"
+        inputmode="numeric"
+        min="0"
+        max="120"
+        class="age-input"
+        :required="required && isSet"
+        :disabled="!isSet && nullable"
+        placeholder="67"
+      />
+      <div v-if="resolvedAgePreview && isSet" class="age-preview">
+        {{ resolvedAgePreview }}
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.date-spec-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.date-spec-label {
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: #374151;
+}
+
+.required-indicator {
+  color: #ef4444;
+  margin-left: 0.25rem;
+}
+
+.checkbox-container {
+  margin-bottom: 0.5rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-input {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.checkbox-text {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.mode-selector {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mode-radio {
+  width: 1rem;
+  height: 1rem;
+  cursor: pointer;
+}
+
+.mode-label {
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.date-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.month-select {
+  flex: 1;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  background-color: white;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.month-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.5);
+}
+
+.year-input {
+  width: 6rem;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.95rem;
+  text-align: center;
+}
+
+.year-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.5);
+}
+
+.age-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.age-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+}
+
+.age-input {
+  width: 8rem;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  font-size: 0.95rem;
+}
+
+.age-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  ring: 2px;
+  ring-color: rgba(59, 130, 246, 0.5);
+}
+
+.age-preview {
+  font-size: 0.875rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.month-select:disabled,
+.year-input:disabled,
+.age-input:disabled {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.date-spec-edit.invalid .month-select,
+.date-spec-edit.invalid .year-input,
+.date-spec-edit.invalid .age-input {
+  border-color: #ef4444;
+}
+
+/* Remove spinner buttons for number input */
+.year-input::-webkit-inner-spin-button,
+.year-input::-webkit-outer-spin-button,
+.age-input::-webkit-inner-spin-button,
+.age-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.year-input[type='number'],
+.age-input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+@media (max-width: 480px) {
+  .date-spec-label {
+    font-size: 0.8125rem;
+  }
+
+  .month-select,
+  .year-input,
+  .age-input {
+    padding: 0.4rem;
+    font-size: 0.8125rem;
+  }
+
+  .year-input {
+    width: 5rem;
+  }
+
+  .age-input {
+    width: 7rem;
+  }
+
+  .mode-selector {
+    gap: 0.75rem;
+  }
+
+  .mode-label {
+    font-size: 0.8125rem;
+  }
+}
+</style>

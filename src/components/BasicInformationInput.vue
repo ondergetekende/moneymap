@@ -3,12 +3,14 @@
     <h3>Basic Information</h3>
     <div class="input-group">
       <div class="form-field">
-        <MonthEdit
-          :modelValue="birthDate"
+        <DateSpecificationEdit
+          :modelValue="birthDateSpec"
           @update:modelValue="handleBirthDateUpdate"
           label="Birth Month"
           :maxMonth="maxMonth"
           :nullable="false"
+          :allowAgeEntry="false"
+          :showModeSelector="false"
         />
       </div>
       <div v-if="currentAge !== null" class="age-display">
@@ -68,12 +70,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import MonthEdit from './MonthEdit.vue'
-import type { Month } from '@/types/month'
-import { getCurrentMonth } from '@/types/month'
+import DateSpecificationEdit from './DateSpecificationEdit.vue'
+import type { Month, DateSpecification } from '@/types/month'
+import { getCurrentMonth, createAbsoluteDate } from '@/types/month'
 import { TAX_CONFIGS } from '@/config/taxConfig'
 
-defineProps<{
+const props = defineProps<{
   birthDate: Month
   inflationRate: number
   liquidAssetsInterestRate: number
@@ -96,9 +98,14 @@ const availableCountries = computed(() => {
   return Object.values(TAX_CONFIGS).sort((a, b) => a.countryName.localeCompare(b.countryName))
 })
 
-function handleBirthDateUpdate(value: Month | undefined) {
-  if (value !== undefined) {
-    emit('update:birthDate', value)
+// Convert Month to DateSpecification for the component
+const birthDateSpec = computed((): DateSpecification => {
+  return createAbsoluteDate(props.birthDate)
+})
+
+function handleBirthDateUpdate(value: DateSpecification | undefined) {
+  if (value && value.type === 'absolute') {
+    emit('update:birthDate', value.month)
   }
 }
 
