@@ -116,6 +116,23 @@ export const usePlannerStore = defineStore('planner', () => {
 
   function openWizard() {
     showWizard.value = true
+
+    // Add default life events on first-time wizard open
+    if (!wizardCompleted.value && lifeEvents.value.length === 0) {
+      const retirementEvent: LifeEvent = {
+        id: crypto.randomUUID(),
+        name: 'Retirement',
+        date: { type: 'age', age: 67 },
+        description: 'Default retirement life event',
+      }
+      const lifeExpectancyEvent: LifeEvent = {
+        id: crypto.randomUUID(),
+        name: 'Life expectancy',
+        date: { type: 'age', age: 90 },
+        description: 'Expected life span',
+      }
+      lifeEvents.value.push(retirementEvent, lifeExpectancyEvent)
+    }
   }
 
   function closeWizard() {
@@ -140,22 +157,10 @@ export const usePlannerStore = defineStore('planner', () => {
     liquidAssetsInterestRate.value = data.liquidAssetsInterestRate
     inflationRate.value = data.inflationRate
 
-    // Add default items on first-time wizard completion
+    // Add default financial items on first-time wizard completion
     if (isFirstTime) {
-      // Create life events
-      const retirementEvent: LifeEvent = {
-        id: crypto.randomUUID(),
-        name: 'Retirement',
-        date: { type: 'age', age: 67 },
-        description: 'Default retirement life event',
-      }
-      const lifeExpectancyEvent: LifeEvent = {
-        id: crypto.randomUUID(),
-        name: 'Life expectancy',
-        date: { type: 'age', age: 90 },
-        description: 'Expected life span',
-      }
-      lifeEvents.value.push(retirementEvent, lifeExpectancyEvent)
+      // Find the retirement event (should have been created when wizard opened)
+      const retirementEvent = lifeEvents.value.find((le) => le.name === 'Retirement')
 
       // Add savings account
       const savingsAccount = new LiquidAsset(
@@ -174,7 +179,7 @@ export const usePlannerStore = defineStore('planner', () => {
         2500,
         'income',
         undefined, // Start immediately
-        { type: 'lifeEvent', eventId: retirementEvent.id },
+        retirementEvent ? { type: 'lifeEvent', eventId: retirementEvent.id } : undefined,
         true, // Follows inflation
         false, // Not one-time
         undefined,
@@ -188,7 +193,7 @@ export const usePlannerStore = defineStore('planner', () => {
         'Pension',
         1500,
         'income',
-        { type: 'lifeEvent', eventId: retirementEvent.id },
+        retirementEvent ? { type: 'lifeEvent', eventId: retirementEvent.id } : undefined,
         undefined, // No end date
         true, // Follows inflation
         false, // Not one-time
