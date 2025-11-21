@@ -144,18 +144,8 @@ export const usePlannerStore = defineStore('planner', () => {
     showWizard.value = false
   }
 
-  function saveBasicInfo(data: {
-    birthDate: Month
-    taxCountry?: string
-    liquidAssetsInterestRate: number
-    inflationRate: number
-  }) {
+  function completeWizardWithDefaults() {
     const isFirstTime = !wizardCompleted.value
-
-    birthDate.value = data.birthDate
-    taxCountry.value = data.taxCountry
-    liquidAssetsInterestRate.value = data.liquidAssetsInterestRate
-    inflationRate.value = data.inflationRate
 
     // Add default financial items on first-time wizard completion
     if (isFirstTime) {
@@ -216,10 +206,11 @@ export const usePlannerStore = defineStore('planner', () => {
         'monthly',
       )
       cashFlows.value.push(livingExpenses)
+
+      recalculate()
     }
 
     completeWizard()
-    recalculate()
   }
 
   function addCapitalAccount(
@@ -592,7 +583,7 @@ export const usePlannerStore = defineStore('planner', () => {
     openWizard,
     closeWizard,
     completeWizard,
-    saveBasicInfo,
+    completeWizardWithDefaults,
     addCapitalAccount,
     updateCapitalAccount,
     removeCapitalAccount,

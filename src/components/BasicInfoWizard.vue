@@ -25,21 +25,21 @@
         <div class="wizard-content">
           <BirthDateStep
             v-if="currentStep === 1"
-            :birthDate="tempBirthDate"
-            :currentAge="tempCurrentAge"
-            @update:birthDate="tempBirthDate = $event"
+            :birthDate="store.birthDate"
+            :currentAge="currentAge"
+            @update:birthDate="store.setBirthDate($event)"
           />
           <JurisdictionStep
             v-if="currentStep === 2"
-            :taxCountry="tempTaxCountry"
-            @update:taxCountry="tempTaxCountry = $event"
+            :taxCountry="store.taxCountry"
+            @update:taxCountry="store.setTaxCountry($event)"
           />
           <ReturnsInflationStep
             v-if="currentStep === 3"
-            :liquidAssetsInterestRate="tempLiquidAssetsInterestRate"
-            :inflationRate="tempInflationRate"
-            @update:liquidAssetsInterestRate="tempLiquidAssetsInterestRate = $event"
-            @update:inflationRate="tempInflationRate = $event"
+            :liquidAssetsInterestRate="store.liquidAssetsInterestRate"
+            :inflationRate="store.inflationRate"
+            @update:liquidAssetsInterestRate="store.setLiquidAssetsInterestRate($event)"
+            @update:inflationRate="store.setInflationRate($event)"
           />
           <LifeEventsStep v-if="currentStep === 4" />
         </div>
@@ -73,8 +73,8 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
-import type { Month } from '@/types/month'
 import { getAgeInYears } from '@/types/month'
+import { usePlannerStore } from '@/stores/planner'
 import BirthDateStep from './wizard/BirthDateStep.vue'
 import JurisdictionStep from './wizard/JurisdictionStep.vue'
 import ReturnsInflationStep from './wizard/ReturnsInflationStep.vue'
@@ -82,64 +82,43 @@ import LifeEventsStep from './wizard/LifeEventsStep.vue'
 
 const props = defineProps<{
   isOpen: boolean
-  birthDate: Month
-  taxCountry?: string
-  liquidAssetsInterestRate: number
-  inflationRate: number
 }>()
 
 const emit = defineEmits<{
   close: []
-  save: [
-    {
-      birthDate: Month
-      taxCountry?: string
-      liquidAssetsInterestRate: number
-      inflationRate: number
-    },
-  ]
 }>()
+
+const store = usePlannerStore()
 
 const currentStep = ref(1)
 const totalSteps = 4
 
-// Temporary state for wizard
-const tempBirthDate = ref<Month>(props.birthDate)
-const tempTaxCountry = ref<string | undefined>(props.taxCountry)
-const tempLiquidAssetsInterestRate = ref(props.liquidAssetsInterestRate)
-const tempInflationRate = ref(props.inflationRate)
-
-// Watch for prop changes when wizard opens
+// Watch for wizard opening to reset to first step
 watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
-      // Reset to current values when opening
-      tempBirthDate.value = props.birthDate
-      tempTaxCountry.value = props.taxCountry
-      tempLiquidAssetsInterestRate.value = props.liquidAssetsInterestRate
-      tempInflationRate.value = props.inflationRate
       currentStep.value = 1
     }
   },
 )
 
-const tempCurrentAge = computed(() => {
-  return tempBirthDate.value ? getAgeInYears(tempBirthDate.value) : null
+const currentAge = computed(() => {
+  return store.birthDate ? getAgeInYears(store.birthDate) : null
 })
 
 const canProceed = computed(() => {
   switch (currentStep.value) {
     case 1:
-      return tempBirthDate.value !== undefined && tempBirthDate.value !== null
+      return store.birthDate !== undefined && store.birthDate !== null
     case 2:
       return true // Tax country is optional
     case 3:
       return (
-        tempLiquidAssetsInterestRate.value >= 0 &&
-        tempLiquidAssetsInterestRate.value <= 100 &&
-        tempInflationRate.value >= 0 &&
-        tempInflationRate.value <= 20
+        store.liquidAssetsInterestRate >= 0 &&
+        store.liquidAssetsInterestRate <= 100 &&
+        store.inflationRate >= 0 &&
+        store.inflationRate <= 20
       )
     case 4:
       return true // Life events are optional
@@ -177,20 +156,13 @@ function goBack() {
 
 function finish() {
   if (canProceed.value) {
-    emit('save', {
-      birthDate: tempBirthDate.value,
-      taxCountry: tempTaxCountry.value,
-      liquidAssetsInterestRate: tempLiquidAssetsInterestRate.value,
-      inflationRate: tempInflationRate.value,
-    })
+    store.completeWizardWithDefaults()
     emit('close')
   }
 }
 
 function handleCancel() {
-  if (confirm('Are you sure you want to cancel? Your changes will not be saved.')) {
-    emit('close')
-  }
+  emit('close')
 }
 </script>
 

@@ -8,7 +8,6 @@ import FinancialListItem from '@/components/FinancialListItem.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import NetWorthChart from '@/components/NetWorthChart.vue'
 import AnnualBreakdownTable from '@/components/AnnualBreakdownTable.vue'
-import type { Month } from '@/types/month'
 
 const store = usePlannerStore()
 
@@ -27,15 +26,6 @@ function handleEditBasicInfo() {
   store.openWizard()
 }
 
-function handleWizardSave(data: {
-  birthDate: Month
-  taxCountry?: string
-  liquidAssetsInterestRate: number
-  inflationRate: number
-}) {
-  store.saveBasicInfo(data)
-}
-
 function handleWizardClose() {
   store.closeWizard()
 }
@@ -52,15 +42,7 @@ function handleWizardClose() {
         @edit="handleEditBasicInfo"
       />
 
-      <BasicInfoWizard
-        :is-open="store.showWizard"
-        :birth-date="store.birthDate"
-        :tax-country="store.taxCountry"
-        :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
-        :inflation-rate="store.inflationRate"
-        @close="handleWizardClose"
-        @save="handleWizardSave"
-      />
+      <BasicInfoWizard :is-open="store.showWizard" @close="handleWizardClose" />
     </section>
 
     <section class="items-section">
