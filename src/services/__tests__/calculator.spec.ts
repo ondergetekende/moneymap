@@ -1758,15 +1758,15 @@ describe('Financial Calculator', () => {
       expect(firstMonth!.totalTaxPaid).toBe(firstMonth!.wealthTaxPaid)
     })
 
-    it('should calculate capital gains tax on fixed asset appreciation', () => {
+    it('should calculate capital gains tax only on liquidation', () => {
       const fixedAsset = new FixedAsset(
         '1',
         'House',
         500000,
         3, // 3% appreciation
-        undefined, // No liquidation date
+        toDateSpec('2030-01-01'), // Liquidation date
         undefined, // No wealth tax
-        'gb-capital-gains-higher', // UK capital gains tax
+        'gb-capital-gains-higher', // UK capital gains tax (20%)
       )
 
       const liquidAsset = new LiquidAsset('2', 'Checking', 50000)
@@ -1783,13 +1783,25 @@ describe('Financial Calculator', () => {
       )
 
       const result = calculateProjections(profile)
+
+      // Before liquidation, no capital gains tax should be applied
       const firstMonth = result.monthlyProjections[0]
+      expect(firstMonth!.capitalGainsTaxPaid).toBe(0)
 
-      // Capital gains tax should be calculated on appreciation
-      expect(firstMonth!.capitalGainsTaxPaid).toBeGreaterThan(0)
+      // Liquid assets should not decrease due to capital gains tax
+      expect(firstMonth!.liquidAssets).toBe(50000)
 
-      // Tax should be deducted from liquid assets
-      expect(firstMonth!.liquidAssets).toBeLessThan(50000)
+      // At liquidation in 2030, capital gains tax should be applied
+      const year2030 = result.annualSummaries.find((s) => s.year === 2030)
+      expect(year2030).toBeDefined()
+
+      // Capital gains tax should be calculated on the gain
+      // House value after 5 years at 3%: 500000 * (1.03)^5 ≈ 579637
+      // Gain: 579637 - 500000 = 79637
+      // UK CGT (higher rate, residential property): First £6,000 exempt, then 28% on remainder
+      // Tax: (79637 - 6000) * 0.28 = 73637 * 0.28 = 20,618
+      expect(year2030!.totalCapitalGainsTaxPaid).toBeGreaterThan(20000)
+      expect(year2030!.totalCapitalGainsTaxPaid).toBeLessThan(21500)
     })
 
     it('should handle multiple tax types simultaneously', () => {

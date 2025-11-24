@@ -34,6 +34,9 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       'House',
       350000, // Average home value in Western Europe
       3.5, // Typical property appreciation rate
+      undefined, // No liquidation date by default
+      undefined, // No wealth tax by default (user can configure)
+      'none', // No capital gains tax by default (only taxed on liquidation if configured)
     ),
   },
   {
@@ -45,6 +48,9 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
       'Car',
       35000, // Average car value in Western Europe
       -3.5, // Typical car depreciation rate
+      undefined, // No liquidation date by default
+      undefined, // No wealth tax by default (user can configure)
+      'none', // No capital gains tax by default (only taxed on liquidation if configured)
     ),
   },
   {

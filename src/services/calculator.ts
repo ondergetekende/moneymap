@@ -207,39 +207,39 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       const valueChange = asset.balance * monthlyRate
       asset.balance += valueChange
 
-      // Apply capital gains tax on fixed asset appreciation
-      const originalAsset = fixedAccounts.find((a) => a.id === asset.id)
-      if (originalAsset && valueChange > 0) {
-        const taxOption = resolveTaxOption(
-          originalAsset.capitalGainsTaxId,
-          profile.taxCountry,
-          'capital_gains',
-        )
-
-        if (taxOption) {
-          // Calculate tax on appreciation (annualized)
-          const annualAppreciation = valueChange * 12
-          const annualTax = calculateTax(annualAppreciation, taxOption, inflationAdjustment)
-          const monthlyTax = annualTax / 12
-
-          monthlyCapitalGainsTax += monthlyTax
-        }
-      }
-
       // Check for liquidation at start of month (after appreciation for this month)
       if (
         asset.resolvedLiquidationDate !== undefined &&
         currentMonth >= asset.resolvedLiquidationDate &&
         asset.balance > 0
       ) {
-        // Transfer asset value to liquid assets
+        // Calculate capital gains tax on liquidation
+        const originalAsset = fixedAccounts.find((a) => a.id === asset.id)
+        if (originalAsset) {
+          const taxOption = resolveTaxOption(
+            originalAsset.capitalGainsTaxId,
+            profile.taxCountry,
+            'capital_gains',
+          )
+
+          // Calculate total gain: current value minus original cost basis
+          const totalGain = asset.balance - originalAsset.amount
+          if (taxOption && totalGain > 0) {
+            // Calculate tax on realized gain
+            const annualGain = totalGain // Already a total, not monthly
+            const realizedTax = calculateTax(annualGain, taxOption, inflationAdjustment)
+            monthlyCapitalGainsTax += realizedTax
+          }
+        }
+
+        // Transfer asset value to liquid assets (minus capital gains tax)
         liquidAssetsBalance += asset.balance
         // Set asset balance to 0 for rest of projection
         asset.balance = 0
       }
     }
 
-    // Deduct capital gains tax on fixed assets from liquid assets
+    // Deduct capital gains tax from liquid assets
     liquidAssetsBalance -= monthlyCapitalGainsTax
 
     // Apply wealth tax on all assets
