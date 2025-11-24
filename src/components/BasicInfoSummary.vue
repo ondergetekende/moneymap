@@ -2,25 +2,56 @@
   <div class="basic-info-summary">
     <div class="summary-header">
       <h3>Basic Information</h3>
-      <button @click="$emit('edit')" class="edit-button">Edit</button>
     </div>
     <div class="summary-content">
       <div class="summary-item">
-        <span class="summary-label">Age:</span>
+        <div class="summary-item-header">
+          <span class="summary-label">Age:</span>
+          <button @click="$emit('edit-step', 1)" class="edit-button-small" title="Edit birth date">
+            Edit
+          </button>
+        </div>
         <span class="summary-value">{{
           currentAge !== null ? `${currentAge} years old` : 'Not set'
         }}</span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">Tax Country:</span>
+        <div class="summary-item-header">
+          <span class="summary-label">Tax Country:</span>
+          <button
+            @click="$emit('edit-step', 2)"
+            class="edit-button-small"
+            title="Edit jurisdiction"
+          >
+            Edit
+          </button>
+        </div>
         <span class="summary-value">{{ taxCountryDisplay }}</span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">Expected Returns:</span>
+        <div class="summary-item-header">
+          <span class="summary-label">Expected Returns:</span>
+          <button
+            @click="$emit('edit-step', 3)"
+            class="edit-button-small"
+            title="Edit returns & inflation"
+          >
+            Edit
+          </button>
+        </div>
         <span class="summary-value">{{ liquidAssetsInterestRate.toFixed(1) }}%</span>
       </div>
       <div class="summary-item">
-        <span class="summary-label">Inflation:</span>
+        <div class="summary-item-header">
+          <span class="summary-label">Inflation:</span>
+          <button
+            @click="$emit('edit-step', 3)"
+            class="edit-button-small"
+            title="Edit returns & inflation"
+          >
+            Edit
+          </button>
+        </div>
         <span class="summary-value">{{ inflationRate.toFixed(1) }}%</span>
       </div>
     </div>
@@ -39,7 +70,7 @@ const props = defineProps<{
 }>()
 
 defineEmits<{
-  edit: []
+  'edit-step': [step: number]
 }>()
 
 const taxCountryDisplay = computed(() => {
@@ -61,9 +92,6 @@ const taxCountryDisplay = computed(() => {
 }
 
 .summary-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 1rem;
 }
 
@@ -71,26 +99,6 @@ h3 {
   margin: 0;
   color: #2c3e50;
   font-size: 1.25rem;
-}
-
-.edit-button {
-  background-color: #42b983;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  padding: 0.5rem 1rem;
-  font-size: 0.9rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  font-weight: 600;
-}
-
-.edit-button:hover {
-  background-color: #359268;
-}
-
-.edit-button:active {
-  background-color: #2d7a57;
 }
 
 .summary-content {
@@ -105,6 +113,13 @@ h3 {
   gap: 0.25rem;
 }
 
+.summary-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .summary-label {
   font-size: 0.85rem;
   color: #6c757d;
@@ -117,6 +132,27 @@ h3 {
   font-weight: 700;
 }
 
+.edit-button-small {
+  background-color: #42b983;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.edit-button-small:hover {
+  background-color: #359268;
+}
+
+.edit-button-small:active {
+  background-color: #2d7a57;
+}
+
 /* Mobile responsive */
 @media (max-width: 768px) {
   .basic-info-summary {
@@ -127,9 +163,9 @@ h3 {
     font-size: 1.1rem;
   }
 
-  .edit-button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
+  .edit-button-small {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
   }
 
   .summary-content {
@@ -155,9 +191,9 @@ h3 {
     font-size: 1rem;
   }
 
-  .edit-button {
-    padding: 0.35rem 0.7rem;
-    font-size: 0.8rem;
+  .edit-button-small {
+    padding: 0.2rem 0.35rem;
+    font-size: 0.65rem;
   }
 
   .summary-content {

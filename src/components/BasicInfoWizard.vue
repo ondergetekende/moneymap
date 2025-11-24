@@ -84,6 +84,7 @@ import LifeEventsStep from './wizard/LifeEventsStep.vue'
 
 const props = defineProps<{
   isOpen: boolean
+  initialStep?: number
 }>()
 
 const emit = defineEmits<{
@@ -95,12 +96,12 @@ const store = usePlannerStore()
 const currentStep = ref(1)
 const totalSteps = 4
 
-// Watch for wizard opening to reset to first step
+// Watch for wizard opening to set initial step
 watch(
   () => props.isOpen,
   (isOpen) => {
     if (isOpen) {
-      currentStep.value = 1
+      currentStep.value = props.initialStep ?? 1
     }
   },
 )

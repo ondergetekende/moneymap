@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { usePlannerStore } from '@/stores/planner'
 import BasicInfoSummary from '@/components/BasicInfoSummary.vue'
@@ -14,6 +14,9 @@ const store = usePlannerStore()
 // Toggle for showing inflation-adjusted values (persisted in localStorage)
 const showInflationAdjusted = useLocalStorage('showInflationAdjusted', true)
 
+// Track which step to open the wizard to
+const wizardInitialStep = ref<number | undefined>(undefined)
+
 // Auto-open wizard on first visit
 onMounted(() => {
   // If user hasn't completed the wizard yet, open it automatically
@@ -22,11 +25,13 @@ onMounted(() => {
   }
 })
 
-function handleEditBasicInfo() {
+function handleEditStep(step: number) {
+  wizardInitialStep.value = step
   store.openWizard()
 }
 
 function handleWizardClose() {
+  wizardInitialStep.value = undefined
   store.closeWizard()
 }
 </script>
@@ -39,10 +44,14 @@ function handleWizardClose() {
         :tax-country="store.taxCountry"
         :liquid-assets-interest-rate="store.liquidAssetsInterestRate"
         :inflation-rate="store.inflationRate"
-        @edit="handleEditBasicInfo"
+        @edit-step="handleEditStep"
       />
 
-      <BasicInfoWizard :is-open="store.showWizard" @close="handleWizardClose" />
+      <BasicInfoWizard
+        :is-open="store.showWizard"
+        :initial-step="wizardInitialStep"
+        @close="handleWizardClose"
+      />
     </section>
 
     <section class="items-section">
