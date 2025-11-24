@@ -139,7 +139,7 @@ const resolvedAgePreview = computed<string | null>(() => {
   }
 
   const ageSpec = createAgeDate(ageValue)
-  const resolvedMonth = resolveDate(ageSpec, birthDate)
+  const resolvedMonth = resolveDate(ageSpec, birthDate, store.lifeEvents)
   if (resolvedMonth === undefined) {
     return 'Cannot resolve'
   }

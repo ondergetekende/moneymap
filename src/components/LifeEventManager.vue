@@ -239,7 +239,7 @@ function formatDateSpec(dateSpec: DateSpecification): string {
   if (dateSpec.type === 'absolute') {
     return formatMonth(dateSpec.month, 'full')
   } else if (dateSpec.type === 'age') {
-    const resolved = resolveDate(dateSpec, store.birthDate)
+    const resolved = resolveDate(dateSpec, store.birthDate, store.lifeEvents)
     if (resolved !== undefined) {
       return `Age ${dateSpec.age} (${formatMonth(resolved, 'full')})`
     }

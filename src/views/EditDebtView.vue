@@ -55,14 +55,14 @@ const pageTitle = computed(() => {
 // Helper functions
 function getStartMonth(): Month {
   if (startDate.value) {
-    const resolved = resolveDate(startDate.value, store.birthDate)
+    const resolved = resolveDate(startDate.value, store.birthDate, store.lifeEvents)
     if (resolved !== undefined) return resolved
   }
   return getCurrentMonth()
 }
 
 function calculateMonthsUntil(dateSpec: DateSpecification): number {
-  const month = resolveDate(dateSpec, store.birthDate)
+  const month = resolveDate(dateSpec, store.birthDate, store.lifeEvents)
   if (month === undefined) return 0
   return monthDiff(month, getStartMonth())
 }
