@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { usePlannerStore } from '@/stores/planner'
 import type { CapitalAccount, CashFlow, AllDebtTypes } from '@/models'
 import { isAsset, isCashFlow, isLiquidAsset, Debt } from '@/models'
 import { getItemTypeById } from '@/config/itemTypes'
@@ -9,7 +10,11 @@ const props = defineProps<{
   item: CapitalAccount | CashFlow | AllDebtTypes
 }>()
 
+const store = usePlannerStore()
 const router = useRouter()
+const isEditingAmount = ref(false)
+const editAmount = ref('')
+const inputRef = ref<HTMLInputElement | null>(null)
 
 // Determine item type and metadata
 const itemType = computed(() => {
@@ -89,6 +94,62 @@ function handleEdit() {
     router.push({ name: 'edit-debt', params: { id: item.id } })
   }
 }
+
+function startEditing(event: Event) {
+  // Stop propagation to prevent card click
+  event.stopPropagation()
+
+  // Get the current amount value
+  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  if (isAsset(item) || item instanceof Debt) {
+    editAmount.value = item.amount.toString()
+  } else if (isCashFlow(item)) {
+    editAmount.value = item.amount.toString()
+  }
+
+  isEditingAmount.value = true
+  // Focus the input on next tick
+  setTimeout(() => {
+    inputRef.value?.select()
+  }, 0)
+}
+
+function cancelEditing() {
+  isEditingAmount.value = false
+  editAmount.value = ''
+}
+
+function saveAmount() {
+  const newValue = parseFloat(editAmount.value.replace(/[^0-9.-]/g, ''))
+
+  // Validate the input
+  if (isNaN(newValue) || newValue <= 0) {
+    // Invalid input, cancel editing
+    cancelEditing()
+    return
+  }
+
+  // Update based on item type
+  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  if (isAsset(item)) {
+    store.updateCapitalAccount(item.id, { amount: newValue })
+  } else if (isCashFlow(item)) {
+    store.updateCashFlow(item.id, { amount: newValue })
+  } else if (item instanceof Debt) {
+    store.updateDebt(item.id, { amount: newValue })
+  }
+
+  isEditingAmount.value = false
+  editAmount.value = ''
+}
+
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    saveAmount()
+  } else if (event.key === 'Escape') {
+    cancelEditing()
+  }
+}
 </script>
 
 <template>
@@ -97,7 +158,19 @@ function handleEdit() {
       <span class="item-name">{{ item.name }}</span>
     </div>
     <div class="item-footer">
-      <span class="item-amount">{{ formattedAmount }}</span>
+      <input
+        v-if="isEditingAmount"
+        ref="inputRef"
+        v-model="editAmount"
+        type="text"
+        class="item-amount-input"
+        @blur="saveAmount"
+        @keydown="handleKeydown"
+        @click.stop
+      />
+      <span v-else class="item-amount" @click="startEditing" title="Click to edit">
+        {{ formattedAmount }}
+      </span>
     </div>
   </div>
 </template>
@@ -153,6 +226,26 @@ function handleEdit() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.item-amount:hover {
+  background-color: #f3f4f6;
+}
+
+.item-amount-input {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+  border: 2px solid #3b82f6;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  background: white;
+  outline: none;
+  min-width: 120px;
 }
 
 /* Mobile optimizations */
@@ -166,7 +259,8 @@ function handleEdit() {
     font-size: 0.9375rem;
   }
 
-  .item-amount {
+  .item-amount,
+  .item-amount-input {
     font-size: 1rem;
   }
 }
@@ -180,7 +274,8 @@ function handleEdit() {
     font-size: 0.875rem;
   }
 
-  .item-amount {
+  .item-amount,
+  .item-amount-input {
     font-size: 0.9375rem;
   }
 }
