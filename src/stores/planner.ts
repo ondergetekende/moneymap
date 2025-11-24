@@ -502,6 +502,7 @@ export const usePlannerStore = defineStore('planner', () => {
       liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
       inflationRate.value = profile.inflationRate
       taxCountry.value = profile.taxCountry
+      lifeEvents.value = profile.lifeEvents
       recalculate()
 
       // Load wizard completion state
