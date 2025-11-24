@@ -34,6 +34,14 @@ function handleWizardClose() {
   wizardInitialStep.value = undefined
   store.closeWizard()
 }
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-EU', {
+    style: 'currency',
+    currency: 'EUR',
+    maximumFractionDigits: 0,
+  }).format(value)
+}
 </script>
 
 <template>
@@ -57,9 +65,18 @@ function handleWizardClose() {
     <section class="items-section">
       <div class="section-header">
         <h2>Your financial situation</h2>
-        <div v-if="store.allItems.length > 0" class="items-count">
-          {{ store.allItems.length }} item{{ store.allItems.length !== 1 ? 's' : '' }}
-        </div>
+      </div>
+      <div v-if="store.allItems.length > 0" class="summary-stats">
+        <span class="stat">Total Assets: {{ formatCurrency(store.totalAssets) }}</span>
+        <span class="stat-separator">|</span>
+        <span class="stat"
+          >Net Cashflow:
+          {{ formatCurrency((store.totalIncome - store.totalExpenses) / 12) }}/month</span
+        >
+        <span v-if="store.totalDebt > 0" class="stat-separator">|</span>
+        <span v-if="store.totalDebt > 0" class="stat"
+          >Total Debt: {{ formatCurrency(store.totalDebt) }}</span
+        >
       </div>
 
       <div v-if="store.allItems.length === 0" class="empty-state">
@@ -129,6 +146,40 @@ function handleWizardClose() {
 .dashboard-header {
   @include mobile-small {
     margin-bottom: $spacing-2xl;
+  }
+}
+
+// Summary statistics
+.summary-stats {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  background: #f9fafb;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #4b5563;
+  flex-wrap: wrap;
+
+  .stat {
+    font-weight: 500;
+  }
+
+  .stat-separator {
+    color: #d1d5db;
+  }
+
+  @include mobile {
+    font-size: 0.8125rem;
+    gap: 0.5rem;
+    padding: 0.625rem;
+  }
+
+  @include mobile-small {
+    font-size: 0.75rem;
+    gap: 0.375rem;
+    padding: 0.5rem;
   }
 }
 </style>
