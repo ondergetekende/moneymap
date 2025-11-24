@@ -8,7 +8,7 @@
         </div>
 
         <div class="wizard-progress">
-          <div
+          <button
             v-for="step in totalSteps"
             :key="step"
             class="progress-step"
@@ -16,10 +16,12 @@
               active: step === currentStep,
               completed: step < currentStep,
             }"
+            @click="goToStep(step)"
+            type="button"
           >
             <div class="progress-circle">{{ step }}</div>
             <div class="progress-label">{{ getStepLabel(step) }}</div>
-          </div>
+          </button>
         </div>
 
         <div class="wizard-content">
@@ -142,6 +144,12 @@ function getStepLabel(step: number): string {
   }
 }
 
+function goToStep(step: number) {
+  if (step >= 1 && step <= totalSteps) {
+    currentStep.value = step
+  }
+}
+
 function goNext() {
   if (currentStep.value < totalSteps && canProceed.value) {
     currentStep.value++
@@ -252,6 +260,19 @@ function handleCancel() {
   flex: 1;
   position: relative;
   z-index: 1;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.2s;
+}
+
+.progress-step:hover {
+  transform: translateY(-2px);
+}
+
+.progress-step:active {
+  transform: translateY(0);
 }
 
 .progress-circle {
@@ -265,6 +286,11 @@ function handleCancel() {
   justify-content: center;
   font-weight: 700;
   transition: all 0.3s;
+}
+
+.progress-step:hover .progress-circle {
+  background-color: #dee2e6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .progress-step.active .progress-circle {
