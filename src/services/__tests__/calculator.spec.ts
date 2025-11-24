@@ -1936,4 +1936,71 @@ describe('Financial Calculator', () => {
       expect(firstMonth!.capitalGainsTaxPaid).toBe(0) // No CGT in NL
     })
   })
+
+  describe('Simulation Endpoint', () => {
+    it('should simulate until age 90 when no life events are present', () => {
+      const birthMonth = stringToMonth('2000-01')!
+      const liquidAsset = new LiquidAsset('asset-1', 'Savings', 100000)
+
+      const profile = new UserProfile(
+        birthMonth,
+        [liquidAsset],
+        [],
+        5,
+        [],
+        2.5,
+        undefined,
+        [], // No life events
+      )
+
+      const result = calculateProjections(profile)
+      const lastProjection = result.annualSummaries[result.annualSummaries.length - 1]!
+
+      // Should end at age 90 (born 2000, so year 2090)
+      expect(lastProjection.year).toBe(2090)
+    })
+
+    it('should simulate until the latest life event when life events exist', () => {
+      const birthMonth = stringToMonth('2000-01')!
+      const liquidAsset = new LiquidAsset('asset-1', 'Savings', 100000)
+
+      const profile = new UserProfile(birthMonth, [liquidAsset], [], 5, [], 2.5, undefined, [
+        {
+          id: 'retirement',
+          name: 'Retirement',
+          date: { type: 'age', age: 67 },
+        },
+        {
+          id: 'life-expectancy',
+          name: 'Life Expectancy',
+          date: { type: 'age', age: 85 },
+        },
+      ])
+
+      const result = calculateProjections(profile)
+      const lastProjection = result.annualSummaries[result.annualSummaries.length - 1]!
+
+      // Should end at age 85 (born 2000, so year 2085)
+      expect(lastProjection.year).toBe(2085)
+    })
+
+    it('should simulate until retirement if it is the only life event', () => {
+      const birthMonth = stringToMonth('2000-01')!
+      const liquidAsset = new LiquidAsset('asset-1', 'Savings', 100000)
+
+      const profile = new UserProfile(birthMonth, [liquidAsset], [], 5, [], 2.5, undefined, [
+        {
+          id: 'retirement',
+          name: 'Retirement',
+          date: { type: 'age', age: 67 },
+        },
+      ])
+
+      const result = calculateProjections(profile)
+      const lastProjection = result.annualSummaries[result.annualSummaries.length - 1]!
+
+      // Should end at age 67 (born 2000, so year 2067) - the only life event
+      expect(lastProjection.year).toBe(2067)
+    })
+  })
 })

@@ -13,7 +13,7 @@ import {
   type InflationAdjustment,
 } from './taxCalculator'
 
-const MAX_AGE = 100
+const FALLBACK_MAX_AGE = 90
 
 /**
  * Resolve a DateSpecification to an absolute Month value
@@ -23,6 +23,29 @@ function resolveDateSpec(
   profile: UserProfile,
 ): Month | undefined {
   return resolveDate(spec, profile.birthDate, profile.lifeEvents)
+}
+
+/**
+ * Find the latest life event date or fallback to age 90
+ */
+function getSimulationEndAge(profile: UserProfile): number {
+  let latestEventAge: number | undefined = undefined
+
+  // Find the latest resolved life event
+  for (const event of profile.lifeEvents) {
+    if (event.date) {
+      const resolvedMonth = resolveDateSpec(event.date, profile)
+      if (resolvedMonth !== undefined) {
+        const eventAge = Math.floor(monthDiff(resolvedMonth, profile.birthDate) / 12)
+        if (latestEventAge === undefined || eventAge > latestEventAge) {
+          latestEventAge = eventAge
+        }
+      }
+    }
+  }
+
+  // Use the latest life event if found, otherwise fallback to age 90
+  return latestEventAge ?? FALLBACK_MAX_AGE
 }
 
 /**
@@ -50,7 +73,7 @@ function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boo
 }
 
 /**
- * Calculate financial projections from current date to age 100
+ * Calculate financial projections from current date to the latest life event or age 90
  */
 export function calculateProjections(profile: UserProfile): ProjectionResult {
   const startTime = performance.now()
@@ -120,10 +143,11 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0) -
     initialTotalDebt
 
-  // Calculate end month (December of the year when user turns 100)
-  const age100Month = addMonths(birthDate, MAX_AGE * 12)
-  const age100Year = Math.floor(age100Month / 12) + 1900
-  const endMonth = (age100Year - 1900) * 12 + 11 // December = month index 11
+  // Calculate end month (December of the year of the latest life event or age 90)
+  const simulationEndAge = getSimulationEndAge(profile)
+  const endAgeMonth = addMonths(birthDate, simulationEndAge * 12)
+  const endYear = Math.floor(endAgeMonth / 12) + 1900
+  const endMonth = (endYear - 1900) * 12 + 11 // December = month index 11
 
   // Calculate total months from now until end of that year (inclusive)
   const monthsFromNow = monthDiff(endMonth, projectionStart) + 1
