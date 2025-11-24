@@ -20,6 +20,7 @@ interface Props {
   label?: string
   required?: boolean
   nullable?: boolean
+  nullableText?: string
   maxMonth?: Month
   minMonth?: Month
   allowAgeEntry?: boolean
@@ -30,6 +31,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   required: false,
   nullable: true,
+  nullableText: 'no date',
   allowAgeEntry: true,
   allowEventEntry: true,
   showModeSelector: true,
@@ -57,17 +59,15 @@ const monthNames = [
   'December',
 ]
 
-// Track whether the value is set (for nullable mode)
-const isSet = ref<boolean>(props.modelValue !== undefined)
-
 // Determine initial mode from modelValue
-const getInitialMode = (): 'absolute' | 'age' | 'lifeEvent' => {
+const getInitialMode = (): 'absolute' | 'age' | 'lifeEvent' | 'null' => {
+  if (props.modelValue === undefined && props.nullable) return 'null'
   if (props.modelValue?.type === 'age') return 'age'
   if (props.modelValue?.type === 'lifeEvent') return 'lifeEvent'
   return 'absolute'
 }
 
-const mode = ref<'absolute' | 'age' | 'lifeEvent'>(getInitialMode())
+const mode = ref<'absolute' | 'age' | 'lifeEvent' | 'null'>(getInitialMode())
 
 // Initialize absolute mode values
 const currentMonth =
@@ -90,19 +90,18 @@ const lifeEvents = computed(() => store.lifeEvents)
 watch(
   () => props.modelValue,
   (newValue) => {
-    isSet.value = newValue !== undefined
-    if (newValue !== undefined) {
-      if (newValue.type === 'absolute') {
-        mode.value = 'absolute'
-        yearString.value = String(getYear(newValue.month))
-        monthIndex.value = getMonthIndex(newValue.month)
-      } else if (newValue.type === 'age') {
-        mode.value = 'age'
-        ageString.value = String(newValue.age)
-      } else if (newValue.type === 'lifeEvent') {
-        mode.value = 'lifeEvent'
-        selectedLifeEventId.value = newValue.eventId
-      }
+    if (newValue === undefined) {
+      mode.value = props.nullable ? 'null' : 'absolute'
+    } else if (newValue.type === 'absolute') {
+      mode.value = 'absolute'
+      yearString.value = String(getYear(newValue.month))
+      monthIndex.value = getMonthIndex(newValue.month)
+    } else if (newValue.type === 'age') {
+      mode.value = 'age'
+      ageString.value = String(newValue.age)
+    } else if (newValue.type === 'lifeEvent') {
+      mode.value = 'lifeEvent'
+      selectedLifeEventId.value = newValue.eventId
     }
   },
 )
@@ -126,7 +125,7 @@ const absoluteMonthValue = computed<Month>(() => {
 
 // Resolved month preview (for age mode)
 const resolvedAgePreview = computed<string | null>(() => {
-  if (mode.value !== 'age' || !isSet.value) return null
+  if (mode.value !== 'age') return null
 
   const birthDate = store.birthDate
   if (birthDate === undefined) {
@@ -149,7 +148,7 @@ const resolvedAgePreview = computed<string | null>(() => {
 
 // Resolved life event preview
 const resolvedLifeEventPreview = computed<string | null>(() => {
-  if (mode.value !== 'lifeEvent' || !isSet.value) return null
+  if (mode.value !== 'lifeEvent') return null
 
   if (!selectedLifeEventId.value) {
     return 'No life event selected'
@@ -196,9 +195,9 @@ function formatLifeEventOption(event: LifeEvent): string {
 }
 
 // Emit changes when relevant fields change
-watch([yearString, monthIndex, ageString, selectedLifeEventId, mode, isSet], () => {
-  // If not set and nullable, emit undefined
-  if (!isSet.value && props.nullable) {
+watch([yearString, monthIndex, ageString, selectedLifeEventId, mode], () => {
+  // If mode is null, emit undefined
+  if (mode.value === 'null') {
     emit('update:modelValue', undefined)
     return
   }
@@ -258,53 +257,30 @@ const isValid = computed(() => {
       <span v-if="required" class="required-indicator">*</span>
     </label>
 
-    <div v-if="nullable" class="checkbox-container">
-      <label class="checkbox-label">
-        <input v-model="isSet" type="checkbox" class="checkbox-input" />
-        <span class="checkbox-text">Set value</span>
+    <div
+      v-if="showModeSelector && (allowAgeEntry || allowEventEntry || nullable)"
+      class="mode-selector"
+    >
+      <label v-if="nullable" class="mode-option">
+        <input v-model="mode" type="radio" value="null" class="mode-radio" />
+        <span class="mode-label">{{ nullableText }}</span>
       </label>
-    </div>
-
-    <div v-if="showModeSelector && (allowAgeEntry || allowEventEntry)" class="mode-selector">
       <label class="mode-option">
-        <input
-          v-model="mode"
-          type="radio"
-          value="absolute"
-          :disabled="!isSet && nullable"
-          class="mode-radio"
-        />
+        <input v-model="mode" type="radio" value="absolute" class="mode-radio" />
         <span class="mode-label">Month + Year</span>
       </label>
       <label v-if="allowAgeEntry" class="mode-option">
-        <input
-          v-model="mode"
-          type="radio"
-          value="age"
-          :disabled="!isSet && nullable"
-          class="mode-radio"
-        />
+        <input v-model="mode" type="radio" value="age" class="mode-radio" />
         <span class="mode-label">Age</span>
       </label>
       <label v-if="allowEventEntry" class="mode-option">
-        <input
-          v-model="mode"
-          type="radio"
-          value="lifeEvent"
-          :disabled="!isSet && nullable"
-          class="mode-radio"
-        />
+        <input v-model="mode" type="radio" value="lifeEvent" class="mode-radio" />
         <span class="mode-label">Life Event</span>
       </label>
     </div>
 
     <div v-if="mode === 'absolute'" class="date-controls">
-      <select
-        v-model.number="monthIndex"
-        class="month-select"
-        :required="required && isSet"
-        :disabled="!isSet && nullable"
-      >
+      <select v-model.number="monthIndex" class="month-select" :required="required">
         <option v-for="(name, index) in monthNames" :key="index" :value="index">
           {{ name }}
         </option>
@@ -315,8 +291,7 @@ const isValid = computed(() => {
         inputmode="numeric"
         pattern="[0-9]*"
         class="year-input"
-        :required="required && isSet"
-        :disabled="!isSet && nullable"
+        :required="required"
         placeholder="YYYY"
       />
     </div>
@@ -330,11 +305,10 @@ const isValid = computed(() => {
         min="0"
         max="120"
         class="age-input"
-        :required="required && isSet"
-        :disabled="!isSet && nullable"
+        :required="required"
         placeholder="67"
       />
-      <div v-if="resolvedAgePreview && isSet" class="age-preview">
+      <div v-if="resolvedAgePreview" class="age-preview">
         {{ resolvedAgePreview }}
       </div>
     </div>
@@ -343,19 +317,13 @@ const isValid = computed(() => {
       <div v-if="lifeEvents.length === 0" class="no-life-events">
         No life events defined. Go to Basic Information to create one.
       </div>
-      <select
-        v-else
-        v-model="selectedLifeEventId"
-        class="life-event-select"
-        :required="required && isSet"
-        :disabled="!isSet && nullable"
-      >
+      <select v-else v-model="selectedLifeEventId" class="life-event-select" :required="required">
         <option value="">Select a life event</option>
         <option v-for="event in lifeEvents" :key="event.id" :value="event.id">
           {{ formatLifeEventOption(event) }}
         </option>
       </select>
-      <div v-if="resolvedLifeEventPreview && isSet" class="life-event-preview">
+      <div v-if="resolvedLifeEventPreview" class="life-event-preview">
         {{ resolvedLifeEventPreview }}
       </div>
     </div>
@@ -378,29 +346,6 @@ const isValid = computed(() => {
 .required-indicator {
   color: #ef4444;
   margin-left: 0.25rem;
-}
-
-.checkbox-container {
-  margin-bottom: 0.5rem;
-}
-
-.checkbox-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  user-select: none;
-}
-
-.checkbox-input {
-  width: 1rem;
-  height: 1rem;
-  cursor: pointer;
-}
-
-.checkbox-text {
-  font-size: 0.9rem;
-  color: #6b7280;
 }
 
 .mode-selector {
@@ -533,16 +478,6 @@ const isValid = computed(() => {
   border-radius: 0.375rem;
   font-size: 0.875rem;
   color: #92400e;
-}
-
-.month-select:disabled,
-.year-input:disabled,
-.age-input:disabled,
-.life-event-select:disabled {
-  background-color: #f3f4f6;
-  color: #9ca3af;
-  cursor: not-allowed;
-  opacity: 0.6;
 }
 
 .date-spec-edit.invalid .month-select,

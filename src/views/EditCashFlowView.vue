@@ -336,6 +336,7 @@ function handleDelete() {
           v-model="startDate"
           :label="startDateLabel"
           :nullable="!isOneTime"
+          nullable-text="current month"
           :allow-age-entry="true"
           :show-mode-selector="true"
         />
@@ -347,6 +348,7 @@ function handleDelete() {
           v-model="endDate"
           label="End Month (optional)"
           :nullable="true"
+          nullable-text="continue indefinitely"
           :allow-age-entry="true"
           :show-mode-selector="true"
         />

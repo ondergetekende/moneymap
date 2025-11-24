@@ -239,6 +239,7 @@ function handleDelete() {
           v-model="liquidationDate"
           label="Liquidation Month (optional)"
           :nullable="true"
+          nullable-text="never sell"
           :allow-age-entry="true"
           :show-mode-selector="true"
         />
