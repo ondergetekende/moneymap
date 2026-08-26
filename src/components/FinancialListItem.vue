@@ -2,12 +2,12 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
-import type { CapitalAccount, CashFlow, AllDebtTypes } from '@/models'
 import { isAsset, isCashFlow, isLiquidAsset, Debt } from '@/models'
+import type { CapitalAccount, CashFlow } from '@/models'
 import { getItemTypeById } from '@/config/itemTypes'
 
 const props = defineProps<{
-  item: CapitalAccount | CashFlow | AllDebtTypes
+  item: CapitalAccount | CashFlow | Debt
 }>()
 
 const store = usePlannerStore()
@@ -18,7 +18,7 @@ const inputRef = ref<HTMLInputElement | null>(null)
 
 // Determine item type and metadata
 const itemType = computed(() => {
-  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  const item = props.item as CapitalAccount | CashFlow | Debt
   if (isAsset(item)) {
     return isLiquidAsset(item) ? getItemTypeById('liquid') : getItemTypeById('fixed')
   } else if (isCashFlow(item)) {
@@ -42,7 +42,7 @@ const itemType = computed(() => {
 })
 
 const formattedAmount = computed(() => {
-  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  const item = props.item as CapitalAccount | CashFlow | Debt
   const formatter = new Intl.NumberFormat('en-EU', {
     style: 'currency',
     currency: 'EUR',
@@ -85,7 +85,7 @@ const itemStyles = computed(() => {
 })
 
 function handleEdit() {
-  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  const item = props.item as CapitalAccount | CashFlow | Debt
   if (isAsset(item)) {
     router.push({ name: 'edit-asset', params: { id: item.id } })
   } else if (isCashFlow(item)) {
@@ -100,7 +100,7 @@ function startEditing(event: Event) {
   event.stopPropagation()
 
   // Get the current amount value
-  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  const item = props.item as CapitalAccount | CashFlow | Debt
   if (isAsset(item) || item instanceof Debt) {
     editAmount.value = item.amount.toString()
   } else if (isCashFlow(item)) {
@@ -130,7 +130,7 @@ function saveAmount() {
   }
 
   // Update based on item type
-  const item = props.item as CapitalAccount | CashFlow | AllDebtTypes
+  const item = props.item as CapitalAccount | CashFlow | Debt
   if (isAsset(item)) {
     store.updateCapitalAccount(item.id, { amount: newValue })
   } else if (isCashFlow(item)) {

@@ -18,25 +18,16 @@ export {
 } from './assets'
 
 // Cash flow models
-export {
-  CashFlow,
-  isCashFlow,
-  type CashFlowType,
-  type CashFlowFrequency,
-  type Expense, // Legacy alias
-} from './cashflow'
+export { CashFlow, isCashFlow, type CashFlowType, type CashFlowFrequency } from './cashflow'
 
 // Debt models
 import { Debt as DebtClass } from './debt'
-export { Debt, LinearDebt, AnnualizedDebt, InterestOnlyDebt, type DebtPayment } from './debt'
+export { Debt, type DebtPayment } from './debt'
 
 // Type guard for debt
 export function isDebt(item: unknown): item is DebtClass {
   return DebtClass.isDebt(item)
 }
-
-// Union type for all debt types (all are now the same unified Debt class)
-export type AllDebtTypes = DebtClass
 
 // Profile and projection models
 export {

@@ -9,9 +9,9 @@ import {
   LiquidAsset,
   FixedAsset,
   CashFlow,
+  Debt,
   type CapitalAccount,
   type ProjectionResult,
-  type AllDebtTypes,
   type CashFlowType,
   type CashFlowFrequency,
   type LifeEvent,
@@ -27,7 +27,7 @@ export const usePlannerStore = defineStore('planner', () => {
   const birthDate = ref<Month>(addMonths(getCurrentMonth(), -360))
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
-  const debts = ref<AllDebtTypes[]>([])
+  const debts = ref<Debt[]>([])
   const lifeEvents = ref<LifeEvent[]>([])
   const liquidAssetsInterestRate = ref<number>(7) // Default 7% for all liquid assets (moderate)
   const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
@@ -45,7 +45,7 @@ export const usePlannerStore = defineStore('planner', () => {
       capitalAccounts.value as CapitalAccount[],
       cashFlows.value as CashFlow[],
       liquidAssetsInterestRate.value,
-      debts.value as AllDebtTypes[],
+      debts.value as Debt[],
       inflationRate.value,
       taxCountry.value,
       lifeEvents.value,
@@ -69,7 +69,7 @@ export const usePlannerStore = defineStore('planner', () => {
     return [...capitalAccounts.value, ...cashFlows.value, ...debts.value] as (
       | CapitalAccount
       | CashFlow
-      | AllDebtTypes
+      | Debt
     )[]
   })
 
@@ -90,7 +90,7 @@ export const usePlannerStore = defineStore('planner', () => {
   )
 
   const totalDebt = computed(() =>
-    debts.value.reduce((sum: number, debt: AllDebtTypes) => sum + debt.amount, 0),
+    debts.value.reduce((sum: number, debt: Debt) => sum + debt.amount, 0),
   )
 
   // Actions
@@ -348,13 +348,13 @@ export const usePlannerStore = defineStore('planner', () => {
     recalculate()
   }
 
-  function addDebt(debt: AllDebtTypes) {
+  function addDebt(debt: Debt) {
     debts.value.push(debt)
     recalculate()
   }
 
-  function updateDebt(id: string, updates: Partial<AllDebtTypes>) {
-    const index = debts.value.findIndex((d: AllDebtTypes) => d.id === id)
+  function updateDebt(id: string, updates: Partial<Debt>) {
+    const index = debts.value.findIndex((d: Debt) => d.id === id)
     if (index !== -1) {
       const existing = debts.value[index]
       if (existing) {
@@ -365,7 +365,7 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function removeDebt(id: string) {
-    debts.value = debts.value.filter((d: AllDebtTypes) => d.id !== id)
+    debts.value = debts.value.filter((d: Debt) => d.id !== id)
     recalculate()
   }
 
@@ -422,7 +422,7 @@ export const usePlannerStore = defineStore('planner', () => {
 
   function findItemsReferencingLifeEvent(eventId: string): {
     cashFlows: CashFlow[]
-    debts: AllDebtTypes[]
+    debts: Debt[]
     assets: CapitalAccount[]
   } {
     const referencedCashFlows = cashFlows.value.filter(
@@ -498,7 +498,7 @@ export const usePlannerStore = defineStore('planner', () => {
       birthDate.value = profile.birthDate
       capitalAccounts.value = profile.capitalAccounts
       cashFlows.value = profile.cashFlows
-      debts.value = profile.debts as AllDebtTypes[]
+      debts.value = profile.debts as Debt[]
       liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
       inflationRate.value = profile.inflationRate
       taxCountry.value = profile.taxCountry
@@ -549,8 +549,8 @@ export const usePlannerStore = defineStore('planner', () => {
     return cashFlows.value.find((cf) => cf.id === id) as CashFlow | undefined
   }
 
-  function getDebtById(id: string): AllDebtTypes | undefined {
-    return debts.value.find((d: AllDebtTypes) => d.id === id)
+  function getDebtById(id: string): Debt | undefined {
+    return debts.value.find((d: Debt) => d.id === id)
   }
 
   return {

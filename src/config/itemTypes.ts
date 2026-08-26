@@ -1,4 +1,4 @@
-import { FinancialItem, LiquidAsset, FixedAsset, CashFlow, AnnualizedDebt } from '@/models'
+import { FinancialItem, LiquidAsset, FixedAsset, CashFlow, Debt } from '@/models'
 import { getCurrentMonth, addMonths, createAbsoluteDate } from '@/types/month'
 
 export interface ItemTypeDefinition {
@@ -109,7 +109,7 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
     id: 'mortgage',
     category: 'debt',
     color: '#f97316', // orange
-    template: new AnnualizedDebt({
+    template: new Debt({
       id: 'template-mortgage',
       name: 'Mortgage',
       amount: 300000, // Typical mortgage amount
@@ -123,7 +123,7 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
     id: 'loan',
     category: 'debt',
     color: '#f97316', // orange
-    template: new AnnualizedDebt({
+    template: new Debt({
       id: 'template-loan',
       name: 'Debt',
       amount: 30000, // Average car loan

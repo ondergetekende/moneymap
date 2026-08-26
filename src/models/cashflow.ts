@@ -228,9 +228,6 @@ export class CashFlow extends FinancialItem {
   }
 }
 
-// Legacy alias for backwards compatibility during migration
-export type Expense = CashFlow
-
 // Convenience type guard function
 export function isCashFlow(item: CapitalAccount | CashFlow): item is CashFlow {
   return item instanceof CashFlow

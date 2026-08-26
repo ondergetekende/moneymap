@@ -339,8 +339,3 @@ export class Debt extends FinancialItem {
     return item instanceof Debt
   }
 }
-
-// Keep legacy type aliases for backward compatibility
-export const LinearDebt = Debt
-export const AnnualizedDebt = Debt
-export const InterestOnlyDebt = Debt

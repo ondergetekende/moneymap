@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
-import { LinearDebt, AnnualizedDebt, InterestOnlyDebt } from '@/models'
+import { Debt } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
 import { getCurrentMonth, addMonths, monthDiff, resolveDate, formatMonth } from '@/types/month'
 import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
@@ -280,7 +280,7 @@ onMounted(() => {
     // New debt with pre-selected type - load template values
     const itemTypeConfig = getItemTypeById(props.typeId)
     if (itemTypeConfig && itemTypeConfig.template) {
-      const template = itemTypeConfig.template as InstanceType<typeof AnnualizedDebt>
+      const template = itemTypeConfig.template as Debt
       name.value = template.name || ''
       amount.value = template.amount || 0
       annualInterestRate.value = template.annualInterestRate || 0
@@ -337,7 +337,7 @@ function handleSave() {
   // Determine which debt type to create based on repayment type
   if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') {
     // Interest-only debt (balloon payment or perpetual)
-    debt = new InterestOnlyDebt({
+    debt = new Debt({
       ...baseData,
       finalBalance: 0, // Always pay off remaining at end
     })
@@ -354,7 +354,7 @@ function handleSave() {
             return (monthlyRate * amount.value) / (1 - Math.pow(1 + monthlyRate, -months))
           })()
 
-    debt = new AnnualizedDebt({
+    debt = new Debt({
       ...baseData,
       monthlyPayment: payment,
     })
@@ -365,7 +365,7 @@ function handleSave() {
         ? monthlyPrincipal.value
         : calculatedPrincipalPayment.value || amount.value / 360 // Default 30 years
 
-    debt = new LinearDebt({
+    debt = new Debt({
       ...baseData,
       monthlyPrincipalPayment: principal,
     })
