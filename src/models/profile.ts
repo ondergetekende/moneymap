@@ -72,10 +72,11 @@ export class UserProfile {
   }
 
   /**
-   * Get total capital across all accounts
+   * Get total capital across all accounts (Net Worth)
    */
   getTotalCapital(): number {
-    return this.capitalAccounts.reduce((sum, account) => sum + account.amount, 0)
+    const totalAssets = this.capitalAccounts.reduce((sum, account) => sum + account.amount, 0)
+    return totalAssets - this.getTotalDebt()
   }
 
   /**
