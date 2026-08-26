@@ -67,7 +67,7 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .birth-date-step {
   display: flex;
   flex-direction: column;
@@ -76,14 +76,14 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 
 .step-title {
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: $text-primary;
   margin: 0;
   font-weight: 700;
 }
 
 .step-description {
   font-size: 1rem;
-  color: #495057;
+  color: $text-tertiary;
   line-height: 1.6;
   margin: 0;
 }
@@ -100,7 +100,7 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
   gap: 1rem;
   padding: 1rem;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 2px solid #42b983;
+  border: 2px solid $primary;
   border-radius: 8px;
 }
 
@@ -117,13 +117,13 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 
 .age-label {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: $text-light;
   font-weight: 600;
 }
 
 .age-value {
   font-size: 1.5rem;
-  color: #42b983;
+  color: $primary;
   font-weight: 700;
 }
 
@@ -153,7 +153,7 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .step-title {
     font-size: 1.3rem;
   }

@@ -124,18 +124,18 @@ const rows = computed<AnnualRow[]>(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .table-container {
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: $bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
 }
 
 h3 {
   margin-bottom: 1rem;
-  color: #2c3e50;
+  color: $text-primary;
 }
 
 .table-wrapper {
@@ -145,12 +145,12 @@ h3 {
   position: relative;
   /* Add scroll shadows to indicate scrollable content */
   background:
-    linear-gradient(90deg, white 30%, rgba(255, 255, 255, 0)),
-    linear-gradient(90deg, rgba(255, 255, 255, 0), white 70%) 100% 0,
+    linear-gradient(90deg, $bg-card 30%, rgba(255, 255, 255, 0)),
+    linear-gradient(90deg, rgba(255, 255, 255, 0), $bg-card 70%) 100% 0,
     radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)),
     radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0)) 100% 0;
   background-repeat: no-repeat;
-  background-color: white;
+  background-color: $bg-card;
   background-size:
     40px 100%,
     40px 100%,
@@ -169,7 +169,7 @@ table {
 thead {
   position: sticky;
   top: 0;
-  background-color: #f8f9fa;
+  background-color: $bg-alt-2;
   z-index: 2;
 }
 
@@ -177,8 +177,8 @@ th {
   padding: 0.75rem;
   text-align: right;
   font-weight: 600;
-  border-bottom: 2px solid #dee2e6;
-  color: #2c3e50;
+  border-bottom: 2px solid $border-light;
+  color: $text-primary;
   white-space: nowrap;
 }
 
@@ -186,7 +186,7 @@ th:first-child,
 th:nth-child(2) {
   text-align: left;
   position: sticky;
-  background-color: #f8f9fa;
+  background-color: $bg-alt-2;
   z-index: 3;
 }
 
@@ -201,7 +201,7 @@ th:nth-child(2) {
 td {
   padding: 0.75rem;
   text-align: right;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid $border-light;
   white-space: nowrap;
 }
 
@@ -210,7 +210,7 @@ td:nth-child(2) {
   text-align: left;
   font-weight: 500;
   position: sticky;
-  background-color: white;
+  background-color: $bg-card;
   z-index: 1;
 }
 
@@ -223,12 +223,12 @@ td:nth-child(2) {
 }
 
 tbody tr:hover td {
-  background-color: #f8f9fa;
+  background-color: $bg-alt-2;
 }
 
 tbody tr:hover td:first-child,
 tbody tr:hover td:nth-child(2) {
-  background-color: #f8f9fa;
+  background-color: $bg-alt-2;
 }
 
 tbody tr.negative td {
@@ -246,7 +246,7 @@ tbody tr.negative td:nth-child(2) {
 }
 
 .expenses {
-  color: #ef4444;
+  color: $danger;
   font-weight: 500;
 }
 
@@ -256,7 +256,7 @@ tbody tr.negative td:nth-child(2) {
 }
 
 .total-tax {
-  color: #dc2626;
+  color: $danger-hover;
   font-weight: 600;
 }
 
@@ -276,17 +276,17 @@ tbody tr.negative td:nth-child(2) {
 }
 
 .net-negative {
-  color: #ef4444;
+  color: $danger;
   font-weight: 600;
 }
 
 .balance-negative {
-  color: #ef4444;
+  color: $danger;
   font-weight: 600;
 }
 
 /* Mobile-specific improvements */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .table-container {
     padding: 1rem;
     margin-left: -1rem;
@@ -325,7 +325,7 @@ tbody tr.negative td:nth-child(2) {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: $breakpoint-mobile-small) {
   .table-container {
     padding: 0.75rem;
   }

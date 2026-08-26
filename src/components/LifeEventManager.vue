@@ -253,7 +253,7 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .life-event-manager {
   display: flex;
   flex-direction: column;
@@ -275,8 +275,8 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 .empty-state {
   padding: 1.5rem;
   text-align: center;
-  color: #666;
-  background: #f5f5f5;
+  color: $text-light;
+  background: $bg-body;
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -289,9 +289,9 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 
 .life-event-card {
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid $border-light;
   border-radius: 4px;
-  background: #fff;
+  background: $bg-card;
 }
 
 .life-event-view {
@@ -313,23 +313,23 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 
 .life-event-date {
   font-size: 0.9rem;
-  color: #555;
+  color: $text-light;
 }
 
 .life-event-date.unset {
-  color: #999;
+  color: $text-muted;
   font-style: italic;
 }
 
 .life-event-references {
   font-size: 0.8rem;
-  color: #888;
+  color: $text-muted;
   font-style: italic;
 }
 
 .life-event-edit,
 .life-event-add {
-  background: #f9f9f9;
+  background: $bg-alt-3;
 }
 
 .life-event-add h4 {
@@ -352,7 +352,7 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 .form-group input,
 .form-group textarea {
   padding: 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid $border-medium;
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -370,50 +370,50 @@ function formatDateSpec(dateSpec: DateSpecification): string {
 
 button {
   padding: 0.4rem 0.75rem;
-  border: 1px solid #ccc;
+  border: 1px solid $border-medium;
   border-radius: 4px;
-  background: #fff;
+  background: $bg-card;
   cursor: pointer;
   font-size: 0.85rem;
   transition: all 0.2s;
 }
 
 button:hover {
-  background: #f5f5f5;
+  background: $bg-body;
 }
 
 .btn-add,
 .btn-save {
-  background: #007bff;
+  background: $primary;
   color: white;
-  border-color: #007bff;
+  border-color: $primary;
 }
 
 .btn-add:hover,
 .btn-save:hover {
-  background: #0056b3;
-  border-color: #0056b3;
+  background: $primary-hover;
+  border-color: $primary-hover;
 }
 
 .btn-delete {
-  color: #dc3545;
-  border-color: #dc3545;
+  color: $danger;
+  border-color: $danger;
 }
 
 .btn-delete:hover {
-  background: #dc3545;
+  background: $danger;
   color: white;
 }
 
 .btn-cancel {
-  background: #6c757d;
+  background: $text-light;
   color: white;
-  border-color: #6c757d;
+  border-color: $text-light;
 }
 
 .btn-cancel:hover {
-  background: #545b62;
-  border-color: #545b62;
+  background: $text-muted;
+  border-color: $text-muted;
 }
 
 /* Mobile optimization */

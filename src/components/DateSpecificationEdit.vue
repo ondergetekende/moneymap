@@ -330,7 +330,7 @@ const isValid = computed(() => {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .date-spec-edit {
   display: flex;
   flex-direction: column;
@@ -340,11 +340,11 @@ const isValid = computed(() => {
 .date-spec-label {
   font-weight: 500;
   font-size: 0.95rem;
-  color: #374151;
+  color: $text-tertiary;
 }
 
 .required-indicator {
-  color: #ef4444;
+  color: $danger;
   margin-left: 0.25rem;
 }
 
@@ -370,7 +370,7 @@ const isValid = computed(() => {
 
 .mode-label {
   font-size: 0.9rem;
-  color: #374151;
+  color: $text-tertiary;
 }
 
 .date-controls {
@@ -381,7 +381,7 @@ const isValid = computed(() => {
 .month-select {
   flex: 1;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid $border-medium;
   border-radius: 0.375rem;
   background-color: white;
   font-size: 0.95rem;
@@ -397,7 +397,7 @@ const isValid = computed(() => {
 .year-input {
   width: 6rem;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid $border-medium;
   border-radius: 0.375rem;
   font-size: 0.95rem;
   text-align: center;
@@ -417,13 +417,13 @@ const isValid = computed(() => {
 
 .age-label {
   font-size: 0.9rem;
-  color: #6b7280;
+  color: $text-muted;
 }
 
 .age-input {
   width: 8rem;
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid $border-medium;
   border-radius: 0.375rem;
   font-size: 0.95rem;
 }
@@ -436,7 +436,7 @@ const isValid = computed(() => {
 
 .age-preview {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: $text-muted;
   font-style: italic;
 }
 
@@ -448,7 +448,7 @@ const isValid = computed(() => {
 
 .life-event-select {
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid $border-medium;
   border-radius: 0.375rem;
   background-color: white;
   font-size: 0.95rem;
@@ -463,24 +463,24 @@ const isValid = computed(() => {
 
 .life-event-preview {
   font-size: 0.875rem;
-  color: #6b7280;
+  color: $text-muted;
   font-style: italic;
 }
 
 .no-life-events {
   padding: 0.75rem;
-  background-color: #fef3c7;
-  border: 1px solid #fbbf24;
+  background-color: $warning-bg;
+  border: 1px solid $warning;
   border-radius: 0.375rem;
   font-size: 0.875rem;
-  color: #92400e;
+  color: $warning-dark;
 }
 
 .date-spec-edit.invalid .month-select,
 .date-spec-edit.invalid .year-input,
 .date-spec-edit.invalid .age-input,
 .date-spec-edit.invalid .life-event-select {
-  border-color: #ef4444;
+  border-color: $danger;
 }
 
 /* Remove spinner buttons for number input */
@@ -497,7 +497,7 @@ const isValid = computed(() => {
   -moz-appearance: textfield;
 }
 
-@media (max-width: 480px) {
+@media (max-width: $breakpoint-mobile-small) {
   .date-spec-label {
     font-size: 0.8125rem;
   }

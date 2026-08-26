@@ -142,7 +142,7 @@ function setInflationRate(value: number) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .returns-inflation-step {
   display: flex;
   flex-direction: column;
@@ -151,14 +151,14 @@ function setInflationRate(value: number) {
 
 .step-title {
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: $text-primary;
   margin: 0;
   font-weight: 700;
 }
 
 .step-description {
   font-size: 1rem;
-  color: #495057;
+  color: $text-tertiary;
   line-height: 1.6;
   margin: 0;
 }
@@ -177,19 +177,19 @@ function setInflationRate(value: number) {
 
 .field-label {
   font-size: 1.05rem;
-  color: #2c3e50;
+  color: $text-primary;
   font-weight: 600;
 }
 
 .field-description {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: $text-light;
   line-height: 1.5;
 }
 
 .number-input {
   padding: 0.75rem;
-  border: 2px solid #dee2e6;
+  border: 2px solid $border-light;
   border-radius: 6px;
   font-size: 1.1rem;
   font-weight: 600;
@@ -200,7 +200,7 @@ function setInflationRate(value: number) {
 
 .number-input:focus {
   outline: none;
-  border-color: #42b983;
+  border-color: $primary;
   box-shadow: 0 0 0 3px rgba(66, 185, 131, 0.1);
 }
 
@@ -216,25 +216,25 @@ function setInflationRate(value: number) {
 
 .chip {
   padding: 0.5rem 1rem;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
+  background-color: $bg-alt-2;
+  border: 1px solid $border-light;
   border-radius: 20px;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s;
   white-space: nowrap;
   font-weight: 500;
-  color: #495057;
+  color: $text-tertiary;
 }
 
 .chip:hover {
-  background-color: #e9ecef;
-  border-color: #adb5bd;
+  background-color: $bg-alt;
+  border-color: $border-dark;
 }
 
 .chip.active {
-  background-color: #42b983;
-  border-color: #42b983;
+  background-color: $primary;
+  border-color: $primary;
   color: white;
   font-weight: 600;
 }
@@ -245,7 +245,7 @@ function setInflationRate(value: number) {
   gap: 1rem;
   padding: 1rem;
   background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-  border: 2px solid #42b983;
+  border: 2px solid $primary;
   border-radius: 8px;
   margin-top: 0.5rem;
 }
@@ -263,13 +263,13 @@ function setInflationRate(value: number) {
 
 .real-return-label {
   font-size: 0.9rem;
-  color: #6c757d;
+  color: $text-light;
   font-weight: 600;
 }
 
 .real-return-value {
   font-size: 1.5rem;
-  color: #42b983;
+  color: $primary;
   font-weight: 700;
 }
 
@@ -299,7 +299,7 @@ function setInflationRate(value: number) {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .step-title {
     font-size: 1.3rem;
   }

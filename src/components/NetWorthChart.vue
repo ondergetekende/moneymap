@@ -137,17 +137,17 @@ const chartOptions: ChartOptions<'line'> = {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .chart-container {
   margin-bottom: 2rem;
   padding: 1.5rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: $bg-card;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-sm;
 }
 
 h3 {
   margin-bottom: 1rem;
-  color: #2c3e50;
+  color: $text-primary;
 }
 </style>

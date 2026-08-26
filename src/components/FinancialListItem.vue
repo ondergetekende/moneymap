@@ -171,10 +171,10 @@ function handleKeydown(event: KeyboardEvent) {
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .list-item {
-  background: white;
-  border: 1px solid #e5e7eb;
+  background: $bg-card;
+  border: 1px solid $border-light;
   border-left: 4px solid;
   border-radius: 6px;
   padding: 0.75rem;
@@ -187,9 +187,9 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .list-item:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: $shadow-md;
   transform: translateY(-1px);
-  border-color: #d1d5db;
+  border-color: $border-medium;
 }
 
 .item-header {
@@ -202,7 +202,7 @@ function handleKeydown(event: KeyboardEvent) {
 .item-name {
   font-weight: 600;
   font-size: 0.9375rem;
-  color: #1f2937;
+  color: $text-secondary;
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -218,7 +218,7 @@ function handleKeydown(event: KeyboardEvent) {
 .item-amount {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: $text-primary;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -229,23 +229,23 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 .item-amount:hover {
-  background-color: #f3f4f6;
+  background-color: $bg-alt;
 }
 
 .item-amount-input {
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
+  color: $text-primary;
   border: 2px solid #3b82f6;
   border-radius: 4px;
   padding: 0.25rem 0.5rem;
-  background: white;
+  background: $bg-card;
   outline: none;
   min-width: 120px;
 }
 
 /* Mobile optimizations */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .list-item {
     padding: 0.75rem;
     margin-bottom: 0.5rem;
@@ -261,7 +261,7 @@ function handleKeydown(event: KeyboardEvent) {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: $breakpoint-mobile-small) {
   .list-item {
     padding: 0.625rem;
   }

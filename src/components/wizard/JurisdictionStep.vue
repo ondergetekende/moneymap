@@ -95,7 +95,7 @@ function handleCountryChange(countryCode: string | undefined) {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .jurisdiction-step {
   display: flex;
   flex-direction: column;
@@ -104,14 +104,14 @@ function handleCountryChange(countryCode: string | undefined) {
 
 .step-title {
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: $text-primary;
   margin: 0;
   font-weight: 700;
 }
 
 .step-description {
   font-size: 1rem;
-  color: #495057;
+  color: $text-tertiary;
   line-height: 1.6;
   margin: 0;
 }
@@ -124,7 +124,7 @@ function handleCountryChange(countryCode: string | undefined) {
 
 .form-label {
   font-size: 1.1rem;
-  color: #2c3e50;
+  color: $text-primary;
   font-weight: 600;
 }
 
@@ -151,18 +151,18 @@ function handleCountryChange(countryCode: string | undefined) {
   gap: 0.75rem;
   padding: 1rem;
   background-color: white;
-  border: 2px solid #dee2e6;
+  border: 2px solid $border-light;
   border-radius: 8px;
   transition: all 0.2s;
 }
 
 .country-option:hover .country-card {
-  border-color: #42b983;
+  border-color: $primary;
   box-shadow: 0 2px 8px rgba(66, 185, 131, 0.15);
 }
 
 .country-option.selected .country-card {
-  border-color: #42b983;
+  border-color: $primary;
   background-color: #f0fdf8;
   box-shadow: 0 2px 12px rgba(66, 185, 131, 0.2);
 }
@@ -184,7 +184,7 @@ function handleCountryChange(countryCode: string | undefined) {
 .country-name {
   font-size: 1rem;
   font-weight: 600;
-  color: #2c3e50;
+  color: $text-primary;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -192,7 +192,7 @@ function handleCountryChange(countryCode: string | undefined) {
 
 .country-description {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: $text-light;
 }
 
 .info-box {
@@ -200,7 +200,7 @@ function handleCountryChange(countryCode: string | undefined) {
   gap: 0.75rem;
   padding: 1rem;
   background-color: #e7f5f0;
-  border-left: 4px solid #42b983;
+  border-left: 4px solid $primary;
   border-radius: 4px;
 }
 
@@ -226,7 +226,7 @@ function handleCountryChange(countryCode: string | undefined) {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .step-title {
     font-size: 1.3rem;
   }

@@ -82,12 +82,12 @@ const taxCountryDisplay = computed(() => {
 })
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .basic-info-summary {
   margin-bottom: 2rem;
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 8px;
+  background-color: $bg-alt-2;
+  border: 1px solid $border-light;
+  border-radius: $radius-lg;
   padding: 1.25rem;
 }
 
@@ -97,7 +97,7 @@ const taxCountryDisplay = computed(() => {
 
 h3 {
   margin: 0;
-  color: #2c3e50;
+  color: $text-primary;
   font-size: 1.25rem;
 }
 
@@ -122,39 +122,39 @@ h3 {
 
 .summary-label {
   font-size: 0.85rem;
-  color: #6c757d;
-  font-weight: 600;
+  color: $text-light;
+  font-weight: $font-semibold;
 }
 
 .summary-value {
   font-size: 1rem;
-  color: #2c3e50;
-  font-weight: 700;
+  color: $text-primary;
+  font-weight: $font-bold;
 }
 
 .edit-button-small {
-  background-color: #42b983;
+  background-color: $primary;
   color: white;
   border: none;
-  border-radius: 3px;
+  border-radius: $radius-sm;
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
   cursor: pointer;
   transition: background-color 0.2s;
-  font-weight: 600;
+  font-weight: $font-semibold;
   white-space: nowrap;
 }
 
 .edit-button-small:hover {
-  background-color: #359268;
+  background-color: $primary-hover;
 }
 
 .edit-button-small:active {
-  background-color: #2d7a57;
+  background-color: $success-darker;
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .basic-info-summary {
     padding: 1rem;
   }
@@ -182,7 +182,7 @@ h3 {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: $breakpoint-mobile-small) {
   .basic-info-summary {
     padding: 0.8rem;
   }

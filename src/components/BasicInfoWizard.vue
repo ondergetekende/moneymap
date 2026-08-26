@@ -175,7 +175,7 @@ function handleCancel() {
 }
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .wizard-overlay {
   position: fixed;
   top: 0;
@@ -186,7 +186,7 @@ function handleCancel() {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: $z-index-overlay;
   padding: 1rem;
 }
 
@@ -206,12 +206,12 @@ function handleCancel() {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  border-bottom: 1px solid #dee2e6;
+  border-bottom: 1px solid $border-light;
 }
 
 .wizard-header h2 {
   margin: 0;
-  color: #2c3e50;
+  color: $text-primary;
   font-size: 1.5rem;
 }
 
@@ -219,7 +219,7 @@ function handleCancel() {
   background: none;
   border: none;
   font-size: 2rem;
-  color: #6c757d;
+  color: $text-light;
   cursor: pointer;
   padding: 0;
   width: 2rem;
@@ -232,7 +232,7 @@ function handleCancel() {
 }
 
 .close-button:hover {
-  color: #2c3e50;
+  color: $text-primary;
 }
 
 .wizard-progress {
@@ -249,7 +249,7 @@ function handleCancel() {
   left: 20%;
   right: 20%;
   height: 2px;
-  background-color: #dee2e6;
+  background-color: $border-light;
   z-index: 0;
 }
 
@@ -280,8 +280,8 @@ function handleCancel() {
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background-color: #e9ecef;
-  color: #6c757d;
+  background-color: $bg-alt;
+  color: $text-light;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -290,30 +290,30 @@ function handleCancel() {
 }
 
 .progress-step:hover .progress-circle {
-  background-color: #dee2e6;
+  background-color: $border-light;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .progress-step.active .progress-circle {
-  background-color: #42b983;
+  background-color: $primary;
   color: white;
   transform: scale(1.1);
 }
 
 .progress-step.completed .progress-circle {
-  background-color: #42b983;
+  background-color: $primary;
   color: white;
 }
 
 .progress-label {
   font-size: 0.85rem;
-  color: #6c757d;
+  color: $text-light;
   text-align: center;
   font-weight: 600;
 }
 
 .progress-step.active .progress-label {
-  color: #2c3e50;
+  color: $text-primary;
 }
 
 .wizard-content {
@@ -326,7 +326,7 @@ function handleCancel() {
   display: flex;
   gap: 1rem;
   padding: 1.5rem;
-  border-top: 1px solid #dee2e6;
+  border-top: 1px solid $border-light;
 }
 
 .spacer {
@@ -344,12 +344,12 @@ function handleCancel() {
 }
 
 .wizard-button.primary {
-  background-color: #42b983;
+  background-color: $primary;
   color: white;
 }
 
 .wizard-button.primary:hover:not(:disabled) {
-  background-color: #359268;
+  background-color: $primary-hover;
 }
 
 .wizard-button.primary:disabled {
@@ -359,16 +359,16 @@ function handleCancel() {
 }
 
 .wizard-button.secondary {
-  background-color: #e9ecef;
-  color: #2c3e50;
+  background-color: $bg-alt;
+  color: $text-primary;
 }
 
 .wizard-button.secondary:hover {
-  background-color: #dee2e6;
+  background-color: $border-light;
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   .wizard-overlay {
     padding: 0.5rem;
   }
@@ -409,7 +409,7 @@ function handleCancel() {
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: $breakpoint-mobile-small) {
   .wizard-header h2 {
     font-size: 1.1rem;
   }

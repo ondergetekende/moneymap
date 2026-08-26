@@ -20,7 +20,7 @@
 import LifeEventManager from '../LifeEventManager.vue'
 </script>
 
-<style scoped>
+<style scoped lang="scss">
 .life-events-step {
   display: flex;
   flex-direction: column;
@@ -29,14 +29,14 @@ import LifeEventManager from '../LifeEventManager.vue'
 
 h3 {
   margin: 0;
-  color: #2c3e50;
+  color: $text-primary;
   font-size: 1.5rem;
   font-weight: 600;
 }
 
 .step-description {
   margin: 0;
-  color: #555;
+  color: $text-light;
   font-size: 1rem;
   line-height: 1.6;
 }
@@ -54,7 +54,7 @@ h3 {
   font-weight: 600;
 }
 
-@media (max-width: 768px) {
+@media (max-width: $breakpoint-mobile) {
   h3 {
     font-size: 1.25rem;
   }
