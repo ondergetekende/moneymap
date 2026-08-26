@@ -21,6 +21,7 @@ import {
   type ChartOptions,
 } from 'chart.js'
 import type { AnnualSummary } from '@/models'
+import { formatCurrency, adjustForInflation } from '@/utils/format'
 
 ChartJS.register(
   CategoryScale,
@@ -40,26 +41,20 @@ const props = defineProps<{
   inflationRate?: number
 }>()
 
-// Helper function to adjust values for inflation
-function adjustForInflation(value: number, yearsFromNow: number): number {
-  if (!props.showInflationAdjusted || !props.inflationRate || props.inflationRate === 0) {
-    return value
-  }
-  // Convert nominal future value to today's purchasing power
-  return value / Math.pow(1 + props.inflationRate / 100, yearsFromNow)
-}
+const adjust = (value: number, yearsFromNow: number) =>
+  props.showInflationAdjusted ? adjustForInflation(value, yearsFromNow, props.inflationRate) : value
 
 const chartData = computed(() => {
   const currentYear = props.annualSummaries[0]?.year ?? new Date().getFullYear()
   const labels = props.annualSummaries.map((summary) => `${summary.year} (age ${summary.age})`)
   const liquidData = props.annualSummaries.map((summary) => {
     const yearsFromNow = summary.year - currentYear
-    return adjustForInflation(summary.endingLiquidAssets, yearsFromNow)
+    return adjust(summary.endingLiquidAssets, yearsFromNow)
   })
   // Net fixed assets = fixed assets - debt
   const netFixedData = props.annualSummaries.map((summary) => {
     const yearsFromNow = summary.year - currentYear
-    return adjustForInflation(summary.endingFixedAssets - summary.endingTotalDebt, yearsFromNow)
+    return adjust(summary.endingFixedAssets - summary.endingTotalDebt, yearsFromNow)
   })
 
   return {
@@ -139,15 +134,6 @@ const chartOptions: ChartOptions<'line'> = {
       },
     },
   },
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-EU', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 </script>
 

@@ -5,6 +5,7 @@ import { usePlannerStore } from '@/stores/planner'
 import { isAsset, isCashFlow, isLiquidAsset, Debt } from '@/models'
 import type { CapitalAccount, CashFlow } from '@/models'
 import { getItemTypeById } from '@/config/itemTypes'
+import { formatCurrency } from '@/utils/format'
 
 const props = defineProps<{
   item: CapitalAccount | CashFlow | Debt
@@ -43,36 +44,31 @@ const itemType = computed(() => {
 
 const formattedAmount = computed(() => {
   const item = props.item as CapitalAccount | CashFlow | Debt
-  const formatter = new Intl.NumberFormat('en-EU', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  })
 
   if (isAsset(item)) {
     // For assets, show total amount
-    return formatter.format(item.amount)
+    return formatCurrency(item.amount)
   } else if (isCashFlow(item)) {
     // For cashflows, show amount based on user's chosen frequency
     if (item.isOneTime) {
       // One-time transactions: show amount as-is
-      return `${formatter.format(item.amount)} (one-time)`
+      return `${formatCurrency(item.amount)} (one-time)`
     } else {
       // Recurring transactions: show in user's preferred frequency
       switch (item.frequency) {
         case 'weekly':
-          return `${formatter.format(item.weeklyAmount)}/w`
+          return `${formatCurrency(item.weeklyAmount)}/w`
         case 'monthly':
-          return `${formatter.format(item.monthlyAmount)}/m`
+          return `${formatCurrency(item.monthlyAmount)}/m`
         case 'annual':
-          return `${formatter.format(item.annualAmount)}/y`
+          return `${formatCurrency(item.annualAmount)}/y`
         default:
-          return `${formatter.format(item.monthlyAmount)}/m`
+          return `${formatCurrency(item.monthlyAmount)}/m`
       }
     }
   } else if (item instanceof Debt) {
     // For debts, show principal balance
-    return formatter.format(item.amount)
+    return formatCurrency(item.amount)
   }
   return ''
 })

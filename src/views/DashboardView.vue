@@ -8,6 +8,7 @@ import FinancialListItem from '@/components/FinancialListItem.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import NetWorthChart from '@/components/NetWorthChart.vue'
 import AnnualBreakdownTable from '@/components/AnnualBreakdownTable.vue'
+import { formatCurrency } from '@/utils/format'
 
 const store = usePlannerStore()
 
@@ -33,14 +34,6 @@ function handleEditStep(step: number) {
 function handleWizardClose() {
   wizardInitialStep.value = undefined
   store.closeWizard()
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-EU', {
-    style: 'currency',
-    currency: 'EUR',
-    maximumFractionDigits: 0,
-  }).format(value)
 }
 </script>
 

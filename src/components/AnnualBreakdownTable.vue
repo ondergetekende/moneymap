@@ -22,112 +22,30 @@
           </tr>
         </thead>
         <tbody>
-          <tr
-            v-for="summary in annualSummaries"
-            :key="summary.year"
-            :class="{
-              negative:
-                adjustForInflation(summary.endingBalance, getYearsFromNow(summary.year)) < 0,
-            }"
-          >
-            <td>{{ summary.year }}</td>
-            <td>{{ summary.age }}</td>
-            <td>
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.startingBalance, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="debt">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.startingTotalDebt, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="income">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.totalIncome, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="expenses">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.totalExpenses, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="tax">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.totalIncomeTaxPaid, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="tax">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.totalWealthTaxPaid, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="tax">
-              {{
-                formatCurrency(
-                  adjustForInflation(
-                    summary.totalCapitalGainsTaxPaid,
-                    getYearsFromNow(summary.year),
-                  ),
-                )
-              }}
-            </td>
-            <td class="total-tax">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.totalTaxPaid, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
-            <td class="debt-paid">
-              {{
-                formatCurrency(
-                  adjustForInflation(
-                    summary.totalDebtPrincipalPaid + summary.totalDebtInterestPaid,
-                    getYearsFromNow(summary.year),
-                  ),
-                )
-              }}
-            </td>
+          <tr v-for="row in rows" :key="row.year" :class="{ negative: row.endingBalanceValue < 0 }">
+            <td>{{ row.year }}</td>
+            <td>{{ row.age }}</td>
+            <td>{{ row.startingBalance }}</td>
+            <td class="debt">{{ row.startingDebt }}</td>
+            <td class="income">{{ row.totalIncome }}</td>
+            <td class="expenses">{{ row.totalExpenses }}</td>
+            <td class="tax">{{ row.incomeTax }}</td>
+            <td class="tax">{{ row.wealthTax }}</td>
+            <td class="tax">{{ row.capitalGainsTax }}</td>
+            <td class="total-tax">{{ row.totalTax }}</td>
+            <td class="debt-paid">{{ row.debtPaid }}</td>
             <td
               :class="{
-                'net-positive': netChange(summary, getYearsFromNow(summary.year)) > 0,
-                'net-negative': netChange(summary, getYearsFromNow(summary.year)) < 0,
+                'net-positive': row.netPositive,
+                'net-negative': row.netNegative,
               }"
             >
-              {{ formatCurrency(netChange(summary, getYearsFromNow(summary.year))) }}
+              {{ row.netChange }}
             </td>
-            <td
-              :class="{
-                'balance-negative':
-                  adjustForInflation(summary.endingBalance, getYearsFromNow(summary.year)) < 0,
-              }"
-            >
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.endingBalance, getYearsFromNow(summary.year)),
-                )
-              }}
+            <td :class="{ 'balance-negative': row.endingBalanceValue < 0 }">
+              {{ row.endingBalance }}
             </td>
-            <td class="debt">
-              {{
-                formatCurrency(
-                  adjustForInflation(summary.endingTotalDebt, getYearsFromNow(summary.year)),
-                )
-              }}
-            </td>
+            <td class="debt">{{ row.endingDebt }}</td>
           </tr>
         </tbody>
       </table>
@@ -136,7 +54,9 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import type { AnnualSummary } from '@/models'
+import { formatCurrency, adjustForInflation } from '@/utils/format'
 
 const props = defineProps<{
   annualSummaries: AnnualSummary[]
@@ -144,39 +64,64 @@ const props = defineProps<{
   inflationRate?: number
 }>()
 
-// Helper function to adjust values for inflation
-function adjustForInflation(value: number, yearsFromNow: number): number {
-  if (!props.showInflationAdjusted || !props.inflationRate || props.inflationRate === 0) {
-    return value
-  }
-  // Convert nominal future value to today's purchasing power
-  return value / Math.pow(1 + props.inflationRate / 100, yearsFromNow)
+interface AnnualRow {
+  year: number
+  age: number
+  startingBalance: string
+  startingDebt: string
+  totalIncome: string
+  totalExpenses: string
+  incomeTax: string
+  wealthTax: string
+  capitalGainsTax: string
+  totalTax: string
+  debtPaid: string
+  netChange: string
+  endingBalance: string
+  endingBalanceValue: number
+  endingDebt: string
+  netNegative: boolean
+  netPositive: boolean
 }
 
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-EU', {
-    style: 'currency',
-    currency: 'EUR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value)
-}
-
-function netChange(summary: AnnualSummary, yearsFromNow: number): number {
-  const debtPayments = adjustForInflation(
-    summary.totalDebtPrincipalPaid + summary.totalDebtInterestPaid,
-    yearsFromNow,
-  )
-  const income = adjustForInflation(summary.totalIncome, yearsFromNow)
-  const expenses = adjustForInflation(summary.totalExpenses, yearsFromNow)
-  const taxes = adjustForInflation(summary.totalTaxPaid, yearsFromNow)
-  return income - expenses - debtPayments - taxes
-}
-
-function getYearsFromNow(year: number): number {
+// One inflation-adjusted row per annual summary, with formatted currency values.
+const rows = computed<AnnualRow[]>(() => {
   const currentYear = props.annualSummaries[0]?.year ?? new Date().getFullYear()
-  return year - currentYear
-}
+  const adjust = (value: number, year: number) =>
+    props.showInflationAdjusted
+      ? adjustForInflation(value, year - currentYear, props.inflationRate)
+      : value
+  const fmt = (value: number, year: number) => formatCurrency(adjust(value, year))
+
+  return props.annualSummaries.map((summary) => {
+    const debtPayments = summary.totalDebtPrincipalPaid + summary.totalDebtInterestPaid
+    const netChangeValue =
+      adjust(summary.totalIncome, summary.year) -
+      adjust(summary.totalExpenses, summary.year) -
+      adjust(debtPayments, summary.year) -
+      adjust(summary.totalTaxPaid, summary.year)
+
+    return {
+      year: summary.year,
+      age: summary.age,
+      startingBalance: fmt(summary.startingBalance, summary.year),
+      startingDebt: fmt(summary.startingTotalDebt, summary.year),
+      totalIncome: fmt(summary.totalIncome, summary.year),
+      totalExpenses: fmt(summary.totalExpenses, summary.year),
+      incomeTax: fmt(summary.totalIncomeTaxPaid, summary.year),
+      wealthTax: fmt(summary.totalWealthTaxPaid, summary.year),
+      capitalGainsTax: fmt(summary.totalCapitalGainsTaxPaid, summary.year),
+      totalTax: fmt(summary.totalTaxPaid, summary.year),
+      debtPaid: fmt(debtPayments, summary.year),
+      netChange: formatCurrency(netChangeValue),
+      endingBalance: fmt(summary.endingBalance, summary.year),
+      endingBalanceValue: adjust(summary.endingBalance, summary.year),
+      endingDebt: fmt(summary.endingTotalDebt, summary.year),
+      netNegative: netChangeValue < 0,
+      netPositive: netChangeValue > 0,
+    }
+  })
+})
 </script>
 
 <style scoped>
