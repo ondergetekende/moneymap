@@ -55,9 +55,9 @@ export class Debt extends FinancialItem {
   /**
    * Get discriminator type based on which payment field is set
    */
-  getDebtType(): 'linear' | 'annualized' | 'interest-only' {
+  getDebtType(): 'linear' | 'annuity' | 'interest-only' {
     if (this.monthlyPrincipalPayment !== undefined) return 'linear'
-    if (this.monthlyPayment !== undefined) return 'annualized'
+    if (this.monthlyPayment !== undefined) return 'annuity'
     return 'interest-only'
   }
 

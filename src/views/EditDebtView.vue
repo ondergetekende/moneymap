@@ -251,7 +251,7 @@ onMounted(() => {
 
       // Determine repayment type from existing debt
       const type = debt.getDebtType()
-      if (type === 'annualized') {
+      if (type === 'annuity') {
         repaymentType.value = 'annuity'
         monthlyPayment.value = debt.monthlyPayment ?? undefined
         // Set input mode based on what was saved
@@ -288,7 +288,7 @@ onMounted(() => {
 
       // Set repayment type based on template
       const type = template.getDebtType()
-      if (type === 'annualized') {
+      if (type === 'annuity') {
         repaymentType.value = 'annuity'
         monthlyPayment.value = template.monthlyPayment || undefined
       } else if (type === 'linear') {
