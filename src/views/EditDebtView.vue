@@ -165,7 +165,7 @@ const monthlyPaymentDisplay = computed(() => {
       type: 'declining' as const,
       initialPayment: initialPayment,
       finalPayment: finalPayment,
-      description: `Initial: €${initialPayment.toFixed(2)}/month → Final: €${finalPayment.toFixed(2)}/month`,
+      description: `Initial: €${initialPayment.toFixed(2)}/month to Final: €${finalPayment.toFixed(2)}/month`,
     }
   } else if (repaymentType.value === 'balloon' || repaymentType.value === 'perpetual') {
     // Interest-only debt
@@ -617,7 +617,7 @@ function handleDelete() {
                   >€{{ monthlyPaymentDisplay.initialPayment.toFixed(2) }}/month</span
                 >
               </div>
-              <div class="payment-arrow">→</div>
+              <div class="payment-arrow">to</div>
               <div class="payment-final">
                 <span class="label">Final:</span>
                 <span class="amount"
@@ -643,7 +643,7 @@ function handleDelete() {
       <!-- Validation warnings -->
       <div v-if="warnings.length > 0" class="warnings">
         <p v-for="(warning, index) in warnings" :key="index" class="warning-text">
-          ⚠️ {{ warning }}
+          Warning: {{ warning }}
         </p>
       </div>
 
