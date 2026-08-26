@@ -1,7 +1,7 @@
 <template>
   <div class="table-container">
     <h3>Annual Breakdown</h3>
-    <div class="table-wrapper">
+    <div ref="tableWrapper" class="table-wrapper">
       <table>
         <thead>
           <tr>
@@ -22,7 +22,12 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in rows" :key="row.year" :class="{ negative: row.endingBalanceValue < 0 }">
+          <tr
+            v-for="row in rows"
+            :key="row.year"
+            :ref="(el) => setRowRef(el as HTMLTableRowElement | null, row.year)"
+            :class="rowClasses(row)"
+          >
             <td>{{ row.year }}</td>
             <td>{{ row.age }}</td>
             <td>{{ row.startingBalance }}</td>
@@ -54,14 +59,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { AnnualSummary } from '@/models'
 import { formatCurrency, adjustForInflation } from '@/utils/format'
+import { getCurrentMonth } from '@/types/month'
+import { resolveSelectedYear } from '@/utils/timeline'
 
 const props = defineProps<{
   annualSummaries: AnnualSummary[]
   showInflationAdjusted?: boolean
   inflationRate?: number
+  selectedMonthOffset?: number
 }>()
 
 interface AnnualRow {
@@ -119,6 +127,55 @@ const rows = computed<AnnualRow[]>(() => {
       endingDebt: fmt(summary.endingTotalDebt, summary.year),
       netNegative: netChangeValue < 0,
       netPositive: netChangeValue > 0,
+    }
+  })
+})
+
+// The calendar year the scrubber points at, or null when not active.
+const selectedYear = computed<number | null>(() => {
+  if (props.selectedMonthOffset === undefined || props.annualSummaries.length === 0) return null
+  return resolveSelectedYear(getCurrentMonth(), props.selectedMonthOffset)
+})
+
+function rowClasses(row: AnnualRow): Record<string, boolean> {
+  return {
+    negative: row.endingBalanceValue < 0,
+    selected: selectedYear.value === row.year,
+  }
+}
+
+// --- Auto-scroll the selected year row into view, inside the table only ---
+// The wrapper scrolls; the page never moves. This keeps the feature usable on
+// small screens where scrollIntoView would otherwise jump the whole viewport.
+// We use bounding rects (viewport-relative) instead of offsetTop, because a
+// table row's offsetTop is reported relative to its <table>, not the wrapper.
+const tableWrapper = ref<HTMLDivElement | null>(null)
+const rowRefs = new Map<number, HTMLTableRowElement>()
+
+function setRowRef(el: HTMLTableRowElement | null, year: number) {
+  if (el) rowRefs.set(year, el)
+  else rowRefs.delete(year)
+}
+
+watch(selectedYear, (year) => {
+  if (year === null) return
+  nextTick(() => {
+    const wrapper = tableWrapper.value
+    const row = rowRefs.get(year)
+    if (!wrapper || !row) return
+
+    // Distance from the top of the wrapper's viewport to the row's top.
+    const rowRect = row.getBoundingClientRect()
+    const wrapperRect = wrapper.getBoundingClientRect()
+    const rowTopInWrapper = rowRect.top - wrapperRect.top + wrapper.scrollTop
+    const rowBottomInWrapper = rowTopInWrapper + rowRect.height
+    const viewTop = wrapper.scrollTop
+    const viewBottom = viewTop + wrapper.clientHeight
+
+    if (rowTopInWrapper < viewTop) {
+      wrapper.scrollTop = rowTopInWrapper
+    } else if (rowBottomInWrapper > viewBottom) {
+      wrapper.scrollTop = rowBottomInWrapper - wrapper.clientHeight
     }
   })
 })
@@ -238,6 +295,26 @@ tbody tr.negative td {
 tbody tr.negative td:first-child,
 tbody tr.negative td:nth-child(2) {
   background-color: #fff5f5;
+}
+
+/* Timeline scrubber cursor: highlight the selected year's row. */
+tbody tr.selected td {
+  background-color: $primary-light;
+  box-shadow: inset 3px 0 0 $primary;
+}
+
+tbody tr.selected td:first-child,
+tbody tr.selected td:nth-child(2) {
+  background-color: $primary-light;
+}
+
+tbody tr.selected.negative td {
+  background-color: #ffe8e8;
+}
+
+tbody tr.selected.negative td:first-child,
+tbody tr.selected.negative td:nth-child(2) {
+  background-color: #ffe8e8;
 }
 
 .income {

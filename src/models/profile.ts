@@ -201,6 +201,35 @@ export class UserProfile {
 }
 
 /**
+ * Per-item monthly snapshot for the timeline scrubber.
+ *
+ * Sparse: only months where the item is active are recorded. For assets and
+ * debts the last snapshot (often a zero balance) marks the end of life.
+ */
+export interface ItemMonthlySnapshot {
+  itemId: string
+  // Month index relative to projection start (0 = current month). Compact key.
+  monthOffset: number
+  balance: number // Remaining balance (debt) or projected value (asset); 0 for cash flows
+  // Cash-flow fields (0 for assets and debts)
+  inflow: number
+  outflow: number
+  // Debt-only fields (0 otherwise)
+  interestPaid: number
+  principalPaid: number
+  // Fixed-asset indicator: true the month the asset transfers to liquid
+  liquidated: boolean
+}
+
+/**
+ * All monthly snapshots for a single financial item, keyed by item id.
+ */
+export interface ItemProjection {
+  itemId: string
+  snapshots: ItemMonthlySnapshot[] // Sorted ascending by monthOffset
+}
+
+/**
  * Monthly projection result (read-only data structure)
  */
 export interface MonthlyProjection {
@@ -250,5 +279,6 @@ export interface AnnualSummary {
 export interface ProjectionResult {
   monthlyProjections: MonthlyProjection[]
   annualSummaries: AnnualSummary[]
+  itemProjections: ItemProjection[]
   calculationTimeMs: number
 }

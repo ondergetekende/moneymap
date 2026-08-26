@@ -8,6 +8,8 @@ import FinancialListItem from '@/components/FinancialListItem.vue'
 import ActionButtons from '@/components/ActionButtons.vue'
 import NetWorthChart from '@/components/NetWorthChart.vue'
 import AnnualBreakdownTable from '@/components/AnnualBreakdownTable.vue'
+import TimelineScrubber from '@/components/TimelineScrubber.vue'
+import LifeEventNavBoxes from '@/components/LifeEventNavBoxes.vue'
 import { formatCurrency } from '@/utils/format'
 
 const store = usePlannerStore()
@@ -77,7 +79,14 @@ function handleWizardClose() {
       </div>
 
       <div v-else class="items-list">
-        <FinancialListItem v-for="item in store.allItems" :key="item.id" :item="item" />
+        <FinancialListItem
+          v-for="item in store.allItems"
+          :key="item.id"
+          :item="item"
+          :month-offset="store.selectedMonthOffset"
+          :show-inflation-adjusted="showInflationAdjusted"
+          :inflation-rate="store.inflationRate"
+        />
       </div>
 
       <ActionButtons />
@@ -98,12 +107,18 @@ function handleWizardClose() {
       </div>
 
       <div v-if="store.projectionResult" class="projections-content">
+        <div class="scrubber-container">
+          <TimelineScrubber />
+          <LifeEventNavBoxes :show-inflation-adjusted="showInflationAdjusted" />
+        </div>
+
         <div class="chart-container">
           <NetWorthChart
             :annual-summaries="store.projectionResult.annualSummaries"
             :calculation-time="store.projectionResult.calculationTimeMs"
             :show-inflation-adjusted="showInflationAdjusted"
             :inflation-rate="store.inflationRate"
+            :selected-month-offset="store.selectedMonthOffset"
           />
         </div>
 
@@ -112,6 +127,7 @@ function handleWizardClose() {
             :annual-summaries="store.projectionResult.annualSummaries"
             :show-inflation-adjusted="showInflationAdjusted"
             :inflation-rate="store.inflationRate"
+            :selected-month-offset="store.selectedMonthOffset"
           />
         </div>
       </div>

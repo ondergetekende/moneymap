@@ -5,10 +5,13 @@ import { usePlannerStore } from '@/stores/planner'
 import { isAsset, isCashFlow, isLiquidAsset, Debt } from '@/models'
 import type { CapitalAccount, CashFlow } from '@/models'
 import { getItemTypeById } from '@/config/itemTypes'
-import { formatCurrency } from '@/utils/format'
+import { formatCurrency, adjustForInflation } from '@/utils/format'
 
 const props = defineProps<{
   item: CapitalAccount | CashFlow | Debt
+  monthOffset?: number
+  showInflationAdjusted?: boolean
+  inflationRate?: number
 }>()
 
 const store = usePlannerStore()
@@ -146,6 +149,55 @@ function handleKeydown(event: KeyboardEvent) {
     cancelEditing()
   }
 }
+
+// --- Timeline snapshot read-out ---
+
+// Whether the scrubber points at a future month (offset > 0).
+const hasFutureOffset = computed(() => (props.monthOffset ?? 0) > 0)
+
+const yearsFromNow = computed(() => (props.monthOffset ?? 0) / 12)
+
+const adjust = (value: number) =>
+  props.showInflationAdjusted
+    ? adjustForInflation(value, yearsFromNow.value, props.inflationRate)
+    : value
+
+// A short description of the item's state at the selected month.
+const futureNote = computed<string | null>(() => {
+  if (!hasFutureOffset.value || !store.projectionResult) return null
+  const offset = props.monthOffset!
+  const item = props.item as CapitalAccount | CashFlow | Debt
+  const snapshot = store.getItemSnapshotAt(item.id, offset)
+
+  if (snapshot === undefined) {
+    // Cash flows are sparse: not active this month.
+    if (isCashFlow(item)) return 'not active this month'
+    return null
+  }
+
+  if (isCashFlow(item)) {
+    const raw = snapshot.inflow || snapshot.outflow
+    const amount = formatCurrency(adjust(raw))
+    const unit = item.frequency === 'weekly' ? 'w' : item.frequency === 'annual' ? 'y' : 'm'
+    return snapshot.inflow > 0 ? `${amount}/${unit} in` : `${amount}/${unit} out`
+  }
+
+  if (item instanceof Debt) {
+    const balance = formatCurrency(adjust(snapshot.balance))
+    if (snapshot.balance <= 0 && snapshot.principalPaid === 0 && snapshot.interestPaid === 0) {
+      return `${balance} (paid off)`
+    }
+    const interest = formatCurrency(adjust(snapshot.interestPaid))
+    return `${balance} (interest ${interest}/m)`
+  }
+
+  if (isAsset(item)) {
+    if (snapshot.liquidated) return `${formatCurrency(adjust(snapshot.balance))} (liquidated)`
+    return formatCurrency(adjust(snapshot.balance))
+  }
+
+  return null
+})
 </script>
 
 <template>
@@ -167,6 +219,9 @@ function handleKeydown(event: KeyboardEvent) {
       <span v-else class="item-amount" @click="startEditing" title="Click to edit">
         {{ formattedAmount }}
       </span>
+    </div>
+    <div v-if="futureNote" class="item-future-note" @click.stop>
+      {{ futureNote }}
     </div>
   </div>
 </template>
@@ -230,6 +285,15 @@ function handleKeydown(event: KeyboardEvent) {
 
 .item-amount:hover {
   background-color: $bg-alt;
+}
+
+.item-future-note {
+  margin-top: $spacing-sm;
+  padding-top: $spacing-sm;
+  border-top: 1px dashed $border-light;
+  font-size: $font-sm;
+  color: $text-muted;
+  font-weight: $font-normal;
 }
 
 .item-amount-input {

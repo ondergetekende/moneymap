@@ -2,7 +2,14 @@
  * Financial projection calculation engine
  */
 
-import type { UserProfile, MonthlyProjection, AnnualSummary, ProjectionResult } from '@/models'
+import type {
+  UserProfile,
+  MonthlyProjection,
+  AnnualSummary,
+  ProjectionResult,
+  ItemMonthlySnapshot,
+  ItemProjection,
+} from '@/models'
 import { LiquidAsset, FixedAsset } from '@/models'
 import type { CashFlow, Debt } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
@@ -79,6 +86,7 @@ function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boo
  * running balance and resolved liquidation date.
  */
 interface FixedAssetTracking {
+  id: string
   amount: number
   annualInterestRate: number
   wealthTaxId?: string
@@ -189,9 +197,10 @@ function applyAssetGrowthAndTaxes(
   taxCountry: string | undefined,
   currentMonth: Month,
   inflationAdjustment: InflationAdjustment,
-): { capitalGainsTax: number; wealthTax: number } {
+): { capitalGainsTax: number; wealthTax: number; liquidatedIds: Set<string> } {
   let capitalGainsTax = 0
   let wealthTax = 0
+  const liquidatedIds = new Set<string>()
 
   // Apply interest to the shared liquid assets pool.
   const liquidMonthlyRate = liquidInterestRate / 100 / 12
@@ -231,6 +240,7 @@ function applyAssetGrowthAndTaxes(
     // Transfer the liquidated value into the liquid pool.
     state.liquidBalance += asset.balance
     asset.balance = 0
+    liquidatedIds.add(asset.id)
   }
 
   // Deduct capital gains tax from liquid assets.
@@ -255,18 +265,29 @@ function applyAssetGrowthAndTaxes(
   }
 
   state.liquidBalance -= wealthTax
-  return { capitalGainsTax, wealthTax }
+  return { capitalGainsTax, wealthTax, liquidatedIds }
+}
+
+/**
+ * Per-debt payment result for a single month, used for item snapshots.
+ */
+interface DebtItemResult {
+  interest: number
+  principal: number
 }
 
 /**
  * Process debt payments for the month, deducting from the liquid balance.
+ *
+ * Returns the per-debt payments keyed by debt id, plus the rolled-up totals.
  */
 function processDebtPayments(
   state: { liquidBalance: number; debts: DebtTracking[] },
   currentMonth: Month,
-): { debtInterest: number; debtPrincipal: number } {
+): { debtInterest: number; debtPrincipal: number; perDebt: Map<string, DebtItemResult> } {
   let debtInterest = 0
   let debtPrincipal = 0
+  const perDebt = new Map<string, DebtItemResult>()
 
   for (const tracking of state.debts) {
     // A zero balance means the debt is fully settled.
@@ -287,6 +308,7 @@ function processDebtPayments(
         tracking.balance -= payment.principal
         debtInterest += payment.interest
         debtPrincipal += payment.principal
+        perDebt.set(debt.id, { interest: payment.interest, principal: payment.principal })
         tracking.balance = Math.max(tracking.balance, debt.finalBalance ?? 0)
         if (tracking.balance <= 0) {
           tracking.balance = 0
@@ -320,19 +342,29 @@ function processDebtPayments(
     tracking.balance -= payment.principal
     debtInterest += payment.interest
     debtPrincipal += payment.principal
+    perDebt.set(debt.id, { interest: payment.interest, principal: payment.principal })
     if (tracking.balance <= 0) {
       tracking.balance = 0
       tracking.isPaidOff = true
     }
   }
 
-  return { debtInterest, debtPrincipal }
+  return { debtInterest, debtPrincipal, perDebt }
+}
+
+/**
+ * Per-cash-flow result for a single month, used for item snapshots.
+ */
+interface CashFlowItemResult {
+  amount: number // The (inflation-adjusted) monthly amount applied
+  type: 'income' | 'expense'
 }
 
 /**
  * Apply recurring and one-time cash flows for the month.
  *
- * Returns income, expenses and income tax. Income tax is deducted from the
+ * Returns income, expenses and income tax, plus the per-cash-flow amounts
+ * keyed by cash-flow id for item snapshots. Income tax is deducted from the
  * liquid balance here; the net cash flow is left for the caller to apply.
  */
 function processCashFlows(
@@ -343,10 +375,16 @@ function processCashFlows(
   currentMonth: Month,
   yearsElapsed: number,
   inflationAdjustment: InflationAdjustment,
-): { income: number; expenses: number; incomeTax: number } {
+): {
+  income: number
+  expenses: number
+  incomeTax: number
+  perCashFlow: Map<string, CashFlowItemResult>
+} {
   let income = 0
   let expenses = 0
   let incomeTax = 0
+  const perCashFlow = new Map<string, CashFlowItemResult>()
 
   for (const { cashFlow, resolvedStartDate, resolvedEndDate } of cashFlowTracking) {
     const shouldApply = cashFlow.isOneTime
@@ -371,10 +409,12 @@ function processCashFlows(
     } else {
       expenses += amount
     }
+
+    perCashFlow.set(cashFlow.id, { amount, type: cashFlow.type })
   }
 
   state.liquidBalance -= incomeTax
-  return { income, expenses, incomeTax }
+  return { income, expenses, incomeTax, perCashFlow }
 }
 
 /**
@@ -497,6 +537,14 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
   const monthlyProjections: MonthlyProjection[] = []
 
+  // Per-item snapshot collectors, keyed by item id.
+  const itemSnapshots = new Map<string, ItemMonthlySnapshot[]>()
+  const liquidShare = (account: LiquidAsset) =>
+    totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
+
+  // Fixed assets stop recording once liquidated; track which are done.
+  const liquidatedFixed = new Set<string>()
+
   for (let monthIndex = 0; monthIndex < monthsFromNow; monthIndex++) {
     const currentMonth = addMonths(projectionStart, monthIndex)
     const age = profile.getAgeAt(currentMonth)
@@ -506,7 +554,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       monthsSinceReference: monthIndex,
     }
 
-    const { capitalGainsTax, wealthTax } = applyAssetGrowthAndTaxes(
+    const { capitalGainsTax, wealthTax, liquidatedIds } = applyAssetGrowthAndTaxes(
       state,
       liquidAccounts,
       totalLiquidPrincipal,
@@ -516,9 +564,9 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       inflationAdjustment,
     )
 
-    const { debtInterest, debtPrincipal } = processDebtPayments(state, currentMonth)
+    const { debtInterest, debtPrincipal, perDebt } = processDebtPayments(state, currentMonth)
 
-    const { income, expenses, incomeTax } = processCashFlows(
+    const { income, expenses, incomeTax, perCashFlow } = processCashFlows(
       state,
       cashFlowTracking,
       profile.taxCountry,
@@ -550,6 +598,93 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       capitalGainsTaxPaid: capitalGainsTax,
       totalTaxPaid: incomeTax + wealthTax + capitalGainsTax,
     })
+
+    // --- Record per-item snapshots for the timeline scrubber ---
+
+    // Liquid assets: always active; balance is their share of the liquid pool.
+    for (const account of liquidAccounts) {
+      let snapshots = itemSnapshots.get(account.id)
+      if (!snapshots) {
+        snapshots = []
+        itemSnapshots.set(account.id, snapshots)
+      }
+      snapshots.push({
+        itemId: account.id,
+        monthOffset: monthIndex,
+        balance: state.liquidBalance * liquidShare(account),
+        inflow: 0,
+        outflow: 0,
+        interestPaid: 0,
+        principalPaid: 0,
+        liquidated: false,
+      })
+    }
+
+    // Fixed assets: record until liquidated (inclusive), then stop.
+    for (const asset of state.fixedAssets) {
+      const wasLiquidated = liquidatedIds.has(asset.id)
+      if (liquidatedFixed.has(asset.id) && !wasLiquidated) continue
+
+      let snapshots = itemSnapshots.get(asset.id)
+      if (!snapshots) {
+        snapshots = []
+        itemSnapshots.set(asset.id, snapshots)
+      }
+      snapshots.push({
+        itemId: asset.id,
+        monthOffset: monthIndex,
+        balance: asset.balance,
+        inflow: 0,
+        outflow: 0,
+        interestPaid: 0,
+        principalPaid: 0,
+        liquidated: wasLiquidated,
+      })
+
+      if (wasLiquidated) liquidatedFixed.add(asset.id)
+    }
+
+    // Debts: record every month until paid off (inclusive of the payoff month).
+    for (const tracking of state.debts) {
+      const payment = perDebt.get(tracking.debt.id)
+      // Keep recording while the debt still has a balance, or this is the payoff month.
+      if (tracking.isPaidOff && tracking.balance <= 0 && !payment) continue
+
+      let snapshots = itemSnapshots.get(tracking.debt.id)
+      if (!snapshots) {
+        snapshots = []
+        itemSnapshots.set(tracking.debt.id, snapshots)
+      }
+      snapshots.push({
+        itemId: tracking.debt.id,
+        monthOffset: monthIndex,
+        balance: tracking.balance,
+        inflow: 0,
+        outflow: 0,
+        interestPaid: payment?.interest ?? 0,
+        principalPaid: payment?.principal ?? 0,
+        liquidated: false,
+      })
+    }
+
+    // Cash flows: record only on months where they apply.
+    for (const [cashFlowId, result] of perCashFlow) {
+      let snapshots = itemSnapshots.get(cashFlowId)
+      if (!snapshots) {
+        snapshots = []
+        itemSnapshots.set(cashFlowId, snapshots)
+      }
+      snapshots.push({
+        itemId: cashFlowId,
+        monthOffset: monthIndex,
+        balance: 0,
+        inflow: result.type === 'income' ? result.amount : 0,
+        outflow: result.type === 'expense' ? result.amount : 0,
+        interestPaid: 0,
+        principalPaid: 0,
+        liquidated: false,
+      })
+    }
   }
 
   const annualSummaries = buildAnnualSummaries(
@@ -560,9 +695,15 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     initialTotalDebt,
   )
 
+  const itemProjections: ItemProjection[] = []
+  for (const [itemId, snapshots] of itemSnapshots) {
+    itemProjections.push({ itemId, snapshots })
+  }
+
   return {
     monthlyProjections,
     annualSummaries,
+    itemProjections,
     calculationTimeMs: performance.now() - startTime,
   }
 }

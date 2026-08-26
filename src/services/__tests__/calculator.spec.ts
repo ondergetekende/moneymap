@@ -2016,4 +2016,85 @@ describe('Financial Calculator', () => {
       expect(lastProjection.year).toBe(2067)
     })
   })
+
+  describe('Per-item snapshots', () => {
+    it('records per-item monthly snapshots that track balances', () => {
+      const debt = new Debt({
+        name: 'Loan',
+        amount: 6000,
+        annualInterestRate: 5,
+        monthlyPrincipalPayment: 500,
+        startDate: toDateSpec('2025-01-01')!,
+      })
+
+      const profile = new UserProfile(
+        stringToMonth('1995-01-01')!,
+        [new LiquidAsset('savings', 'Savings', 50000)],
+        [new CashFlow('salary', 'Salary', 1000, 'income', toDateSpec('2025-01-01')!)],
+        0,
+        [debt],
+      )
+
+      const result = calculateProjections(profile)
+
+      // A projection exists for each item
+      const debtProjection = result.itemProjections.find((p) => p.itemId === debt.id)
+      const savingsProjection = result.itemProjections.find((p) => p.itemId === 'savings')
+      const salaryProjection = result.itemProjections.find((p) => p.itemId === 'salary')
+
+      expect(debtProjection).toBeDefined()
+      expect(savingsProjection).toBeDefined()
+      expect(salaryProjection).toBeDefined()
+
+      // Debt balance is end-of-month (after the first payment): 6000 - 500 = 5500
+      const debtFirst = debtProjection!.snapshots[0]
+      expect(debtFirst!.balance).toBeCloseTo(5500, 0)
+      expect(debtFirst!.principalPaid).toBeGreaterThan(0)
+      expect(debtFirst!.interestPaid).toBeGreaterThan(0)
+
+      const debtLast = debtProjection!.snapshots[debtProjection!.snapshots.length - 1]
+      expect(debtLast!.balance).toBe(0)
+
+      // Liquid asset snapshots track a balance share each month
+      expect(savingsProjection!.snapshots.length).toBeGreaterThan(0)
+      const savingsFirst = savingsProjection!.snapshots[0]
+      expect(savingsFirst!.balance).toBeGreaterThan(0)
+
+      // Cash flow snapshots carry the monthly flow, only on active months
+      const salaryFirst = salaryProjection!.snapshots[0]
+      expect(salaryFirst!.inflow).toBeCloseTo(1000, 5)
+      expect(salaryFirst!.outflow).toBe(0)
+    })
+
+    it('keeps aggregate totals unchanged when recording snapshots', () => {
+      const debt = new Debt({
+        name: 'Loan',
+        amount: 6000,
+        annualInterestRate: 5,
+        monthlyPrincipalPayment: 500,
+        startDate: toDateSpec('2025-01-01')!,
+      })
+
+      const profile = new UserProfile(
+        stringToMonth('1995-01-01')!,
+        [new LiquidAsset('savings', 'Savings', 50000)],
+        [new CashFlow('salary', 'Salary', 1000, 'income', toDateSpec('2025-01-01')!)],
+        0,
+        [debt],
+      )
+
+      const result = calculateProjections(profile)
+
+      // First-month aggregates must match what snapshots imply
+      const firstMonthly = result.monthlyProjections[0]!
+      const debtSnap = result.itemProjections.find((p) => p.itemId === debt.id)!.snapshots[0]!
+      const salarySnap = result.itemProjections.find((p) => p.itemId === 'salary')!.snapshots[0]!
+
+      expect(debtSnap.interestPaid + debtSnap.principalPaid).toBeCloseTo(
+        firstMonthly.debtInterestPaid + firstMonthly.debtPrincipalPaid,
+        5,
+      )
+      expect(salarySnap.inflow).toBeCloseTo(firstMonthly.income, 5)
+    })
+  })
 })

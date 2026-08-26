@@ -10,8 +10,10 @@ import {
   FixedAsset,
   CashFlow,
   Debt,
+  isCashFlow,
   type CapitalAccount,
   type ProjectionResult,
+  type ItemMonthlySnapshot,
   type CashFlowType,
   type CashFlowFrequency,
   type LifeEvent,
@@ -33,6 +35,9 @@ export const usePlannerStore = defineStore('planner', () => {
   const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
   const taxCountry = ref<string | undefined>(undefined) // ISO country code for tax calculations
   const projectionResult = ref<ProjectionResult | null>(null)
+
+  // Timeline scrubber state (transient; not persisted)
+  const selectedMonthOffset = ref<number>(0)
 
   // Wizard state
   const wizardCompleted = ref<boolean>(false) // Track if user has completed wizard at least once
@@ -478,6 +483,11 @@ export const usePlannerStore = defineStore('planner', () => {
   function recalculate() {
     if (birthDate.value) {
       projectionResult.value = calculateProjections(userProfile.value)
+      // Reset the scrubber so it never points past the new projection end.
+      const max = projectionResult.value?.monthlyProjections.length ?? 0
+      if (selectedMonthOffset.value > max - 1) {
+        selectedMonthOffset.value = Math.max(0, max - 1)
+      }
     }
   }
 
@@ -521,6 +531,7 @@ export const usePlannerStore = defineStore('planner', () => {
     inflationRate.value = 3
     taxCountry.value = undefined
     projectionResult.value = null
+    selectedMonthOffset.value = 0
     wizardCompleted.value = false
     showWizard.value = false
     storageService.clearProfile()
@@ -540,6 +551,65 @@ export const usePlannerStore = defineStore('planner', () => {
     return debts.value.find((d: Debt) => d.id === id)
   }
 
+  /**
+   * Find a single financial item by id across all item kinds.
+   */
+  function findItemById(id: string): CapitalAccount | CashFlow | Debt | undefined {
+    return (
+      capitalAccounts.value.find((a) => a.id === id) ??
+      cashFlows.value.find((cf) => cf.id === id) ??
+      debts.value.find((d) => d.id === id)
+    )
+  }
+
+  /**
+   * Total number of months in the current projection.
+   */
+  const projectionMonthCount = computed(
+    () => projectionResult.value?.monthlyProjections.length ?? 0,
+  )
+
+  /**
+   * Per-item snapshots at the currently selected scrubber month.
+   *
+   * For assets and debts the snapshot with the largest monthOffset not greater
+   * than the target is returned (the item's state "at that point"). For cash
+   * flows only an exact-match month is returned, since flows are sparse.
+   */
+  function getItemSnapshotAt(itemId: string, monthOffset: number): ItemMonthlySnapshot | undefined {
+    const projection = projectionResult.value
+    if (!projection) return undefined
+
+    const itemProjection = projection.itemProjections.find((p) => p.itemId === itemId)
+    if (!itemProjection || itemProjection.snapshots.length === 0) return undefined
+
+    const snapshots = itemProjection.snapshots
+
+    const item = findItemById(itemId)
+    // Cash flows: exact month match only (sparse: only application months).
+    if (item && isCashFlow(item)) {
+      return snapshots.find((s) => s.monthOffset === monthOffset)
+    }
+
+    // Assets and debts: largest monthOffset not greater than the target.
+    // Snapshots are sorted ascending by monthOffset; binary search for the slot.
+    let lo = 0
+    let hi = snapshots.length - 1
+    let result: ItemMonthlySnapshot | undefined
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const snap = snapshots[mid]!
+      if (snap.monthOffset === monthOffset) return snap
+      if (snap.monthOffset < monthOffset) {
+        result = snap
+        lo = mid + 1
+      } else {
+        hi = mid - 1
+      }
+    }
+    return result
+  }
+
   return {
     // State
     birthDate,
@@ -553,6 +623,7 @@ export const usePlannerStore = defineStore('planner', () => {
     projectionResult,
     wizardCompleted,
     showWizard,
+    selectedMonthOffset,
     // Computed
     userProfile,
     currentAge,
@@ -563,6 +634,7 @@ export const usePlannerStore = defineStore('planner', () => {
     totalIncome,
     totalExpenses,
     totalDebt,
+    projectionMonthCount,
     // Actions
     setBirthDate,
     setLiquidAssetsInterestRate,
@@ -592,6 +664,8 @@ export const usePlannerStore = defineStore('planner', () => {
     getCapitalAccountById,
     getCashFlowById,
     getDebtById,
+    findItemById,
+    getItemSnapshotAt,
     getLifeEventById,
     findItemsReferencingLifeEvent,
     ensureRetirementEvent,

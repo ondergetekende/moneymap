@@ -35,6 +35,8 @@ export {
   type LifeEvent,
   type MonthlyProjection,
   type AnnualSummary,
+  type ItemMonthlySnapshot,
+  type ItemProjection,
   type ProjectionResult,
 } from './profile'
 
