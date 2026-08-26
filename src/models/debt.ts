@@ -24,6 +24,9 @@ export class Debt extends FinancialItem {
   readonly repaymentStartDate?: DateSpecification
   readonly endDate?: DateSpecification
 
+  // How the user specified the repayment schedule
+  readonly specificationMode?: 'endDate' | 'amount'
+
   // Payment strategy fields - only one should be set
   readonly monthlyPrincipalPayment?: number // Linear
   readonly monthlyPayment?: number // Annualized
@@ -37,6 +40,7 @@ export class Debt extends FinancialItem {
     startDate?: DateSpecification
     repaymentStartDate?: DateSpecification
     endDate?: DateSpecification
+    specificationMode?: 'endDate' | 'amount'
     monthlyPrincipalPayment?: number
     monthlyPayment?: number
     finalBalance?: number
@@ -47,6 +51,7 @@ export class Debt extends FinancialItem {
     this.startDate = data.startDate
     this.repaymentStartDate = data.repaymentStartDate
     this.endDate = data.endDate
+    this.specificationMode = data.specificationMode
     this.monthlyPrincipalPayment = data.monthlyPrincipalPayment
     this.monthlyPayment = data.monthlyPayment
     this.finalBalance = data.finalBalance
@@ -224,6 +229,7 @@ export class Debt extends FinancialItem {
       startDate: DateSpecification | undefined
       repaymentStartDate: DateSpecification | undefined
       endDate: DateSpecification | undefined
+      specificationMode: 'endDate' | 'amount' | undefined
       monthlyPrincipalPayment: number | undefined
       monthlyPayment: number | undefined
       finalBalance: number | undefined
@@ -240,6 +246,10 @@ export class Debt extends FinancialItem {
           ? updates.repaymentStartDate
           : this.repaymentStartDate,
       endDate: updates.endDate !== undefined ? updates.endDate : this.endDate,
+      specificationMode:
+        updates.specificationMode !== undefined
+          ? updates.specificationMode
+          : this.specificationMode,
       monthlyPrincipalPayment:
         updates.monthlyPrincipalPayment !== undefined
           ? updates.monthlyPrincipalPayment
@@ -262,6 +272,7 @@ export class Debt extends FinancialItem {
       startDate: this.startDate,
       repaymentStartDate: this.repaymentStartDate,
       endDate: this.endDate,
+      specificationMode: this.specificationMode,
       type: this.getDebtType(),
       monthlyPrincipalPayment: this.monthlyPrincipalPayment,
       monthlyPayment: this.monthlyPayment,
@@ -326,6 +337,7 @@ export class Debt extends FinancialItem {
       startDate,
       repaymentStartDate,
       endDate,
+      specificationMode: data.specificationMode as 'endDate' | 'amount' | undefined,
       monthlyPrincipalPayment: data.monthlyPrincipalPayment as number | undefined,
       monthlyPayment: data.monthlyPayment as number | undefined,
       finalBalance: data.finalBalance as number | undefined,

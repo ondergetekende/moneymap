@@ -254,13 +254,13 @@ onMounted(() => {
       if (type === 'annuity') {
         repaymentType.value = 'annuity'
         monthlyPayment.value = debt.monthlyPayment ?? undefined
-        // Set input mode based on what was saved
-        paymentInputMode.value = monthlyPayment.value ? 'payment' : 'endDate'
+        // Restore the input mode the user originally selected
+        paymentInputMode.value = debt.specificationMode === 'amount' ? 'payment' : 'endDate'
       } else if (type === 'linear') {
         repaymentType.value = 'linear'
         monthlyPrincipal.value = debt.monthlyPrincipalPayment ?? undefined
-        // Set input mode based on what was saved
-        principalInputMode.value = monthlyPrincipal.value ? 'principal' : 'endDate'
+        // Restore the input mode the user originally selected
+        principalInputMode.value = debt.specificationMode === 'amount' ? 'principal' : 'endDate'
       } else if (type === 'interest-only') {
         // Check if there's an end date (balloon) or not (perpetual)
         repaymentType.value = debt.endDate !== undefined ? 'balloon' : 'perpetual'
@@ -316,6 +316,18 @@ function handleSave() {
 
   let debt
 
+  // The specification mode selected by the user in the UI
+  const specMode: 'endDate' | 'amount' =
+    repaymentType.value === 'annuity'
+      ? paymentInputMode.value === 'endDate'
+        ? 'endDate'
+        : 'amount'
+      : repaymentType.value === 'linear'
+        ? principalInputMode.value === 'endDate'
+          ? 'endDate'
+          : 'amount'
+        : 'endDate'
+
   // Resolve calculatedEndDate to DateSpecification if needed
   const finalEndDate =
     endDate.value !== undefined
@@ -340,6 +352,7 @@ function handleSave() {
     debt = new Debt({
       ...baseData,
       finalBalance: 0, // Always pay off remaining at end
+      specificationMode: 'endDate',
     })
   } else if (repaymentType.value === 'annuity') {
     // Constant total payment (annuity)
@@ -357,6 +370,7 @@ function handleSave() {
     debt = new Debt({
       ...baseData,
       monthlyPayment: payment,
+      specificationMode: specMode,
     })
   } else {
     // Constant principal payment (linear)
@@ -368,6 +382,7 @@ function handleSave() {
     debt = new Debt({
       ...baseData,
       monthlyPrincipalPayment: principal,
+      specificationMode: specMode,
     })
   }
 
