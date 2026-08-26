@@ -22,6 +22,7 @@
 
 .button-primary,
 .btn-primary {
+  @include button-base;
   background: $primary;
   color: white;
 
@@ -36,6 +37,7 @@
 
 .button-secondary,
 .btn-secondary {
+  @include button-base;
   background: $bg-alt;
   color: $text-tertiary;
 
@@ -51,6 +53,7 @@
 
 .button-danger,
 .btn-danger {
+  @include button-base;
   background: $danger;
   color: white;
 

@@ -104,6 +104,7 @@
   font-weight: $font-semibold;
   cursor: pointer;
   transition: $transition-base;
+  min-height: $touch-target-min;
 
   &:active {
     transform: scale(0.98);
@@ -111,7 +112,10 @@
 
   @include mobile {
     padding: $spacing-base $spacing-lg;
-    min-height: $touch-target-min;
+  }
+
+  @include mobile-small {
+    padding: $spacing-base $spacing-md;
   }
 }
 

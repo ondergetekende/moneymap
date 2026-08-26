@@ -1,21 +1,16 @@
-<template>
-  <div id="app">
-    <header>
-      <h1>MoneyMap</h1>
-      <p class="subtitle">Navigate your financial future</p>
-    </header>
-
-    <main>
-      <router-view />
-    </main>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, watch, computed } from 'vue'
 import { usePlannerStore } from './stores/planner'
+import { useRoute } from 'vue-router'
 
 const store = usePlannerStore()
+const route = useRoute()
+
+// Hide the header on static information pages
+const showHeader = computed(() => {
+  const staticRoutes = ['about', 'privacy', 'terms', 'who', 'contact']
+  return !staticRoutes.includes(route.name as string)
+})
 
 onMounted(() => {
   // Load saved data on startup
@@ -38,6 +33,32 @@ watch(
 )
 </script>
 
+<template>
+  <div id="app">
+    <header v-if="showHeader">
+      <router-link to="/" class="header-brand">
+        <h1>MoneyMap</h1>
+      </router-link>
+      <p class="subtitle">Navigate your financial future</p>
+    </header>
+
+    <main>
+      <router-view />
+    </main>
+
+    <footer>
+      <nav class="footer-nav">
+        <router-link to="/">About</router-link>
+        <router-link to="/app">Planner</router-link>
+        <router-link to="/privacy">Privacy</router-link>
+        <router-link to="/terms">Terms</router-link>
+        <router-link to="/who">Who</router-link>
+        <router-link to="/contact">Contact</router-link>
+      </nav>
+    </footer>
+  </div>
+</template>
+
 <style lang="scss">
 // Import shared styles globally (buttons, forms, layout)
 @use '@/styles/buttons';
@@ -59,28 +80,95 @@ body {
 
 #app {
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.header-brand {
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
 
 header {
-  background-color: $primary;
-  color: white;
-  padding: $spacing-3xl 0;
+  background-color: $bg-card;
+  color: $text-primary;
+  padding: $spacing-sm 0;
   text-align: center;
+  border-bottom: 1px solid $border-light;
   box-shadow: $shadow-sm;
+
+  @include mobile {
+    padding: $spacing-xs 0;
+  }
+
+  @include mobile-small {
+    padding: 0;
+  }
 }
 
 h1 {
-  font-size: $font-4xl;
-  margin-bottom: $spacing-sm;
+  font-size: $font-base-lg;
+  margin: 0;
+  font-weight: $font-bold;
+
+  @include mobile {
+    font-size: $font-base;
+  }
 }
 
 .subtitle {
-  font-size: 1.1rem;
-  opacity: 0.9;
+  display: none;
 }
 
 main {
   padding: $spacing-3xl $spacing-lg;
+  flex: 1;
+
+  @include mobile {
+    padding: $spacing-xl $spacing-base;
+  }
+
+  @include mobile-small {
+    padding: $spacing-lg $spacing-sm;
+  }
+}
+
+footer {
+  background-color: $bg-alt-3;
+  padding: $spacing-3xl $spacing-lg;
+  text-align: center;
+  border-top: 1px solid $border-light;
+
+  @include mobile {
+    padding: $spacing-2xl $spacing-base;
+  }
+
+  @include mobile-small {
+    padding: $spacing-xl $spacing-sm;
+  }
+}
+
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: $spacing-xl;
+
+  a {
+    color: $text-secondary;
+    text-decoration: none;
+    font-size: $font-sm;
+    font-weight: $font-medium;
+
+    &:hover {
+      color: $primary;
+    }
+
+    @include mobile-small {
+      font-size: $font-xs;
+    }
+  }
 }
 
 .container {
