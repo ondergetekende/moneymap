@@ -391,8 +391,7 @@ const isValid = computed(() => {
 .month-select:focus {
   outline: none;
   border-color: #3b82f6;
-  ring: 2px;
-  ring-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
 .year-input {
@@ -407,8 +406,7 @@ const isValid = computed(() => {
 .year-input:focus {
   outline: none;
   border-color: #3b82f6;
-  ring: 2px;
-  ring-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
 .age-controls {
@@ -433,8 +431,7 @@ const isValid = computed(() => {
 .age-input:focus {
   outline: none;
   border-color: #3b82f6;
-  ring: 2px;
-  ring-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
 .age-preview {
@@ -461,8 +458,7 @@ const isValid = computed(() => {
 .life-event-select:focus {
   outline: none;
   border-color: #3b82f6;
-  ring: 2px;
-  ring-color: rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
 }
 
 .life-event-preview {

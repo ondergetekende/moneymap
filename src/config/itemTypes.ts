@@ -91,6 +91,21 @@ export const ITEM_TYPES: ItemTypeDefinition[] = [
     ),
   },
   {
+    id: 'one-time-expense',
+    category: 'cashflow',
+    color: '#ef4444', // red
+    template: new CashFlow(
+      'template-one-time-expense',
+      'One-time Expense',
+      5000, // Typical one-time expense (e.g., vacation, major purchase)
+      'expense',
+      createAbsoluteDate(getCurrentMonth()), // Requires a date for one-time transactions
+      undefined,
+      false,
+      true, // isOneTime
+    ),
+  },
+  {
     id: 'mortgage',
     category: 'debt',
     color: '#f97316', // orange

@@ -198,9 +198,6 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       }
     }
 
-    // Deduct capital gains tax from liquid assets
-    liquidAssetsBalance -= monthlyCapitalGainsTax
-
     // Apply appreciation/depreciation to each fixed asset individually
     for (const asset of fixedAssetBalances) {
       const monthlyRate = asset.annualInterestRate / 100 / 12
