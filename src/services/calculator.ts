@@ -93,7 +93,11 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   // Initialize liquid assets pool (all liquid accounts combined)
   let liquidAssetsBalance = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
 
-  // Track each fixed asset separately with its own rate, resolving liquidation dates
+  // Total liquid principal stays constant; used for per-account tax shares.
+  const totalLiquidPrincipal = liquidAssetsBalance
+
+  // Track each fixed asset separately with its own rate, resolving liquidation dates.
+  // The spread carries the original fields (amount, tax IDs) so lookups are not needed in the loop.
   const fixedAssetBalances = fixedAccounts.map((account) => ({
     ...account,
     balance: account.amount,
@@ -136,6 +140,13 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
   // Store initial debt total before it gets mutated
   const initialTotalDebt = debtBalances.reduce((sum, d) => sum + d.balance, 0)
+
+  // Resolve cash flow dates once, before the monthly loop.
+  const cashFlowTracking = cashFlows.map((cashFlow) => ({
+    cashFlow,
+    resolvedStartDate: resolveDateSpec(cashFlow.startDate, profile),
+    resolvedEndDate: resolveDateSpec(cashFlow.endDate, profile),
+  }))
 
   // Calculate total starting capital (net worth = assets - debts)
   const totalCapital =
@@ -185,8 +196,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       if (taxOption && liquidInterest > 0) {
         // Calculate the portion of interest attributable to this account
         // (proportional to its share of total liquid assets)
-        const accountShare =
-          account.amount / (liquidAccounts.reduce((sum, a) => sum + a.amount, 0) || 1)
+        const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
         const accountInterest = liquidInterest * accountShare
 
         // Calculate tax on this account's portion of interest (annualized)
@@ -211,22 +221,18 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
         asset.balance > 0
       ) {
         // Calculate capital gains tax on liquidation
-        const originalAsset = fixedAccounts.find((a) => a.id === asset.id)
-        if (originalAsset) {
-          const taxOption = resolveTaxOption(
-            originalAsset.capitalGainsTaxId,
-            profile.taxCountry,
-            'capital_gains',
-          )
+        const taxOption = resolveTaxOption(
+          asset.capitalGainsTaxId,
+          profile.taxCountry,
+          'capital_gains',
+        )
 
-          // Calculate total gain: current value minus original cost basis
-          const totalGain = asset.balance - originalAsset.amount
-          if (taxOption && totalGain > 0) {
-            // Calculate tax on realized gain
-            const annualGain = totalGain // Already a total, not monthly
-            const realizedTax = calculateTax(annualGain, taxOption, inflationAdjustment)
-            monthlyCapitalGainsTax += realizedTax
-          }
+        // Calculate total gain: current value minus original cost basis
+        const totalGain = asset.balance - asset.amount
+        if (taxOption && totalGain > 0) {
+          // Calculate tax on realized gain
+          const realizedTax = calculateTax(totalGain, taxOption, inflationAdjustment)
+          monthlyCapitalGainsTax += realizedTax
         }
 
         // Transfer asset value to liquid assets (minus capital gains tax)
@@ -246,8 +252,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
       if (taxOption) {
         // Calculate the portion of liquid assets attributable to this account
-        const totalLiquidAssets = liquidAccounts.reduce((sum, a) => sum + a.amount, 0)
-        const accountShare = totalLiquidAssets > 0 ? account.amount / totalLiquidAssets : 0
+        const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
         const accountValue = liquidAssetsBalance * accountShare
 
         // Calculate wealth tax (monthly)
@@ -260,17 +265,14 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     // Wealth tax on fixed assets
     for (const asset of fixedAssetBalances) {
-      const originalAsset = fixedAccounts.find((a) => a.id === asset.id)
-      if (originalAsset) {
-        const taxOption = resolveTaxOption(originalAsset.wealthTaxId, profile.taxCountry, 'wealth')
+      const taxOption = resolveTaxOption(asset.wealthTaxId, profile.taxCountry, 'wealth')
 
-        if (taxOption && asset.balance > 0) {
-          // Calculate wealth tax (monthly)
-          const annualTax = calculateTax(asset.balance, taxOption, inflationAdjustment)
-          const monthlyTax = annualTax / 12
+      if (taxOption && asset.balance > 0) {
+        // Calculate wealth tax (monthly)
+        const annualTax = calculateTax(asset.balance, taxOption, inflationAdjustment)
+        const monthlyTax = annualTax / 12
 
-          monthlyWealthTax += monthlyTax
-        }
+        monthlyWealthTax += monthlyTax
       }
     }
 
@@ -368,11 +370,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     // Calculate years elapsed since projection start for inflation adjustment
     const yearsElapsed = monthIndex / 12
 
-    for (const cashFlow of cashFlows) {
-      // Resolve cash flow dates
-      const resolvedStartDate = resolveDateSpec(cashFlow.startDate, profile)
-      const resolvedEndDate = resolveDateSpec(cashFlow.endDate, profile)
-
+    for (const { cashFlow, resolvedStartDate, resolvedEndDate } of cashFlowTracking) {
       // Handle one-time transactions differently from recurring ones
       const shouldApply = cashFlow.isOneTime
         ? currentMonth === resolvedStartDate // One-time: only on exact date
@@ -440,22 +438,24 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   // Aggregate into annual summaries
   const annualSummaries: AnnualSummary[] = []
 
-  // Group by year
-  const yearGroups = new Map<number, MonthlyProjection[]>()
+  // Group by year, recording the index of the first projection for each year.
+  const yearGroups = new Map<number, { startIndex: number; projections: MonthlyProjection[] }>()
 
-  for (const projection of monthlyProjections) {
-    const dateParts = projection.date.split('-')
-    if (dateParts[0]) {
-      const year = parseInt(dateParts[0], 10)
-      if (!yearGroups.has(year)) {
-        yearGroups.set(year, [])
-      }
-      yearGroups.get(year)?.push(projection)
+  monthlyProjections.forEach((projection, index) => {
+    const year = parseInt(projection.date.split('-')[0] ?? '', 10)
+    if (isNaN(year)) return
+    let group = yearGroups.get(year)
+    if (!group) {
+      group = { startIndex: index, projections: [] }
+      yearGroups.set(year, group)
     }
-  }
+    group.projections.push(projection)
+  })
 
   // Create annual summaries
-  for (const [year, projections] of Array.from(yearGroups.entries()).sort((a, b) => a[0] - b[0])) {
+  for (const [year, { startIndex, projections }] of Array.from(yearGroups.entries()).sort(
+    (a, b) => a[0] - b[0],
+  )) {
     if (projections.length === 0) continue
 
     const firstProjection = projections[0]
@@ -463,10 +463,8 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     if (!firstProjection || !lastProjection) continue
 
-    // Find the projection from the previous month for starting balances
-    const yearMonth = `${year}-01`
-    const projectionIndex = monthlyProjections.findIndex((p) => p.date === yearMonth)
-    const previousProjection = projectionIndex > 0 ? monthlyProjections[projectionIndex - 1] : null
+    // Starting balances come from the projection of the previous month.
+    const previousProjection = startIndex > 0 ? monthlyProjections[startIndex - 1] : null
 
     const startingBalance = previousProjection ? previousProjection.balance : totalCapital
     const startingLiquidAssets = previousProjection
