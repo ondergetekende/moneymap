@@ -5,6 +5,7 @@
 import { UserProfile } from '@/models'
 
 const STORAGE_KEY = 'moneymap-data'
+const WIZARD_KEY = 'moneymap-wizard-completed'
 
 export const storageService = {
   /**
@@ -55,5 +56,40 @@ export const storageService = {
    */
   hasProfile(): boolean {
     return localStorage.getItem(STORAGE_KEY) !== null
+  },
+
+  /**
+   * Save wizard completion state
+   */
+  saveWizardCompleted(completed: boolean): void {
+    try {
+      localStorage.setItem(WIZARD_KEY, JSON.stringify(completed))
+    } catch (error) {
+      console.error('Failed to save wizard state:', error)
+    }
+  },
+
+  /**
+   * Load wizard completion state
+   */
+  loadWizardCompleted(): boolean | null {
+    try {
+      const state = localStorage.getItem(WIZARD_KEY)
+      return state !== null ? JSON.parse(state) : null
+    } catch (error) {
+      console.error('Failed to load wizard state:', error)
+      return null
+    }
+  },
+
+  /**
+   * Clear wizard completion state
+   */
+  clearWizardCompleted(): void {
+    try {
+      localStorage.removeItem(WIZARD_KEY)
+    } catch (error) {
+      console.error('Failed to clear wizard state:', error)
+    }
   },
 }

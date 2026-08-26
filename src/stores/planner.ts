@@ -483,12 +483,7 @@ export const usePlannerStore = defineStore('planner', () => {
 
   function saveToStorage() {
     storageService.saveProfile(userProfile.value)
-    // Save wizard completion state separately
-    try {
-      localStorage.setItem('moneymap-wizard-completed', JSON.stringify(wizardCompleted.value))
-    } catch (error) {
-      console.error('Failed to save wizard state:', error)
-    }
+    storageService.saveWizardCompleted(wizardCompleted.value)
   }
 
   function loadFromStorage() {
@@ -506,13 +501,9 @@ export const usePlannerStore = defineStore('planner', () => {
       recalculate()
 
       // Load wizard completion state
-      try {
-        const wizardState = localStorage.getItem('moneymap-wizard-completed')
-        if (wizardState !== null) {
-          wizardCompleted.value = JSON.parse(wizardState)
-        }
-      } catch (error) {
-        console.error('Failed to load wizard state:', error)
+      const wizardState = storageService.loadWizardCompleted()
+      if (wizardState !== null) {
+        wizardCompleted.value = wizardState
       }
 
       return true
@@ -533,11 +524,7 @@ export const usePlannerStore = defineStore('planner', () => {
     wizardCompleted.value = false
     showWizard.value = false
     storageService.clearProfile()
-    try {
-      localStorage.removeItem('moneymap-wizard-completed')
-    } catch (error) {
-      console.error('Failed to clear wizard state:', error)
-    }
+    storageService.clearWizardCompleted()
   }
 
   // Helper getters
