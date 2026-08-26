@@ -30,7 +30,7 @@ export class CashFlow extends FinancialItem {
     type: CashFlowType,
     startDate?: DateSpecification,
     endDate?: DateSpecification,
-    followsInflation: boolean = false,
+    followsInflation: boolean = true,
     isOneTime: boolean = false,
     incomeTaxId?: string,
     frequency: CashFlowFrequency = 'monthly',
@@ -213,7 +213,7 @@ export class CashFlow extends FinancialItem {
       (data.type as 'income' | 'expense') || 'expense',
       startDate,
       endDate,
-      (data.followsInflation as boolean) ?? false,
+      (data.followsInflation as boolean) ?? true,
       (data.isOneTime as boolean) ?? false,
       data.incomeTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
       frequency,

@@ -58,6 +58,7 @@ function createTestProfile(data: {
       cf.type,
       toDateSpec(cf.startDate),
       toDateSpec(cf.endDate),
+      false, // followsInflation - tests assume fixed amounts
     )
   })
 
