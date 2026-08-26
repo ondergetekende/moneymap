@@ -4,6 +4,7 @@
 
 import type { UserProfile, MonthlyProjection, AnnualSummary, ProjectionResult } from '@/models'
 import { LiquidAsset, FixedAsset } from '@/models'
+import type { CashFlow, Debt } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
 import { getCurrentMonth, addMonths, formatMonth, monthDiff, resolveDate } from '@/types/month'
 import {
@@ -73,57 +74,75 @@ function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boo
 }
 
 /**
- * Calculate financial projections from current date to the latest life event or age 90
+ * Mutable tracking state for a fixed asset across the projection.
+ * Carries the original FixedAsset fields (amount, tax IDs, rate) plus the
+ * running balance and resolved liquidation date.
  */
-export function calculateProjections(profile: UserProfile): ProjectionResult {
-  const startTime = performance.now()
+interface FixedAssetTracking {
+  amount: number
+  annualInterestRate: number
+  wealthTaxId?: string
+  capitalGainsTaxId?: string
+  balance: number
+  resolvedLiquidationDate: Month | undefined
+}
 
-  const { birthDate, capitalAccounts, liquidAssetsInterestRate, inflationRate } = profile
-  // Support both legacy 'expenses' and new 'cashFlows' field
-  const cashFlows = profile.cashFlows || []
-  const debts = profile.debts || []
+/**
+ * Mutable tracking state for a debt across the projection.
+ */
+interface DebtTracking {
+  debt: Debt
+  balance: number
+  isPaidOff: boolean
+  resolvedStartDate: Month | undefined
+  resolvedRepaymentStartDate: Month | undefined
+  resolvedEndDate: Month | undefined
+}
 
-  // Separate liquid and fixed assets
-  const liquidAccounts = capitalAccounts.filter((account) => account instanceof LiquidAsset)
-  const fixedAccounts = capitalAccounts.filter((account) => account instanceof FixedAsset)
+/**
+ * Pre-resolved cash flow dates, so they are not recomputed each month.
+ */
+interface CashFlowTracking {
+  cashFlow: CashFlow
+  resolvedStartDate: Month | undefined
+  resolvedEndDate: Month | undefined
+}
 
-  // Use the global liquid assets interest rate (default to 5% if not set)
-  const liquidInterestRate = liquidAssetsInterestRate ?? 5
-
-  // Initialize liquid assets pool (all liquid accounts combined)
-  let liquidAssetsBalance = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
-
-  // Total liquid principal stays constant; used for per-account tax shares.
-  const totalLiquidPrincipal = liquidAssetsBalance
-
-  // Track each fixed asset separately with its own rate, resolving liquidation dates.
-  // The spread carries the original fields (amount, tax IDs) so lookups are not needed in the loop.
-  const fixedAssetBalances = fixedAccounts.map((account) => ({
+/**
+ * Build tracking state for fixed assets, resolving liquidation dates once.
+ */
+function buildFixedAssetTracking(
+  fixedAccounts: FixedAsset[],
+  profile: UserProfile,
+): FixedAssetTracking[] {
+  return fixedAccounts.map((account) => ({
     ...account,
     balance: account.amount,
     resolvedLiquidationDate: resolveDateSpec(account.liquidationDate, profile),
   }))
+}
 
-  const monthlyProjections: MonthlyProjection[] = []
-
-  // Start from the beginning of current month
-  const projectionStart = getCurrentMonth()
-
-  // Track each debt separately with its current balance
-  // For debts that started in the past, calculate the balance at simulation start
-  const debtBalances = debts.map((debt) => {
+/**
+ * Build tracking state for debts, projecting past repayments to the start.
+ */
+function buildDebtTracking(
+  debts: Debt[],
+  profile: UserProfile,
+  projectionStart: Month,
+): {
+  tracking: DebtTracking[]
+  initialTotalDebt: number
+} {
+  const tracking = debts.map((debt): DebtTracking => {
     let currentBalance = debt.amount
 
-    // Resolve debt dates
     const debtStartMonth = resolveDateSpec(debt.startDate, profile)
     const repaymentStartMonth = resolveDateSpec(debt.repaymentStartDate, profile) ?? debtStartMonth
 
+    // For debts that started repaying before the simulation start, fast-forward.
     if (repaymentStartMonth !== undefined && repaymentStartMonth < projectionStart) {
-      // Calculate months between repayment start and simulation start
       const monthsPassed = monthDiff(projectionStart, repaymentStartMonth)
-
       if (monthsPassed > 0) {
-        // Use the debt's calculateProjectedBalance to determine current balance
         currentBalance = debt.calculateProjectedBalance(debt.amount, monthsPassed)
       }
     }
@@ -138,304 +157,236 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     }
   })
 
-  // Store initial debt total before it gets mutated
-  const initialTotalDebt = debtBalances.reduce((sum, d) => sum + d.balance, 0)
+  const initialTotalDebt = tracking.reduce((sum, d) => sum + d.balance, 0)
+  return { tracking, initialTotalDebt }
+}
 
-  // Resolve cash flow dates once, before the monthly loop.
-  const cashFlowTracking = cashFlows.map((cashFlow) => ({
+/**
+ * Build pre-resolved cash flow date tracking.
+ */
+function buildCashFlowTracking(cashFlows: CashFlow[], profile: UserProfile): CashFlowTracking[] {
+  return cashFlows.map((cashFlow) => ({
     cashFlow,
     resolvedStartDate: resolveDateSpec(cashFlow.startDate, profile),
     resolvedEndDate: resolveDateSpec(cashFlow.endDate, profile),
   }))
+}
 
-  // Calculate total starting capital (net worth = assets - debts)
-  const totalCapital =
-    liquidAssetsBalance +
-    fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0) -
-    initialTotalDebt
+/**
+ * Apply liquid asset interest, fixed asset appreciation/liquidation and wealth tax.
+ *
+ * Updates the liquid balance and fixed asset balances in place, and returns the
+ * capital gains and wealth tax charged this month.
+ */
+function applyAssetGrowthAndTaxes(
+  state: {
+    liquidBalance: number
+    fixedAssets: FixedAssetTracking[]
+  },
+  liquidAccounts: LiquidAsset[],
+  totalLiquidPrincipal: number,
+  liquidInterestRate: number,
+  taxCountry: string | undefined,
+  currentMonth: Month,
+  inflationAdjustment: InflationAdjustment,
+): { capitalGainsTax: number; wealthTax: number } {
+  let capitalGainsTax = 0
+  let wealthTax = 0
 
-  // Calculate end month (December of the year of the latest life event or age 90)
-  const simulationEndAge = getSimulationEndAge(profile)
-  const endAgeMonth = addMonths(birthDate, simulationEndAge * 12)
-  const endYear = Math.floor(endAgeMonth / 12) + 1900
-  const endMonth = (endYear - 1900) * 12 + 11 // December = month index 11
+  // Apply interest to the shared liquid assets pool.
+  const liquidMonthlyRate = liquidInterestRate / 100 / 12
+  const liquidInterest = state.liquidBalance * liquidMonthlyRate
+  state.liquidBalance += liquidInterest
 
-  // Calculate total months from now until end of that year (inclusive)
-  const monthsFromNow = monthDiff(endMonth, projectionStart) + 1
-
-  for (let monthIndex = 0; monthIndex < monthsFromNow; monthIndex++) {
-    const currentMonth = addMonths(projectionStart, monthIndex)
-
-    const age = profile.getAgeAt(currentMonth)
-
-    // Create inflation adjustment for this month
-    // Tax brackets are adjusted based on months since projection start
-    const inflationAdjustment: InflationAdjustment = {
-      inflationRate: inflationRate ?? 0,
-      monthsSinceReference: monthIndex,
-    }
-
-    // Initialize tax tracking for this month
-    let monthlyIncomeTax = 0
-    let monthlyWealthTax = 0
-    let monthlyCapitalGainsTax = 0
-
-    // Apply interest to liquid assets pool (shared rate)
-    const liquidMonthlyRate = liquidInterestRate / 100 / 12
-    const liquidInterest = liquidAssetsBalance * liquidMonthlyRate
-    liquidAssetsBalance += liquidInterest
-
-    // Apply capital gains tax on liquid asset interest
+  // Capital gains tax on the liquid interest, proportional to each account's share.
+  if (liquidInterest > 0) {
     for (const account of liquidAccounts) {
-      const taxOption = resolveTaxOption(
-        account.capitalGainsTaxId,
-        profile.taxCountry,
-        'capital_gains',
-      )
+      const taxOption = resolveTaxOption(account.capitalGainsTaxId, taxCountry, 'capital_gains')
+      if (!taxOption) continue
 
-      if (taxOption && liquidInterest > 0) {
-        // Calculate the portion of interest attributable to this account
-        // (proportional to its share of total liquid assets)
-        const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
-        const accountInterest = liquidInterest * accountShare
-
-        // Calculate tax on this account's portion of interest (annualized)
-        const annualInterest = accountInterest * 12
-        const annualTax = calculateTax(annualInterest, taxOption, inflationAdjustment)
-        const monthlyTax = annualTax / 12
-
-        monthlyCapitalGainsTax += monthlyTax
-      }
+      const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
+      const accountInterest = liquidInterest * accountShare
+      const annualTax = calculateTax(accountInterest * 12, taxOption, inflationAdjustment)
+      capitalGainsTax += annualTax / 12
     }
-
-    // Apply appreciation/depreciation to each fixed asset individually
-    for (const asset of fixedAssetBalances) {
-      const monthlyRate = asset.annualInterestRate / 100 / 12
-      const valueChange = asset.balance * monthlyRate
-      asset.balance += valueChange
-
-      // Check for liquidation at start of month (after appreciation for this month)
-      if (
-        asset.resolvedLiquidationDate !== undefined &&
-        currentMonth >= asset.resolvedLiquidationDate &&
-        asset.balance > 0
-      ) {
-        // Calculate capital gains tax on liquidation
-        const taxOption = resolveTaxOption(
-          asset.capitalGainsTaxId,
-          profile.taxCountry,
-          'capital_gains',
-        )
-
-        // Calculate total gain: current value minus original cost basis
-        const totalGain = asset.balance - asset.amount
-        if (taxOption && totalGain > 0) {
-          // Calculate tax on realized gain
-          const realizedTax = calculateTax(totalGain, taxOption, inflationAdjustment)
-          monthlyCapitalGainsTax += realizedTax
-        }
-
-        // Transfer asset value to liquid assets (minus capital gains tax)
-        liquidAssetsBalance += asset.balance
-        // Set asset balance to 0 for rest of projection
-        asset.balance = 0
-      }
-    }
-
-    // Deduct capital gains tax from liquid assets
-    liquidAssetsBalance -= monthlyCapitalGainsTax
-
-    // Apply wealth tax on all assets
-    // Wealth tax on liquid assets
-    for (const account of liquidAccounts) {
-      const taxOption = resolveTaxOption(account.wealthTaxId, profile.taxCountry, 'wealth')
-
-      if (taxOption) {
-        // Calculate the portion of liquid assets attributable to this account
-        const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
-        const accountValue = liquidAssetsBalance * accountShare
-
-        // Calculate wealth tax (monthly)
-        const annualTax = calculateTax(accountValue, taxOption, inflationAdjustment)
-        const monthlyTax = annualTax / 12
-
-        monthlyWealthTax += monthlyTax
-      }
-    }
-
-    // Wealth tax on fixed assets
-    for (const asset of fixedAssetBalances) {
-      const taxOption = resolveTaxOption(asset.wealthTaxId, profile.taxCountry, 'wealth')
-
-      if (taxOption && asset.balance > 0) {
-        // Calculate wealth tax (monthly)
-        const annualTax = calculateTax(asset.balance, taxOption, inflationAdjustment)
-        const monthlyTax = annualTax / 12
-
-        monthlyWealthTax += monthlyTax
-      }
-    }
-
-    // Deduct wealth tax from liquid assets
-    liquidAssetsBalance -= monthlyWealthTax
-
-    // Process debt payments (after interest on liquid assets)
-    let monthlyDebtInterest = 0
-    let monthlyDebtPrincipal = 0
-
-    for (const debtTracking of debtBalances) {
-      // Skip if debt is already paid off (balance is zero or less)
-      if (debtTracking.balance <= 0) {
-        debtTracking.balance = 0
-        debtTracking.isPaidOff = true
-        continue
-      }
-
-      // Skip if debt is marked as paid off but still has a remaining balance (e.g., finalBalance > 0)
-      if (debtTracking.isPaidOff) {
-        continue
-      }
-
-      const debt = debtTracking.debt
-
-      // Check if we've reached or passed the end month - trigger final payment
-      if (debtTracking.resolvedEndDate !== undefined) {
-        // If current month is at or after end month, trigger final payment
-        if (currentMonth >= debtTracking.resolvedEndDate) {
-          // Use the debt's calculateMonthlyPayment with monthsRemaining=1 to get final payment
-          const payment = debt.calculateMonthlyPayment(debtTracking.balance, 1)
-
-          // Check if sufficient liquid assets to make payment
-          if (liquidAssetsBalance >= payment.totalPayment) {
-            liquidAssetsBalance -= payment.totalPayment
-            debtTracking.balance -= payment.principal
-            monthlyDebtInterest += payment.interest
-            monthlyDebtPrincipal += payment.principal
-
-            // Ensure balance doesn't go below finalBalance
-            debtTracking.balance = Math.max(debtTracking.balance, debt.finalBalance ?? 0)
-
-            // Mark as paid off only if balance is zero
-            if (debtTracking.balance <= 0) {
-              debtTracking.balance = 0
-              debtTracking.isPaidOff = true
-            }
-          }
-          continue
-        }
-      }
-
-      // Check if repayment is active at this month
-      if (
-        !debt.isRepaymentActive(
-          currentMonth,
-          debtTracking.resolvedStartDate,
-          debtTracking.resolvedRepaymentStartDate,
-          debtTracking.resolvedEndDate,
-        )
-      ) {
-        continue
-      }
-
-      // Calculate months remaining until end month (if specified)
-      let monthsRemaining: number | undefined
-      if (debtTracking.resolvedEndDate !== undefined) {
-        const monthsDiff = monthDiff(debtTracking.resolvedEndDate, currentMonth)
-        monthsRemaining = Math.max(1, monthsDiff)
-      }
-
-      // Delegate payment calculation to the debt model
-      const payment = debt.calculateMonthlyPayment(debtTracking.balance, monthsRemaining)
-
-      // Check if sufficient liquid assets to make payment
-      if (liquidAssetsBalance >= payment.totalPayment) {
-        liquidAssetsBalance -= payment.totalPayment
-        debtTracking.balance -= payment.principal
-        monthlyDebtInterest += payment.interest
-        monthlyDebtPrincipal += payment.principal
-
-        // Mark as paid off if balance is zero or negative
-        if (debtTracking.balance <= 0) {
-          debtTracking.balance = 0
-          debtTracking.isPaidOff = true
-        }
-      }
-      // If insufficient funds, skip payment (debt remains)
-    }
-
-    // Calculate income and expenses for this month
-    let monthlyIncome = 0
-    let monthlyExpenses = 0
-
-    // Calculate years elapsed since projection start for inflation adjustment
-    const yearsElapsed = monthIndex / 12
-
-    for (const { cashFlow, resolvedStartDate, resolvedEndDate } of cashFlowTracking) {
-      // Handle one-time transactions differently from recurring ones
-      const shouldApply = cashFlow.isOneTime
-        ? currentMonth === resolvedStartDate // One-time: only on exact date
-        : isMonthInRange(currentMonth, resolvedStartDate, resolvedEndDate) // Recurring: within date range
-
-      if (shouldApply) {
-        // Get the monthly amount (getter handles frequency conversion)
-        let amount = cashFlow.monthlyAmount
-
-        // Apply inflation adjustment if enabled for this cash flow
-        if (cashFlow.followsInflation && inflationRate !== undefined && inflationRate !== 0) {
-          // Compound inflation: amount × (1 + rate/100)^years
-          amount = amount * Math.pow(1 + inflationRate / 100, yearsElapsed)
-        }
-
-        if (cashFlow.type === 'income') {
-          monthlyIncome += amount
-
-          // Calculate income tax (skip if 'after-tax')
-          if (cashFlow.incomeTaxId !== 'after-tax') {
-            const taxOption = resolveTaxOption(cashFlow.incomeTaxId, profile.taxCountry, 'income')
-
-            if (taxOption) {
-              // Calculate monthly income tax (using annualized income for brackets)
-              const tax = calculateMonthlyIncomeTax(amount, taxOption, inflationAdjustment)
-              monthlyIncomeTax += tax
-            }
-          }
-        } else {
-          monthlyExpenses += amount
-        }
-      }
-    }
-
-    // Deduct income tax from liquid assets
-    liquidAssetsBalance -= monthlyIncomeTax
-
-    // All cash flows interact with liquid assets only
-    const netCashFlow = monthlyIncome - monthlyExpenses
-    liquidAssetsBalance += netCashFlow
-
-    // Calculate totals
-    const fixedAssetsTotal = fixedAssetBalances.reduce((sum, asset) => sum + asset.balance, 0)
-    const totalDebt = debtBalances.reduce((sum, d) => sum + d.balance, 0)
-    const currentBalance = liquidAssetsBalance + fixedAssetsTotal - totalDebt
-
-    monthlyProjections.push({
-      date: formatMonth(currentMonth, 'YYYY-MM'),
-      age,
-      balance: currentBalance,
-      liquidAssets: liquidAssetsBalance,
-      fixedAssets: fixedAssetsTotal,
-      totalDebt,
-      income: monthlyIncome,
-      expenses: monthlyExpenses,
-      debtInterestPaid: monthlyDebtInterest,
-      debtPrincipalPaid: monthlyDebtPrincipal,
-      incomeTaxPaid: monthlyIncomeTax,
-      wealthTaxPaid: monthlyWealthTax,
-      capitalGainsTaxPaid: monthlyCapitalGainsTax,
-      totalTaxPaid: monthlyIncomeTax + monthlyWealthTax + monthlyCapitalGainsTax,
-    })
   }
 
-  // Aggregate into annual summaries
+  // Appreciate each fixed asset and trigger liquidation when due.
+  for (const asset of state.fixedAssets) {
+    const monthlyRate = asset.annualInterestRate / 100 / 12
+    asset.balance += asset.balance * monthlyRate
+
+    const due =
+      asset.resolvedLiquidationDate !== undefined &&
+      currentMonth >= asset.resolvedLiquidationDate &&
+      asset.balance > 0
+    if (!due) continue
+
+    const taxOption = resolveTaxOption(asset.capitalGainsTaxId, taxCountry, 'capital_gains')
+    const totalGain = asset.balance - asset.amount
+    if (taxOption && totalGain > 0) {
+      capitalGainsTax += calculateTax(totalGain, taxOption, inflationAdjustment)
+    }
+
+    // Transfer the liquidated value into the liquid pool.
+    state.liquidBalance += asset.balance
+    asset.balance = 0
+  }
+
+  // Deduct capital gains tax from liquid assets.
+  state.liquidBalance -= capitalGainsTax
+
+  // Wealth tax on liquid assets (proportional share of the current pool).
+  for (const account of liquidAccounts) {
+    const taxOption = resolveTaxOption(account.wealthTaxId, taxCountry, 'wealth')
+    if (!taxOption) continue
+
+    const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
+    const accountValue = state.liquidBalance * accountShare
+    wealthTax += calculateTax(accountValue, taxOption, inflationAdjustment) / 12
+  }
+
+  // Wealth tax on fixed assets.
+  for (const asset of state.fixedAssets) {
+    if (asset.balance <= 0) continue
+    const taxOption = resolveTaxOption(asset.wealthTaxId, taxCountry, 'wealth')
+    if (!taxOption) continue
+    wealthTax += calculateTax(asset.balance, taxOption, inflationAdjustment) / 12
+  }
+
+  state.liquidBalance -= wealthTax
+  return { capitalGainsTax, wealthTax }
+}
+
+/**
+ * Process debt payments for the month, deducting from the liquid balance.
+ */
+function processDebtPayments(
+  state: { liquidBalance: number; debts: DebtTracking[] },
+  currentMonth: Month,
+): { debtInterest: number; debtPrincipal: number } {
+  let debtInterest = 0
+  let debtPrincipal = 0
+
+  for (const tracking of state.debts) {
+    // A zero balance means the debt is fully settled.
+    if (tracking.balance <= 0) {
+      tracking.balance = 0
+      tracking.isPaidOff = true
+      continue
+    }
+    if (tracking.isPaidOff) continue
+
+    const debt = tracking.debt
+
+    // At or after the end date: make the final balloon payment.
+    if (tracking.resolvedEndDate !== undefined && currentMonth >= tracking.resolvedEndDate) {
+      const payment = debt.calculateMonthlyPayment(tracking.balance, 1)
+      if (state.liquidBalance >= payment.totalPayment) {
+        state.liquidBalance -= payment.totalPayment
+        tracking.balance -= payment.principal
+        debtInterest += payment.interest
+        debtPrincipal += payment.principal
+        tracking.balance = Math.max(tracking.balance, debt.finalBalance ?? 0)
+        if (tracking.balance <= 0) {
+          tracking.balance = 0
+          tracking.isPaidOff = true
+        }
+      }
+      continue
+    }
+
+    if (
+      !debt.isRepaymentActive(
+        currentMonth,
+        tracking.resolvedStartDate,
+        tracking.resolvedRepaymentStartDate,
+        tracking.resolvedEndDate,
+      )
+    ) {
+      continue
+    }
+
+    const monthsRemaining =
+      tracking.resolvedEndDate !== undefined
+        ? Math.max(1, monthDiff(tracking.resolvedEndDate, currentMonth))
+        : undefined
+
+    const payment = debt.calculateMonthlyPayment(tracking.balance, monthsRemaining)
+    // Skip when there are not enough liquid assets to cover the payment.
+    if (state.liquidBalance < payment.totalPayment) continue
+
+    state.liquidBalance -= payment.totalPayment
+    tracking.balance -= payment.principal
+    debtInterest += payment.interest
+    debtPrincipal += payment.principal
+    if (tracking.balance <= 0) {
+      tracking.balance = 0
+      tracking.isPaidOff = true
+    }
+  }
+
+  return { debtInterest, debtPrincipal }
+}
+
+/**
+ * Apply recurring and one-time cash flows for the month.
+ *
+ * Returns income, expenses and income tax. Income tax is deducted from the
+ * liquid balance here; the net cash flow is left for the caller to apply.
+ */
+function processCashFlows(
+  state: { liquidBalance: number },
+  cashFlowTracking: CashFlowTracking[],
+  taxCountry: string | undefined,
+  inflationRate: number | undefined,
+  currentMonth: Month,
+  yearsElapsed: number,
+  inflationAdjustment: InflationAdjustment,
+): { income: number; expenses: number; incomeTax: number } {
+  let income = 0
+  let expenses = 0
+  let incomeTax = 0
+
+  for (const { cashFlow, resolvedStartDate, resolvedEndDate } of cashFlowTracking) {
+    const shouldApply = cashFlow.isOneTime
+      ? currentMonth === resolvedStartDate // One-time: only on exact date
+      : isMonthInRange(currentMonth, resolvedStartDate, resolvedEndDate) // Recurring: within range
+    if (!shouldApply) continue
+
+    // monthlyAmount converts the stored amount to a monthly figure.
+    let amount = cashFlow.monthlyAmount
+    if (cashFlow.followsInflation && inflationRate && inflationRate !== 0) {
+      amount = amount * Math.pow(1 + inflationRate / 100, yearsElapsed)
+    }
+
+    if (cashFlow.type === 'income') {
+      income += amount
+      if (cashFlow.incomeTaxId !== 'after-tax') {
+        const taxOption = resolveTaxOption(cashFlow.incomeTaxId, taxCountry, 'income')
+        if (taxOption) {
+          incomeTax += calculateMonthlyIncomeTax(amount, taxOption, inflationAdjustment)
+        }
+      }
+    } else {
+      expenses += amount
+    }
+  }
+
+  state.liquidBalance -= incomeTax
+  return { income, expenses, incomeTax }
+}
+
+/**
+ * Group monthly projections by calendar year and build annual summaries.
+ */
+function buildAnnualSummaries(
+  monthlyProjections: MonthlyProjection[],
+  totalCapital: number,
+  startingLiquidAssets: number,
+  startingFixedAssets: number,
+  initialTotalDebt: number,
+): AnnualSummary[] {
   const annualSummaries: AnnualSummary[] = []
 
   // Group by year, recording the index of the first projection for each year.
@@ -452,7 +403,6 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     group.projections.push(projection)
   })
 
-  // Create annual summaries
   for (const [year, { startIndex, projections }] of Array.from(yearGroups.entries()).sort(
     (a, b) => a[0] - b[0],
   )) {
@@ -460,62 +410,159 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     const firstProjection = projections[0]
     const lastProjection = projections[projections.length - 1]
-
     if (!firstProjection || !lastProjection) continue
 
     // Starting balances come from the projection of the previous month.
     const previousProjection = startIndex > 0 ? monthlyProjections[startIndex - 1] : null
 
-    const startingBalance = previousProjection ? previousProjection.balance : totalCapital
-    const startingLiquidAssets = previousProjection
-      ? previousProjection.liquidAssets
-      : liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
-    const startingFixedAssets = previousProjection
-      ? previousProjection.fixedAssets
-      : fixedAccounts.reduce((sum, account) => sum + account.amount, 0)
-    const startingTotalDebt = previousProjection ? previousProjection.totalDebt : initialTotalDebt
-
-    const totalIncome = projections.reduce((sum, p) => sum + p.income, 0)
-    const totalExpenses = projections.reduce((sum, p) => sum + p.expenses, 0)
-    const totalDebtInterestPaid = projections.reduce((sum, p) => sum + p.debtInterestPaid, 0)
-    const totalDebtPrincipalPaid = projections.reduce((sum, p) => sum + p.debtPrincipalPaid, 0)
-    const totalIncomeTaxPaid = projections.reduce((sum, p) => sum + p.incomeTaxPaid, 0)
-    const totalWealthTaxPaid = projections.reduce((sum, p) => sum + p.wealthTaxPaid, 0)
-    const totalCapitalGainsTaxPaid = projections.reduce((sum, p) => sum + p.capitalGainsTaxPaid, 0)
-    const totalTaxPaid = projections.reduce((sum, p) => sum + p.totalTaxPaid, 0)
-    const endingBalance = lastProjection.balance
-    const endingLiquidAssets = lastProjection.liquidAssets
-    const endingFixedAssets = lastProjection.fixedAssets
-    const endingTotalDebt = lastProjection.totalDebt
+    const sum = (selector: (p: MonthlyProjection) => number) =>
+      projections.reduce((acc, p) => acc + selector(p), 0)
 
     annualSummaries.push({
       year,
       age: firstProjection.age,
-      startingBalance,
-      startingLiquidAssets,
-      startingFixedAssets,
-      startingTotalDebt,
-      totalIncome,
-      totalExpenses,
-      totalDebtInterestPaid,
-      totalDebtPrincipalPaid,
-      totalIncomeTaxPaid,
-      totalWealthTaxPaid,
-      totalCapitalGainsTaxPaid,
-      totalTaxPaid,
-      endingBalance,
-      endingLiquidAssets,
-      endingFixedAssets,
-      endingTotalDebt,
+      startingBalance: previousProjection ? previousProjection.balance : totalCapital,
+      startingLiquidAssets: previousProjection
+        ? previousProjection.liquidAssets
+        : startingLiquidAssets,
+      startingFixedAssets: previousProjection
+        ? previousProjection.fixedAssets
+        : startingFixedAssets,
+      startingTotalDebt: previousProjection ? previousProjection.totalDebt : initialTotalDebt,
+      totalIncome: sum((p) => p.income),
+      totalExpenses: sum((p) => p.expenses),
+      totalDebtInterestPaid: sum((p) => p.debtInterestPaid),
+      totalDebtPrincipalPaid: sum((p) => p.debtPrincipalPaid),
+      totalIncomeTaxPaid: sum((p) => p.incomeTaxPaid),
+      totalWealthTaxPaid: sum((p) => p.wealthTaxPaid),
+      totalCapitalGainsTaxPaid: sum((p) => p.capitalGainsTaxPaid),
+      totalTaxPaid: sum((p) => p.totalTaxPaid),
+      endingBalance: lastProjection.balance,
+      endingLiquidAssets: lastProjection.liquidAssets,
+      endingFixedAssets: lastProjection.fixedAssets,
+      endingTotalDebt: lastProjection.totalDebt,
     })
   }
 
-  const endTime = performance.now()
-  const calculationTimeMs = endTime - startTime
+  return annualSummaries
+}
+
+/**
+ * Calculate financial projections from current date to the latest life event or age 90
+ */
+export function calculateProjections(profile: UserProfile): ProjectionResult {
+  const startTime = performance.now()
+
+  const { birthDate, capitalAccounts, liquidAssetsInterestRate, inflationRate } = profile
+  const cashFlows = profile.cashFlows || []
+  const debts = profile.debts || []
+
+  const liquidAccounts = capitalAccounts.filter(
+    (account): account is LiquidAsset => account instanceof LiquidAsset,
+  )
+  const fixedAccounts = capitalAccounts.filter(
+    (account): account is FixedAsset => account instanceof FixedAsset,
+  )
+
+  const liquidInterestRate = liquidAssetsInterestRate ?? 5
+  const totalLiquidPrincipal = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
+
+  const projectionStart = getCurrentMonth()
+  const fixedAssetTracking = buildFixedAssetTracking(fixedAccounts, profile)
+  const { tracking: debtTracking, initialTotalDebt } = buildDebtTracking(
+    debts,
+    profile,
+    projectionStart,
+  )
+  const cashFlowTracking = buildCashFlowTracking(cashFlows, profile)
+
+  // Mutable projection state shared across the monthly steps.
+  const state = {
+    liquidBalance: totalLiquidPrincipal,
+    fixedAssets: fixedAssetTracking,
+    debts: debtTracking,
+  }
+
+  const totalCapital =
+    state.liquidBalance +
+    fixedAssetTracking.reduce((sum, asset) => sum + asset.balance, 0) -
+    initialTotalDebt
+
+  // End month: December of the year of the latest life event or fallback age 90.
+  const simulationEndAge = getSimulationEndAge(profile)
+  const endAgeMonth = addMonths(birthDate, simulationEndAge * 12)
+  const endYear = Math.floor(endAgeMonth / 12) + 1900
+  const endMonth = (endYear - 1900) * 12 + 11 // December = month index 11
+  const monthsFromNow = monthDiff(endMonth, projectionStart) + 1
+
+  const monthlyProjections: MonthlyProjection[] = []
+
+  for (let monthIndex = 0; monthIndex < monthsFromNow; monthIndex++) {
+    const currentMonth = addMonths(projectionStart, monthIndex)
+    const age = profile.getAgeAt(currentMonth)
+
+    const inflationAdjustment: InflationAdjustment = {
+      inflationRate: inflationRate ?? 0,
+      monthsSinceReference: monthIndex,
+    }
+
+    const { capitalGainsTax, wealthTax } = applyAssetGrowthAndTaxes(
+      state,
+      liquidAccounts,
+      totalLiquidPrincipal,
+      liquidInterestRate,
+      profile.taxCountry,
+      currentMonth,
+      inflationAdjustment,
+    )
+
+    const { debtInterest, debtPrincipal } = processDebtPayments(state, currentMonth)
+
+    const { income, expenses, incomeTax } = processCashFlows(
+      state,
+      cashFlowTracking,
+      profile.taxCountry,
+      inflationRate,
+      currentMonth,
+      monthIndex / 12,
+      inflationAdjustment,
+    )
+
+    // Apply net cash flow to the liquid pool.
+    state.liquidBalance += income - expenses
+
+    const fixedAssetsTotal = state.fixedAssets.reduce((sum, asset) => sum + asset.balance, 0)
+    const totalDebt = state.debts.reduce((sum, d) => sum + d.balance, 0)
+
+    monthlyProjections.push({
+      date: formatMonth(currentMonth, 'YYYY-MM'),
+      age,
+      balance: state.liquidBalance + fixedAssetsTotal - totalDebt,
+      liquidAssets: state.liquidBalance,
+      fixedAssets: fixedAssetsTotal,
+      totalDebt,
+      income,
+      expenses,
+      debtInterestPaid: debtInterest,
+      debtPrincipalPaid: debtPrincipal,
+      incomeTaxPaid: incomeTax,
+      wealthTaxPaid: wealthTax,
+      capitalGainsTaxPaid: capitalGainsTax,
+      totalTaxPaid: incomeTax + wealthTax + capitalGainsTax,
+    })
+  }
+
+  const annualSummaries = buildAnnualSummaries(
+    monthlyProjections,
+    totalCapital,
+    totalLiquidPrincipal,
+    fixedAccounts.reduce((sum, account) => sum + account.amount, 0),
+    initialTotalDebt,
+  )
 
   return {
     monthlyProjections,
     annualSummaries,
-    calculationTimeMs,
+    calculationTimeMs: performance.now() - startTime,
   }
 }
