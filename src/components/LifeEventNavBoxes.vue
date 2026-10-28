@@ -47,7 +47,12 @@ function selectEvent(event: LifeEventNav) {
 
 <template>
   <div v-if="eventNavs.length > 0" class="life-event-navs">
-    <h3>NAV at life events</h3>
+    <div class="navs-header">
+      <h2>Your net worth at</h2>
+      <span class="navs-hint">{{
+        showInflationAdjusted ? "In today's money" : 'In future money'
+      }}</span>
+    </div>
     <div class="nav-boxes">
       <button
         v-for="event in eventNavs"
@@ -78,18 +83,32 @@ function selectEvent(event: LifeEventNav) {
 
 <style scoped lang="scss">
 .life-event-navs {
-  margin-bottom: $spacing-xl;
+  margin-bottom: $spacing-3xl;
 }
 
-h3 {
-  margin: 0 0 $spacing-base;
-  font-size: $font-md;
-  color: $text-primary;
+.navs-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: $spacing-base;
+  margin-bottom: $spacing-base;
+
+  h2 {
+    margin: 0;
+    font-size: $font-lg;
+    color: $text-primary;
+    white-space: nowrap;
+  }
+}
+
+.navs-hint {
+  font-size: $font-sm;
+  color: $text-muted;
 }
 
 .nav-boxes {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: $spacing-base;
 }
 
@@ -97,7 +116,7 @@ h3 {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  padding: $spacing-base $spacing-lg;
+  padding: $spacing-lg $spacing-xl;
   border: 1px solid $border-light;
   border-left: 4px solid $primary;
   border-radius: $radius-md;
@@ -147,9 +166,12 @@ h3 {
 }
 
 .nav-value {
-  font-weight: $font-bold;
-  font-size: $font-base-lg;
+  font-weight: 800;
+  font-size: $font-3xl;
+  line-height: $line-height-tight;
+  font-variant-numeric: tabular-nums;
   color: $text-primary;
+  margin-top: $spacing-xs;
 }
 
 .nav-value.nav-null {
@@ -163,23 +185,17 @@ h3 {
 }
 @include mobile {
   .nav-boxes {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: $spacing-sm;
   }
 
   .nav-box {
-    min-width: 120px;
+    min-width: 0;
     padding: $spacing-base;
   }
-}
 
-@include mobile-small {
-  .nav-boxes {
-    flex-direction: column;
-  }
-
-  .nav-box {
-    min-width: 0;
-    width: 100%;
+  .nav-value {
+    font-size: $font-xl-2;
   }
 }
 </style>

@@ -41,6 +41,8 @@ function handleWizardClose() {
 
 <template>
   <div class="dashboard">
+    <LifeEventNavBoxes v-if="store.hasData" :show-inflation-adjusted="showInflationAdjusted" />
+
     <section class="birth-date-section">
       <BasicInfoSummary
         :current-age="store.currentAge"
@@ -109,7 +111,6 @@ function handleWizardClose() {
       <div v-if="store.projectionResult" class="projections-content">
         <div class="scrubber-container">
           <TimelineScrubber />
-          <LifeEventNavBoxes :show-inflation-adjusted="showInflationAdjusted" />
         </div>
 
         <div class="chart-container">

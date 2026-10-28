@@ -21,7 +21,7 @@ function handleAddItem(typeId: string, category: ItemTypeDefinition['category'])
       v-for="itemType in ITEM_TYPES"
       :key="itemType.id"
       class="action-button"
-      :style="{ borderColor: itemType.color, color: itemType.color }"
+      :style="{ borderLeftColor: itemType.color }"
       @click="handleAddItem(itemType.id, itemType.category)"
     >
       <span class="button-label">+ {{ getItemTypeButtonLabel(itemType) }}</span>
@@ -29,38 +29,33 @@ function handleAddItem(typeId: string, category: ItemTypeDefinition['category'])
   </div>
 </template>
 
-<style scoped>
+<style scoped lang="scss">
 .action-buttons {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
   gap: 0.75rem;
   padding: 1rem 0;
-  flex-wrap: wrap;
 }
 
+// Neutral buttons; the type color shows only as a left border, like the item cards.
 .action-button {
-  flex: 1;
-  min-width: 140px;
   display: flex;
   align-items: center;
-  justify-content: center;
   padding: 0.75rem 1rem;
-  background: white;
-  border: 2px solid;
-  border-radius: 8px;
+  background: $bg-card;
+  color: $text-primary;
+  border: 1px solid $border-light;
+  border-left: 4px solid;
+  border-radius: $radius-md;
   font-size: 0.9375rem;
-  font-weight: 600;
+  font-weight: $font-medium;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: $transition-base;
 }
 
 .action-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
-
-.action-button:active {
-  transform: translateY(0);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-color: $border-medium;
+  box-shadow: $shadow-sm;
 }
 
 .button-label {
@@ -72,12 +67,10 @@ function handleAddItem(typeId: string, category: ItemTypeDefinition['category'])
   .action-buttons {
     gap: 0.5rem;
     padding: 0.75rem 0;
-    display: grid;
     grid-template-columns: repeat(2, 1fr);
   }
 
   .action-button {
-    min-width: 0;
     padding: 0.875rem 0.75rem;
     min-height: 44px; /* Touch target */
   }
