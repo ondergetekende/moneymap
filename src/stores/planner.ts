@@ -3,7 +3,7 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import {
   UserProfile,
   LiquidAsset,
@@ -457,6 +457,9 @@ export const usePlannerStore = defineStore('planner', () => {
     storageService.saveProfile(userProfile.value)
     storageService.saveWizardCompleted(wizardCompleted.value)
   }
+
+  // Save on every change to persisted state.
+  watch([userProfile, wizardCompleted], saveToStorage, { deep: true })
 
   function loadFromStorage() {
     const profile = storageService.loadProfile()

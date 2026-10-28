@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch, computed } from 'vue'
+import { onMounted, computed } from 'vue'
 import { usePlannerStore } from './stores/planner'
 import { useRoute } from 'vue-router'
 
@@ -16,21 +16,6 @@ onMounted(() => {
   // Load saved data on startup
   store.loadFromStorage()
 })
-
-// Auto-save when data changes
-watch(
-  () => [
-    store.capitalAccounts,
-    store.cashFlows,
-    store.birthDate,
-    store.liquidAssetsInterestRate,
-    store.inflationRate,
-  ],
-  () => {
-    store.saveToStorage()
-  },
-  { deep: true },
-)
 </script>
 
 <template>

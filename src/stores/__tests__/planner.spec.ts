@@ -1,5 +1,6 @@
 import { setActivePinia, createPinia } from 'pinia'
 import { describe, beforeEach, it, expect, vi } from 'vitest'
+import { nextTick } from 'vue'
 import { usePlannerStore } from '../planner'
 import { Debt } from '@/models'
 import { storageService } from '@/services/storage'
@@ -252,6 +253,33 @@ describe('Planner Store', () => {
       store.saveToStorage()
       expect(storageService.saveProfile).toHaveBeenCalled()
       expect(storageService.saveWizardCompleted).toHaveBeenCalled()
+    })
+
+    it('auto-saves when only the tax country changes', async () => {
+      const store = usePlannerStore()
+      store.setTaxCountry('NL')
+      await nextTick()
+      expect(storageService.saveProfile).toHaveBeenCalledWith(
+        expect.objectContaining({ taxCountry: 'NL' }),
+      )
+    })
+
+    it('auto-saves when only a life event is added', async () => {
+      const store = usePlannerStore()
+      store.addLifeEvent({ name: 'House purchase' })
+      await nextTick()
+      expect(storageService.saveProfile).toHaveBeenCalledWith(
+        expect.objectContaining({
+          lifeEvents: [expect.objectContaining({ name: 'House purchase' })],
+        }),
+      )
+    })
+
+    it('auto-saves when the wizard is completed', async () => {
+      const store = usePlannerStore()
+      store.completeWizard()
+      await nextTick()
+      expect(storageService.saveWizardCompleted).toHaveBeenCalledWith(true)
     })
 
     it('should clear all data', () => {
