@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useLocalStorage } from '@vueuse/core'
 import { usePlannerStore } from '@/stores/planner'
 import BasicInfoSummary from '@/components/BasicInfoSummary.vue'
@@ -10,13 +10,23 @@ import NetWorthChart from '@/components/NetWorthChart.vue'
 import AnnualBreakdownTable from '@/components/AnnualBreakdownTable.vue'
 import TimelineScrubber from '@/components/TimelineScrubber.vue'
 import LifeEventNavBoxes from '@/components/LifeEventNavBoxes.vue'
+import ScenarioPlans from '@/components/ScenarioPlans.vue'
 import { formatCurrency } from '@/utils/format'
+import type { AnnualSummary } from '@/models'
 
 const store = usePlannerStore()
+const comparison = ref<{
+  name: string
+  annualSummaries: AnnualSummary[]
+  inflationRate: number
+} | null>(null)
 
 // Toggle for showing inflation-adjusted values (persisted in localStorage)
 const showInflationAdjusted = useLocalStorage('showInflationAdjusted', true)
 
+const activeName = computed(
+  () => store.scenarios.find((plan) => plan.id === store.activeScenarioId)?.name ?? 'Current plan',
+)
 // Track which step to open the wizard to
 const wizardInitialStep = ref<number | undefined>(undefined)
 
@@ -41,6 +51,7 @@ function handleWizardClose() {
 
 <template>
   <div class="dashboard">
+    <ScenarioPlans @comparison-change="comparison = $event" />
     <LifeEventNavBoxes v-if="store.hasData" :show-inflation-adjusted="showInflationAdjusted" />
 
     <section class="birth-date-section">
@@ -94,7 +105,7 @@ function handleWizardClose() {
       <ActionButtons />
     </section>
 
-    <section v-if="store.hasData" class="projections-section">
+    <section v-if="store.hasData || comparison" class="projections-section">
       <div class="projections-header">
         <h2>Financial Projections</h2>
         <div class="inflation-toggle">
@@ -120,6 +131,7 @@ function handleWizardClose() {
             :show-inflation-adjusted="showInflationAdjusted"
             :inflation-rate="store.inflationRate"
             :selected-month-offset="store.selectedMonthOffset"
+            :comparison="comparison"
           />
         </div>
 
@@ -129,6 +141,8 @@ function handleWizardClose() {
             :show-inflation-adjusted="showInflationAdjusted"
             :inflation-rate="store.inflationRate"
             :selected-month-offset="store.selectedMonthOffset"
+            :current-plan-name="activeName"
+            :comparison="comparison"
           />
         </div>
       </div>

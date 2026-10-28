@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import StaticPage from '@/components/StaticPage.vue'
 import NetWorthChart from '@/components/NetWorthChart.vue'
+import NewPlanDialog from '@/components/NewPlanDialog.vue'
+import { usePlannerStore } from '@/stores/planner'
 import { createSampleProfile } from '@/services/sampleData'
 import { calculateProjections } from '@/services/calculator'
 import { resolveLifeEventNavs } from '@/utils/timeline'
@@ -9,9 +12,21 @@ import { getCurrentMonth } from '@/types/month'
 import { formatCurrency, adjustForInflation } from '@/utils/format'
 
 const router = useRouter()
+const store = usePlannerStore()
+const planError = ref('')
 
 function openPlanner() {
   router.push('/app')
+}
+
+function openPlan(id: string) {
+  planError.value = ''
+  try {
+    store.switchScenario(id)
+    openPlanner()
+  } catch (error) {
+    planError.value = error instanceof Error ? error.message : 'Could not open the plan.'
+  }
 }
 
 // Decorative compound-growth curve, in percent of the tallest bar.
@@ -42,13 +57,33 @@ const bars = Array.from({ length: 12 }, (_, i) => Math.round(100 * Math.pow(1.17
       <p class="hero-lead">
         Plan your financial future, one year at a time. Free, private, and no account needed.
       </p>
-      <button class="button-primary hero-cta" type="button" @click="openPlanner">
-        Open the planner
-      </button>
+      <div class="hero-actions">
+        <button
+          v-if="store.scenarios.length === 1"
+          class="button-primary hero-cta"
+          type="button"
+          @click="openPlanner"
+        >
+          Open your plan
+        </button>
+        <NewPlanDialog v-if="store.scenarios.length === 0" @created="openPlanner" />
+      </div>
     </div>
     <div class="hero-bars" aria-hidden="true">
       <span v-for="(h, i) in bars" :key="i" :style="{ height: h + '%' }" />
     </div>
+  </section>
+
+  <section v-if="store.scenarios.length > 1" class="saved-plans">
+    <h2>Your plans</h2>
+    <p v-if="planError" role="alert">{{ planError }}</p>
+    <ul>
+      <li v-for="plan in store.scenarios" :key="plan.id">
+        <button type="button" class="btn-secondary" @click="openPlan(plan.id)">
+          {{ plan.name }}
+        </button>
+      </li>
+    </ul>
   </section>
 
   <section v-if="retirementValue" class="example">
@@ -111,15 +146,28 @@ const bars = Array.from({ length: 12 }, (_, i) => Math.round(100 * Math.pow(1.17
       </a>
     </p>
 
-    <div class="end-cta">
+    <div v-if="store.scenarios.length === 1" class="end-cta">
       <button class="button-primary hero-cta" type="button" @click="openPlanner">
-        Open the planner
+        Open your plan
       </button>
     </div>
   </StaticPage>
 </template>
 
 <style lang="scss" scoped>
+.saved-plans {
+  max-width: 960px;
+  margin: $spacing-4xl auto 0;
+
+  ul {
+    display: flex;
+    flex-wrap: wrap;
+    gap: $spacing-base;
+    list-style: none;
+    margin: $spacing-base 0;
+  }
+}
+
 // Full-bleed band: cancel the padding of <main> per breakpoint.
 .hero {
   display: flex;
@@ -146,6 +194,18 @@ const bars = Array.from({ length: 12 }, (_, i) => Math.round(100 * Math.pow(1.17
 
 .hero-text {
   flex: 1 1 0;
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $spacing-base;
+
+  @include mobile {
+    flex-direction: column;
+    align-items: stretch;
+  }
 }
 
 .hero-brand {
@@ -190,7 +250,8 @@ const bars = Array.from({ length: 12 }, (_, i) => Math.round(100 * Math.pow(1.17
   }
 }
 
-.hero-cta {
+.hero-cta,
+.hero-actions > :deep(.btn-primary) {
   font-size: $font-md;
   padding: $spacing-lg $spacing-3xl;
   border-radius: $radius-lg;

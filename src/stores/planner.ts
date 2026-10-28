@@ -18,17 +18,20 @@ import {
   type CashFlowFrequency,
   type LifeEvent,
 } from '@/models'
-import { storageService } from '@/services/storage'
+import { storageService, type StoredScenario } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
 import {
   createDefaultBirthDate,
   createDefaultItems,
   createDefaultLifeEvents,
+  createSampleProfile,
   DEFAULT_INFLATION_RATE,
   DEFAULT_INTEREST_RATE,
 } from '@/services/sampleData'
 import type { Month, DateSpecification } from '@/types/month'
 import { createAbsoluteDate } from '@/types/month'
+
+export type ScenarioSource = { type: 'empty' | 'template' } | { type: 'existing'; id: string }
 
 export const usePlannerStore = defineStore('planner', () => {
   // State
@@ -65,6 +68,123 @@ export const usePlannerStore = defineStore('planner', () => {
       primaryAccountId.value,
     )
   })
+  const activeScenarioId = ref<string>(crypto.randomUUID())
+  const scenarios = ref<StoredScenario[]>([])
+  const saveError = ref('')
+  let storageAvailable = true
+  let legacyDataLoaded = false
+
+  function currentScenario(): StoredScenario {
+    const name = scenarios.value.find((scenario) => scenario.id === activeScenarioId.value)?.name
+    return {
+      id: activeScenarioId.value,
+      name: name ?? 'Current plan',
+      profile: JSON.parse(JSON.stringify(userProfile.value.toJSON())),
+      wizardCompleted: wizardCompleted.value,
+    }
+  }
+
+  function plansWithCurrent(): StoredScenario[] {
+    const current = currentScenario()
+    const others = scenarios.value.filter((scenario) => scenario.id !== current.id)
+    return scenarios.value.some((scenario) => scenario.id === current.id)
+      ? scenarios.value.map((scenario) => (scenario.id === current.id ? current : scenario))
+      : [...others, current]
+  }
+
+  function applyScenario(scenario: StoredScenario) {
+    const profile = UserProfile.fromJSON(scenario.profile)
+    birthDate.value = profile.birthDate
+    capitalAccounts.value = profile.capitalAccounts
+    cashFlows.value = profile.cashFlows
+    debts.value = profile.debts
+    liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
+    inflationRate.value = profile.inflationRate
+    taxCountry.value = profile.taxCountry
+    primaryAccountId.value = profile.primaryAccountId
+    lifeEvents.value = profile.lifeEvents
+    wizardCompleted.value = scenario.wizardCompleted
+    showWizard.value = !scenario.wizardCompleted
+    selectedMonthOffset.value = 0
+    recalculate()
+  }
+
+  function createScenario(name: string, source: ScenarioSource) {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Enter a plan name.')
+    const updated = scenarios.value.length || source.type === 'existing' ? plansWithCurrent() : []
+    let profile: Record<string, unknown>
+    let completed = true
+    if (source.type === 'existing') {
+      const original = updated.find((scenario) => scenario.id === source.id)
+      if (!original) throw new Error('Plan not found.')
+      profile = JSON.parse(JSON.stringify(original.profile))
+      completed = original.wizardCompleted
+    } else {
+      profile = (
+        source.type === 'template'
+          ? createSampleProfile()
+          : new UserProfile(
+              createDefaultBirthDate(),
+              [],
+              [],
+              DEFAULT_INTEREST_RATE,
+              [],
+              DEFAULT_INFLATION_RATE,
+            )
+      ).toJSON()
+    }
+    const created = {
+      id: crypto.randomUUID(),
+      name: trimmed,
+      profile,
+      wizardCompleted: completed,
+    }
+    updated.push(created)
+    storageService.savePlans({ activeId: created.id, scenarios: updated })
+    scenarios.value = updated
+    activeScenarioId.value = created.id
+    applyScenario(created)
+  }
+
+  function duplicateScenario(name: string) {
+    createScenario(name, { type: 'existing', id: activeScenarioId.value })
+  }
+
+  function renameScenario(name: string) {
+    const trimmed = name.trim()
+    if (!trimmed) throw new Error('Enter a plan name.')
+    const updated = plansWithCurrent().map((scenario) =>
+      scenario.id === activeScenarioId.value ? { ...scenario, name: trimmed } : scenario,
+    )
+    storageService.savePlans({ activeId: activeScenarioId.value, scenarios: updated })
+    scenarios.value = updated
+  }
+
+  function switchScenario(id: string) {
+    if (id === activeScenarioId.value) return
+    const updated = plansWithCurrent()
+    const target = updated.find((scenario) => scenario.id === id)
+    if (!target) throw new Error('Plan not found.')
+    storageService.savePlans({ activeId: id, scenarios: updated })
+    scenarios.value = updated
+    activeScenarioId.value = id
+    applyScenario(target)
+  }
+
+  function deleteScenario(id: string) {
+    const updated = plansWithCurrent()
+    if (!updated.some((scenario) => scenario.id === id)) throw new Error('Plan not found.')
+    const remaining = updated.filter((scenario) => scenario.id !== id)
+    if (remaining.length === 0) throw new Error('Keep at least one plan.')
+    const next = id === activeScenarioId.value ? remaining[0]! : undefined
+    storageService.savePlans({ activeId: next?.id ?? activeScenarioId.value, scenarios: remaining })
+    scenarios.value = remaining
+    if (next) {
+      activeScenarioId.value = next.id
+      applyScenario(next)
+    }
+  }
 
   const currentAge = computed(() => {
     return userProfile.value.getCurrentAge()
@@ -454,37 +574,62 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function saveToStorage() {
-    storageService.saveProfile(userProfile.value)
-    storageService.saveWizardCompleted(wizardCompleted.value)
+    if (!storageAvailable) return
+    const updated = plansWithCurrent()
+    storageService.savePlans({ activeId: activeScenarioId.value, scenarios: updated })
+    scenarios.value = updated
+    if (legacyDataLoaded) {
+      storageService.clearProfile()
+      storageService.clearWizardCompleted()
+      legacyDataLoaded = false
+    }
+    saveError.value = ''
   }
 
   // Save on every change to persisted state.
-  watch([userProfile, wizardCompleted], saveToStorage, { deep: true })
+  watch(
+    [userProfile, wizardCompleted],
+    () => {
+      try {
+        saveToStorage()
+      } catch (error) {
+        saveError.value = error instanceof Error ? error.message : 'Failed to save plans.'
+      }
+    },
+    { deep: true },
+  )
 
   function loadFromStorage() {
-    const profile = storageService.loadProfile()
-    if (profile) {
-      // Profile is already a UserProfile instance with proper class instances
-      birthDate.value = profile.birthDate
-      capitalAccounts.value = profile.capitalAccounts
-      cashFlows.value = profile.cashFlows
-      debts.value = profile.debts as Debt[]
-      liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
-      inflationRate.value = profile.inflationRate
-      taxCountry.value = profile.taxCountry
-      primaryAccountId.value = profile.primaryAccountId
-      lifeEvents.value = profile.lifeEvents
-      recalculate()
-
-      // Load wizard completion state
-      const wizardState = storageService.loadWizardCompleted()
-      if (wizardState !== null) {
-        wizardCompleted.value = wizardState
+    try {
+      const plans = storageService.loadPlans()
+      if (plans) {
+        const active = plans.scenarios.find((scenario) => scenario.id === plans.activeId)!
+        scenarios.value = plans.scenarios
+        activeScenarioId.value = plans.activeId
+        applyScenario(active)
+        return true
       }
-
-      return true
+      const profile = storageService.loadProfile()
+      if (!profile && storageService.hasProfile()) {
+        throw new Error('Failed to load the saved plan. Your saved data has not been changed.')
+      }
+      if (profile) {
+        legacyDataLoaded = true
+        const scenario = {
+          id: activeScenarioId.value,
+          name: 'Current plan',
+          profile: profile.toJSON(),
+          wizardCompleted: storageService.loadWizardCompleted() ?? false,
+        }
+        scenarios.value = [scenario]
+        applyScenario(scenario)
+        return true
+      }
+      return false
+    } catch (error) {
+      storageAvailable = false
+      throw error
     }
-    return false
   }
 
   function clearAll() {
@@ -501,8 +646,7 @@ export const usePlannerStore = defineStore('planner', () => {
     selectedMonthOffset.value = 0
     wizardCompleted.value = false
     showWizard.value = false
-    storageService.clearProfile()
-    storageService.clearWizardCompleted()
+    saveToStorage()
   }
 
   // Helper getters
@@ -592,6 +736,9 @@ export const usePlannerStore = defineStore('planner', () => {
     wizardCompleted,
     showWizard,
     selectedMonthOffset,
+    scenarios,
+    activeScenarioId,
+    saveError,
     // Computed
     userProfile,
     currentAge,
@@ -629,6 +776,11 @@ export const usePlannerStore = defineStore('planner', () => {
     saveToStorage,
     loadFromStorage,
     clearAll,
+    duplicateScenario,
+    createScenario,
+    renameScenario,
+    switchScenario,
+    deleteScenario,
     // Helpers
     getCapitalAccountById,
     getCashFlowById,

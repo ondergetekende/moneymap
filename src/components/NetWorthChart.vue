@@ -18,6 +18,7 @@ import {
   Tooltip,
   Legend,
   Filler,
+  type ChartData,
   type ChartOptions,
   type ChartType,
   type Plugin,
@@ -44,10 +45,20 @@ const props = defineProps<{
   showInflationAdjusted?: boolean
   inflationRate?: number
   selectedMonthOffset?: number
+  comparison?: { name: string; annualSummaries: AnnualSummary[]; inflationRate: number } | null
 }>()
 
 const adjust = (value: number, yearsFromNow: number) =>
   props.showInflationAdjusted ? adjustForInflation(value, yearsFromNow, props.inflationRate) : value
+
+const chartYears = computed(() =>
+  [
+    ...new Set([
+      ...props.annualSummaries.map((summary) => summary.year),
+      ...(props.comparison?.annualSummaries.map((summary) => summary.year) ?? []),
+    ]),
+  ].sort((a, b) => a - b),
+)
 
 // --- Timeline cursor ---
 // A reactive holder so the inline plugin always reads the latest position.
@@ -60,8 +71,7 @@ function recomputeCursorPos() {
     return
   }
   const projectionStart = getCurrentMonth()
-  const years = props.annualSummaries.map((s) => s.year)
-  const index = resolveYearIndex(projectionStart, props.selectedMonthOffset, years)
+  const index = resolveYearIndex(projectionStart, props.selectedMonthOffset, chartYears.value)
   if (index === null) {
     cursorPos.value = null
     return
@@ -74,7 +84,7 @@ function recomputeCursorPos() {
 
 // Recompute the cursor position, then trigger a redraw so the line moves.
 watch(
-  () => [props.selectedMonthOffset, props.annualSummaries.length] as const,
+  () => [props.selectedMonthOffset, chartYears.value.join(',')] as const,
   () => {
     recomputeCursorPos()
     chartRef.value?.chart?.update('none')
@@ -111,43 +121,66 @@ const cursorPlugins: Plugin<'line'>[] = [
 
 const chartData = computed(() => {
   const currentYear = props.annualSummaries[0]?.year ?? new Date().getFullYear()
-  const labels = props.annualSummaries.map((summary) => `${summary.year} (age ${summary.age})`)
-  const liquidData = props.annualSummaries.map((summary) => {
-    const yearsFromNow = summary.year - currentYear
-    return adjust(summary.endingLiquidAssets, yearsFromNow)
+  const current = new Map(props.annualSummaries.map((summary) => [summary.year, summary]))
+  const other = new Map(props.comparison?.annualSummaries.map((summary) => [summary.year, summary]))
+  const labels = chartYears.value.map((year) => {
+    const summary = current.get(year)
+    return summary ? `${year} (age ${summary.age})` : `${year}`
   })
-  // Net fixed assets = fixed assets - debt
-  const netFixedData = props.annualSummaries.map((summary) => {
-    const yearsFromNow = summary.year - currentYear
-    return adjust(summary.endingFixedAssets - summary.endingTotalDebt, yearsFromNow)
-  })
-
-  return {
-    labels,
-    datasets: [
-      {
-        label: 'Liquid Assets',
-        data: liquidData,
-        borderColor: '#42b983',
-        backgroundColor: 'rgba(66, 185, 131, 0.6)',
-        tension: 0.1,
-        fill: true,
-        stack: 'assets',
-      },
-      {
-        label: 'Net Fixed Assets',
-        data: netFixedData,
-        borderColor: '#3498db',
-        backgroundColor: 'rgba(52, 152, 219, 0.6)',
-        tension: 0.1,
-        fill: '-1', // Stack on top of previous dataset
-        stack: 'assets',
-      },
-    ],
+  const datasets: ChartData<'line'>['datasets'] = [
+    {
+      label: 'Liquid Assets',
+      data: chartYears.value.map((year) => {
+        const summary = current.get(year)
+        return summary ? adjust(summary.endingLiquidAssets, year - currentYear) : null
+      }),
+      borderColor: '#42b983',
+      backgroundColor: 'rgba(66, 185, 131, 0.6)',
+      tension: 0.1,
+      fill: true,
+      stack: 'assets',
+    },
+    {
+      label: 'Net Fixed Assets',
+      data: chartYears.value.map((year) => {
+        const summary = current.get(year)
+        return summary
+          ? adjust(summary.endingFixedAssets - summary.endingTotalDebt, year - currentYear)
+          : null
+      }),
+      borderColor: '#3498db',
+      backgroundColor: 'rgba(52, 152, 219, 0.6)',
+      tension: 0.1,
+      fill: '-1', // Stack on top of previous dataset
+      stack: 'assets',
+    },
+  ]
+  if (props.comparison) {
+    const comparison = props.comparison
+    datasets.push({
+      label: `Comparison: ${comparison.name}`,
+      data: chartYears.value.map((year) => {
+        const summary = other.get(year)
+        if (!summary) return null
+        const value =
+          summary.endingLiquidAssets + summary.endingFixedAssets - summary.endingTotalDebt
+        return props.showInflationAdjusted
+          ? adjustForInflation(value, year - currentYear, comparison.inflationRate)
+          : value
+      }),
+      borderColor: '#b45309',
+      backgroundColor: '#b45309',
+      tension: 0.1,
+      fill: false,
+      stack: 'comparison',
+      borderDash: [6, 4],
+      pointRadius: 0,
+    })
   }
+  return { labels, datasets }
 })
 
-const chartOptions: ChartOptions<'line'> = {
+const chartOptions = computed<ChartOptions<'line'>>(() => ({
   responsive: true,
   maintainAspectRatio: true,
   // ponytail: read once at render; a resize across the breakpoint keeps the old ratio until reload.
@@ -174,7 +207,9 @@ const chartOptions: ChartOptions<'line'> = {
         },
         footer: function (tooltipItems) {
           // Calculate total net worth from both liquid and fixed assets
-          const total = tooltipItems.reduce((sum, item) => sum + (item.parsed.y ?? 0), 0)
+          const currentItems = tooltipItems.filter((item) => item.datasetIndex < 2)
+          if (currentItems.length === 0) return ''
+          const total = currentItems.reduce((sum, item) => sum + (item.parsed.y ?? 0), 0)
           return `Total Net Worth: ${formatCurrency(total)}`
         },
       },
@@ -184,7 +219,7 @@ const chartOptions: ChartOptions<'line'> = {
     x: {
       title: {
         display: true,
-        text: 'Year (Age)',
+        text: props.comparison ? 'Year (current plan age)' : 'Year (Age)',
       },
       stacked: true,
     },
@@ -201,7 +236,7 @@ const chartOptions: ChartOptions<'line'> = {
       },
     },
   },
-}
+}))
 </script>
 
 <style scoped lang="scss">

@@ -1,12 +1,26 @@
 <template>
   <div class="table-container">
     <h3>Annual Breakdown</h3>
+    <p v-if="comparison" class="comparison-hint">
+      Net worth is a year-end value. Difference is {{ currentPlanName ?? 'Current plan' }} minus
+      {{ comparison.name }}.
+      {{
+        showInflationAdjusted
+          ? 'Each plan uses its own inflation rate.'
+          : 'Values are not adjusted for inflation.'
+      }}
+    </p>
     <div ref="tableWrapper" class="table-wrapper">
       <table>
         <thead>
           <tr>
             <th>Year</th>
             <th>Age</th>
+            <template v-if="comparison">
+              <th>Net worth: {{ currentPlanName ?? 'Current plan' }}</th>
+              <th>Net worth: {{ comparison.name }}</th>
+              <th>Net worth difference</th>
+            </template>
             <th>Starting Balance</th>
             <th>Starting Debt</th>
             <th>Total Income</th>
@@ -23,34 +37,46 @@
         </thead>
         <tbody>
           <tr
-            v-for="row in rows"
+            v-for="row in displayRows"
             :key="row.year"
             :ref="(el) => setRowRef(el as HTMLTableRowElement | null, row.year)"
-            :class="rowClasses(row)"
+            :class="{
+              negative: (row.current?.endingBalanceValue ?? 0) < 0,
+              selected: selectedYear === row.year,
+            }"
           >
             <td>{{ row.year }}</td>
-            <td>{{ row.age }}</td>
-            <td>{{ row.startingBalance }}</td>
-            <td class="debt">{{ row.startingDebt }}</td>
-            <td class="income">{{ row.totalIncome }}</td>
-            <td class="expenses">{{ row.totalExpenses }}</td>
-            <td class="tax">{{ row.incomeTax }}</td>
-            <td class="tax">{{ row.wealthTax }}</td>
-            <td class="tax">{{ row.capitalGainsTax }}</td>
-            <td class="total-tax">{{ row.totalTax }}</td>
-            <td class="debt-paid">{{ row.debtPaid }}</td>
+            <td>{{ row.current?.age ?? '—' }}</td>
+            <template v-if="comparison">
+              <td>
+                {{ row.currentNetWorth === undefined ? '—' : formatCurrency(row.currentNetWorth) }}
+              </td>
+              <td>
+                {{ row.otherNetWorth === undefined ? '—' : formatCurrency(row.otherNetWorth) }}
+              </td>
+              <td>{{ row.difference === undefined ? '—' : formatCurrency(row.difference) }}</td>
+            </template>
+            <td>{{ row.current?.startingBalance ?? '—' }}</td>
+            <td class="debt">{{ row.current?.startingDebt ?? '—' }}</td>
+            <td class="income">{{ row.current?.totalIncome ?? '—' }}</td>
+            <td class="expenses">{{ row.current?.totalExpenses ?? '—' }}</td>
+            <td class="tax">{{ row.current?.incomeTax ?? '—' }}</td>
+            <td class="tax">{{ row.current?.wealthTax ?? '—' }}</td>
+            <td class="tax">{{ row.current?.capitalGainsTax ?? '—' }}</td>
+            <td class="total-tax">{{ row.current?.totalTax ?? '—' }}</td>
+            <td class="debt-paid">{{ row.current?.debtPaid ?? '—' }}</td>
             <td
               :class="{
-                'net-positive': row.netPositive,
-                'net-negative': row.netNegative,
+                'net-positive': row.current?.netPositive,
+                'net-negative': row.current?.netNegative,
               }"
             >
-              {{ row.netChange }}
+              {{ row.current?.netChange ?? '—' }}
             </td>
-            <td :class="{ 'balance-negative': row.endingBalanceValue < 0 }">
-              {{ row.endingBalance }}
+            <td :class="{ 'balance-negative': (row.current?.endingBalanceValue ?? 0) < 0 }">
+              {{ row.current?.endingBalance ?? '—' }}
             </td>
-            <td class="debt">{{ row.endingDebt }}</td>
+            <td class="debt">{{ row.current?.endingDebt ?? '—' }}</td>
           </tr>
         </tbody>
       </table>
@@ -70,6 +96,8 @@ const props = defineProps<{
   showInflationAdjusted?: boolean
   inflationRate?: number
   selectedMonthOffset?: number
+  currentPlanName?: string
+  comparison?: { name: string; annualSummaries: AnnualSummary[]; inflationRate: number } | null
 }>()
 
 interface AnnualRow {
@@ -131,18 +159,43 @@ const rows = computed<AnnualRow[]>(() => {
   })
 })
 
+const displayRows = computed(() => {
+  const currentRows = new Map(rows.value.map((row) => [row.year, row]))
+  const currentSummaries = new Map(props.annualSummaries.map((row) => [row.year, row]))
+  const otherSummaries = new Map(
+    (props.comparison?.annualSummaries ?? []).map((row) => [row.year, row]),
+  )
+  const years = [...new Set([...currentRows.keys(), ...otherSummaries.keys()])]
+  if (props.comparison) years.sort((a, b) => a - b)
+  const startYear = new Date().getFullYear()
+  function netWorth(summary: AnnualSummary | undefined, inflationRate?: number) {
+    if (!summary) return undefined
+    const value = summary.endingLiquidAssets + summary.endingFixedAssets - summary.endingTotalDebt
+    return props.showInflationAdjusted
+      ? adjustForInflation(value, summary.year - startYear, inflationRate)
+      : value
+  }
+  return years.map((year) => {
+    const currentNetWorth = netWorth(currentSummaries.get(year), props.inflationRate)
+    const otherNetWorth = netWorth(otherSummaries.get(year), props.comparison?.inflationRate)
+    return {
+      year,
+      current: currentRows.get(year),
+      currentNetWorth,
+      otherNetWorth,
+      difference:
+        currentNetWorth === undefined || otherNetWorth === undefined
+          ? undefined
+          : currentNetWorth - otherNetWorth,
+    }
+  })
+})
+
 // The calendar year the scrubber points at, or null when not active.
 const selectedYear = computed<number | null>(() => {
   if (props.selectedMonthOffset === undefined || props.annualSummaries.length === 0) return null
   return resolveSelectedYear(getCurrentMonth(), props.selectedMonthOffset)
 })
-
-function rowClasses(row: AnnualRow): Record<string, boolean> {
-  return {
-    negative: row.endingBalanceValue < 0,
-    selected: selectedYear.value === row.year,
-  }
-}
 
 // --- Auto-scroll the selected year row into view, inside the table only ---
 // The wrapper scrolls; the page never moves. This keeps the feature usable on
@@ -193,6 +246,10 @@ watch(selectedYear, (year) => {
 h3 {
   margin-bottom: 1rem;
   color: $text-primary;
+}
+
+.comparison-hint {
+  margin-bottom: 1rem;
 }
 
 .table-wrapper {

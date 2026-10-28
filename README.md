@@ -13,6 +13,7 @@ We're in MVP stage, so the features are basic:
 - Interest calculations
 - Debt calculations
 - Adjusting expenses and income for inflation
+- Create a plan from an example, an empty plan, or an existing plan; compare yearly net worth in the table and chart
 
 ## Future plans
 

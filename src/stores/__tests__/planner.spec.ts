@@ -251,16 +251,19 @@ describe('Planner Store', () => {
     it('should call saveToStorage', () => {
       const store = usePlannerStore()
       store.saveToStorage()
-      expect(storageService.saveProfile).toHaveBeenCalled()
-      expect(storageService.saveWizardCompleted).toHaveBeenCalled()
+      expect(storageService.savePlans).toHaveBeenCalled()
     })
 
     it('auto-saves when only the tax country changes', async () => {
       const store = usePlannerStore()
       store.setTaxCountry('NL')
       await nextTick()
-      expect(storageService.saveProfile).toHaveBeenCalledWith(
-        expect.objectContaining({ taxCountry: 'NL' }),
+      expect(storageService.savePlans).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scenarios: [
+            expect.objectContaining({ profile: expect.objectContaining({ taxCountry: 'NL' }) }),
+          ],
+        }),
       )
     })
 
@@ -268,9 +271,15 @@ describe('Planner Store', () => {
       const store = usePlannerStore()
       store.addLifeEvent({ name: 'House purchase' })
       await nextTick()
-      expect(storageService.saveProfile).toHaveBeenCalledWith(
+      expect(storageService.savePlans).toHaveBeenCalledWith(
         expect.objectContaining({
-          lifeEvents: [expect.objectContaining({ name: 'House purchase' })],
+          scenarios: [
+            expect.objectContaining({
+              profile: expect.objectContaining({
+                lifeEvents: [expect.objectContaining({ name: 'House purchase' })],
+              }),
+            }),
+          ],
         }),
       )
     })
@@ -279,7 +288,11 @@ describe('Planner Store', () => {
       const store = usePlannerStore()
       store.completeWizard()
       await nextTick()
-      expect(storageService.saveWizardCompleted).toHaveBeenCalledWith(true)
+      expect(storageService.savePlans).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scenarios: [expect.objectContaining({ wizardCompleted: true })],
+        }),
+      )
     })
 
     it('should clear all data', () => {
@@ -292,8 +305,7 @@ describe('Planner Store', () => {
       expect(store.debts).toEqual([])
       expect(store.lifeEvents).toEqual([])
       expect(store.primaryAccountId).toBeUndefined()
-      expect(storageService.clearProfile).toHaveBeenCalled()
-      expect(storageService.clearWizardCompleted).toHaveBeenCalled()
+      expect(storageService.savePlans).toHaveBeenCalled()
     })
   })
 })

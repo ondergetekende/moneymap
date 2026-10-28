@@ -6,8 +6,71 @@ import { UserProfile } from '@/models'
 
 const STORAGE_KEY = 'moneymap-data'
 const WIZARD_KEY = 'moneymap-wizard-completed'
+const SCENARIOS_KEY = 'moneymap-scenarios'
+
+export interface StoredScenario {
+  id: string
+  name: string
+  profile: Record<string, unknown>
+  wizardCompleted: boolean
+}
+
+export interface StoredPlans {
+  activeId: string
+  scenarios: StoredScenario[]
+}
 
 export const storageService = {
+  savePlans(plans: StoredPlans): void {
+    try {
+      localStorage.setItem(SCENARIOS_KEY, JSON.stringify(plans))
+    } catch (error) {
+      console.error('Failed to save plans:', error)
+      throw new Error('Failed to save plans. Your changes are not saved.')
+    }
+  },
+
+  loadPlans(): StoredPlans | null {
+    const serialized = localStorage.getItem(SCENARIOS_KEY)
+    if (serialized === null) return null
+    try {
+      const data: unknown = JSON.parse(serialized)
+      if (!data || typeof data !== 'object' || !('activeId' in data) || !('scenarios' in data)) {
+        throw new Error('Invalid plans')
+      }
+      const { activeId, scenarios } = data
+      if (
+        typeof activeId !== 'string' ||
+        !Array.isArray(scenarios) ||
+        scenarios.length === 0 ||
+        !scenarios.every(
+          (scenario) =>
+            scenario &&
+            typeof scenario.id === 'string' &&
+            typeof scenario.name === 'string' &&
+            typeof scenario.wizardCompleted === 'boolean' &&
+            scenario.profile &&
+            typeof scenario.profile === 'object' &&
+            !Array.isArray(scenario.profile) &&
+            typeof scenario.profile.birthDate === 'number' &&
+            Number.isFinite(scenario.profile.birthDate) &&
+            Array.isArray(scenario.profile.capitalAccounts) &&
+            Array.isArray(scenario.profile.cashFlows) &&
+            Array.isArray(scenario.profile.debts) &&
+            Array.isArray(scenario.profile.lifeEvents),
+        ) ||
+        new Set(scenarios.map((scenario) => scenario.id)).size !== scenarios.length ||
+        !scenarios.some((scenario) => scenario.id === activeId)
+      ) {
+        throw new Error('Invalid plans')
+      }
+      for (const scenario of scenarios) UserProfile.fromJSON(scenario.profile)
+      return { activeId, scenarios }
+    } catch (error) {
+      console.error('Failed to load plans:', error)
+      throw new Error('Failed to load saved plans. Your saved data has not been changed.')
+    }
+  },
   /**
    * Save user profile to localStorage
    */

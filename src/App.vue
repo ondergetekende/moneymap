@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { usePlannerStore } from './stores/planner'
 import { useRoute } from 'vue-router'
 
 const store = usePlannerStore()
 const route = useRoute()
+const loadError = ref('')
 
 // Hide the header on static information pages
 const showHeader = computed(() => {
@@ -14,7 +15,11 @@ const showHeader = computed(() => {
 
 onMounted(() => {
   // Load saved data on startup
-  store.loadFromStorage()
+  try {
+    store.loadFromStorage()
+  } catch (error) {
+    loadError.value = error instanceof Error ? error.message : 'Failed to load saved plans.'
+  }
 })
 </script>
 
@@ -28,7 +33,11 @@ onMounted(() => {
     </header>
 
     <main>
-      <router-view />
+      <p v-if="loadError" role="alert">{{ loadError }}</p>
+      <template v-else>
+        <p v-if="store.saveError" role="alert">{{ store.saveError }}</p>
+        <router-view />
+      </template>
     </main>
 
     <footer>
