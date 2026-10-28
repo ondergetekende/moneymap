@@ -1,10 +1,7 @@
 <template>
   <div class="returns-inflation-step">
-    <h3 class="step-title">Investment Assumptions</h3>
-    <p class="step-description">
-      Set your expected investment returns and inflation rate. These assumptions will be used to
-      project your financial future. You can adjust these at any time.
-    </p>
+    <h3 class="step-title">Returns and inflation</h3>
+    <p class="step-description">The defaults are a good start. You can change them at any time.</p>
 
     <div class="form-section">
       <div class="form-field">
@@ -149,20 +146,6 @@ function setInflationRate(value: number) {
   gap: 1.5rem;
 }
 
-.step-title {
-  font-size: 1.5rem;
-  color: $text-primary;
-  margin: 0;
-  font-weight: 700;
-}
-
-.step-description {
-  font-size: 1rem;
-  color: $text-tertiary;
-  line-height: 1.6;
-  margin: 0;
-}
-
 .form-section {
   display: flex;
   flex-direction: column;
@@ -300,14 +283,6 @@ function setInflationRate(value: number) {
 
 /* Mobile responsive */
 @media (max-width: $breakpoint-mobile) {
-  .step-title {
-    font-size: 1.3rem;
-  }
-
-  .step-description {
-    font-size: 0.95rem;
-  }
-
   .field-label {
     font-size: 1rem;
   }
@@ -351,14 +326,6 @@ function setInflationRate(value: number) {
 @media (max-width: 480px) {
   .returns-inflation-step {
     gap: 1.25rem;
-  }
-
-  .step-title {
-    font-size: 1.2rem;
-  }
-
-  .step-description {
-    font-size: 0.9rem;
   }
 
   .form-section {

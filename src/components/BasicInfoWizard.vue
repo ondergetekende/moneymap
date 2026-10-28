@@ -3,48 +3,54 @@
     <div v-if="isOpen" class="wizard-overlay" @click.self="handleCancel">
       <div class="wizard-container">
         <div class="wizard-header">
-          <h2>Basic Information Setup</h2>
+          <h2>Set up your plan</h2>
           <button @click="handleCancel" class="close-button" aria-label="Close">&times;</button>
         </div>
 
         <div class="wizard-progress">
-          <button
-            v-for="step in totalSteps"
-            :key="step"
-            class="progress-step"
-            :class="{
-              active: step === currentStep,
-              completed: step < currentStep,
-            }"
-            @click="goToStep(step)"
-            type="button"
-          >
-            <div class="progress-circle">{{ step }}</div>
-            <div class="progress-label">{{ getStepLabel(step) }}</div>
-          </button>
+          <p class="progress-text">
+            Step {{ currentStep }} of {{ totalSteps }}:
+            <strong>{{ getStepLabel(currentStep) }}</strong>
+          </p>
+          <div class="progress-bar">
+            <button
+              v-for="step in totalSteps"
+              :key="step"
+              class="progress-segment"
+              :class="{ done: step <= currentStep }"
+              :aria-label="`Go to step ${step}: ${getStepLabel(step)}`"
+              :aria-current="step === currentStep ? 'step' : undefined"
+              @click="goToStep(step)"
+              type="button"
+            />
+          </div>
         </div>
 
-        <div class="wizard-content">
-          <BirthDateStep
-            v-if="currentStep === 1"
-            :birthDate="store.birthDate"
-            :currentAge="currentAge"
-            @update:birthDate="store.setBirthDate($event)"
-          />
-          <JurisdictionStep
-            v-if="currentStep === 2"
-            :taxCountry="store.taxCountry"
-            @update:taxCountry="store.setTaxCountry($event)"
-          />
-          <ReturnsInflationStep
-            v-if="currentStep === 3"
-            :liquidAssetsInterestRate="store.liquidAssetsInterestRate"
-            :inflationRate="store.inflationRate"
-            @update:liquidAssetsInterestRate="store.setLiquidAssetsInterestRate($event)"
-            @update:inflationRate="store.setInflationRate($event)"
-          />
-          <LifeEventsStep v-if="currentStep === 4" />
-          <PrimaryAccountStep v-if="currentStep === 5" />
+        <div ref="contentEl" class="wizard-content">
+          <Transition name="step-fade" mode="out-in" @enter="onStepEnter">
+            <div :key="currentStep">
+              <BirthDateStep
+                v-if="currentStep === 1"
+                :birthDate="store.birthDate"
+                :currentAge="currentAge"
+                @update:birthDate="store.setBirthDate($event)"
+              />
+              <JurisdictionStep
+                v-if="currentStep === 2"
+                :taxCountry="store.taxCountry"
+                @update:taxCountry="store.setTaxCountry($event)"
+              />
+              <ReturnsInflationStep
+                v-if="currentStep === 3"
+                :liquidAssetsInterestRate="store.liquidAssetsInterestRate"
+                :inflationRate="store.inflationRate"
+                @update:liquidAssetsInterestRate="store.setLiquidAssetsInterestRate($event)"
+                @update:inflationRate="store.setInflationRate($event)"
+              />
+              <LifeEventsStep v-if="currentStep === 4" />
+              <PrimaryAccountStep v-if="currentStep === 5" />
+            </div>
+          </Transition>
         </div>
 
         <div class="wizard-footer">
@@ -96,6 +102,13 @@ const emit = defineEmits<{
 const store = usePlannerStore()
 
 const currentStep = ref(1)
+const contentEl = ref<HTMLElement | null>(null)
+
+// A new step starts at the top, or at its selected option when it has one.
+function onStepEnter(el: Element) {
+  if (contentEl.value) contentEl.value.scrollTop = 0
+  el.querySelector('.selected')?.scrollIntoView({ block: 'center' })
+}
 const totalSteps = 5
 
 // Watch for wizard opening to set initial step
@@ -137,15 +150,15 @@ const canProceed = computed(() => {
 function getStepLabel(step: number): string {
   switch (step) {
     case 1:
-      return 'Birth Date'
+      return 'Birth date'
     case 2:
-      return 'Jurisdiction'
+      return 'Tax country'
     case 3:
-      return 'Returns & Inflation'
+      return 'Returns and inflation'
     case 4:
-      return 'Life Events'
+      return 'Life events'
     case 5:
-      return 'Routing'
+      return 'Primary account'
     default:
       return ''
   }
@@ -211,14 +224,13 @@ function handleCancel() {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
-  border-bottom: 1px solid $border-light;
+  padding: 1.25rem 1.5rem 0;
 }
 
 .wizard-header h2 {
   margin: 0;
   color: $text-primary;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
 }
 
 .close-button {
@@ -242,96 +254,90 @@ function handleCancel() {
 }
 
 .wizard-progress {
-  display: flex;
-  justify-content: space-between;
-  padding: 2rem 1.5rem 1.5rem;
-  position: relative;
+  padding: 1rem 1.5rem 0;
 }
 
-.wizard-progress::before {
-  content: '';
-  position: absolute;
-  top: 2.75rem;
-  left: 20%;
-  right: 20%;
-  height: 2px;
-  background-color: $border-light;
-  z-index: 0;
-}
-
-.progress-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-  flex: 1;
-  position: relative;
-  z-index: 1;
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0;
-  transition: transform 0.2s;
-}
-
-.progress-step:hover {
-  transform: translateY(-2px);
-}
-
-.progress-step:active {
-  transform: translateY(0);
-}
-
-.progress-circle {
-  width: 2.5rem;
-  height: 2.5rem;
-  border-radius: 50%;
-  background-color: $bg-alt;
-  color: $text-light;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  transition: all 0.3s;
-}
-
-.progress-step:hover .progress-circle {
-  background-color: $border-light;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.progress-step.active .progress-circle {
-  background-color: $primary;
-  color: white;
-  transform: scale(1.1);
-}
-
-.progress-step.completed .progress-circle {
-  background-color: $primary;
-  color: white;
-}
-
-.progress-label {
+.progress-text {
   font-size: 0.85rem;
-  color: $text-light;
-  text-align: center;
-  font-weight: 600;
+  color: $text-muted;
+  margin-bottom: 0.5rem;
+
+  strong {
+    color: $text-primary;
+  }
 }
 
-.progress-step.active .progress-label {
-  color: $text-primary;
+.progress-bar {
+  display: flex;
+  gap: 4px;
+}
+
+.progress-segment {
+  flex: 1;
+  height: 6px;
+  padding: 0;
+  border: none;
+  border-radius: 3px;
+  background-color: $border-light;
+  cursor: pointer;
+  transition: background-color 0.3s;
+
+  &.done {
+    background-color: $primary;
+  }
+
+  &:hover {
+    background-color: $primary-hover;
+  }
 }
 
 .wizard-content {
-  padding: 2rem 1.5rem;
+  padding: 1.5rem;
   flex: 1;
   overflow-y: auto;
+
+  // Shared by all steps. The global .form-section box adds too much space inside the modal.
+  :deep(.form-section) {
+    margin: 0;
+    padding: 0;
+    background: none;
+  }
+
+  :deep(.step-title) {
+    font-size: 1.375rem;
+    font-weight: 700;
+    color: $text-primary;
+    margin: 0;
+  }
+
+  // Pull the intro closer to its title; the step roots use a 1.5rem flex gap.
+  :deep(.step-description) {
+    color: $text-tertiary;
+    margin: -1rem 0 0;
+  }
+}
+
+.step-fade-enter-active,
+.step-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.step-fade-enter-from,
+.step-fade-leave-to {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-fade-enter-active,
+  .step-fade-leave-active {
+    transition: none;
+  }
 }
 
 .wizard-footer {
   display: flex;
   gap: 1rem;
-  padding: 1.5rem;
+  padding: 1rem 1.5rem;
   border-top: 1px solid $border-light;
 }
 
@@ -376,68 +382,35 @@ function handleCancel() {
 /* Mobile responsive */
 @media (max-width: $breakpoint-mobile) {
   .wizard-overlay {
-    padding: 0.5rem;
+    padding: 0;
   }
 
-  .wizard-header {
-    padding: 1rem;
+  .wizard-container {
+    height: 100dvh;
+    max-height: none;
+    border-radius: 0;
   }
 
-  .wizard-header h2 {
-    font-size: 1.25rem;
-  }
-
+  .wizard-header,
   .wizard-progress {
-    padding: 1.5rem 1rem 1rem;
-  }
-
-  .progress-circle {
-    width: 2rem;
-    height: 2rem;
-    font-size: 0.9rem;
-  }
-
-  .progress-label {
-    font-size: 0.75rem;
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
 
   .wizard-content {
-    padding: 1.5rem 1rem;
+    padding: 1.25rem 1rem;
   }
 
   .wizard-footer {
-    padding: 1rem;
-  }
-
-  .wizard-button {
-    padding: 0.6rem 1.2rem;
-    font-size: 0.9rem;
+    padding: 0.75rem 1rem;
   }
 }
 
 @media (max-width: $breakpoint-mobile-small) {
-  .wizard-header h2 {
-    font-size: 1.1rem;
-  }
-
-  .close-button {
-    font-size: 1.5rem;
-    width: 1.5rem;
-    height: 1.5rem;
-  }
-
+  .wizard-header,
   .wizard-progress {
-    padding: 1rem 0.5rem 0.75rem;
-  }
-
-  .progress-circle {
-    width: 1.75rem;
-    height: 1.75rem;
-    font-size: 0.8rem;
-  }
-
-  .progress-label {
-    font-size: 0.7rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
   }
 
   .wizard-content {
@@ -447,11 +420,6 @@ function handleCancel() {
   .wizard-footer {
     padding: 0.75rem;
     gap: 0.5rem;
-  }
-
-  .wizard-button {
-    padding: 0.5rem 1rem;
-    font-size: 0.85rem;
   }
 }
 </style>

@@ -1,11 +1,7 @@
 <template>
   <div class="jurisdiction-step">
     <h3 class="step-title">Where do you pay taxes?</h3>
-    <p class="step-description">
-      Select your tax jurisdiction to enable accurate tax calculations for your financial
-      projections. Different countries have different income tax, wealth tax, and capital gains tax
-      structures. You can skip this step if you don't want to include taxes in your calculations.
-    </p>
+    <p class="step-description">Select a country to include taxes. You can skip this step.</p>
 
     <div class="form-section">
       <label class="form-label">Tax Country</label>
@@ -100,20 +96,6 @@ function handleCountryChange(countryCode: string | undefined) {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-}
-
-.step-title {
-  font-size: 1.5rem;
-  color: $text-primary;
-  margin: 0;
-  font-weight: 700;
-}
-
-.step-description {
-  font-size: 1rem;
-  color: $text-tertiary;
-  line-height: 1.6;
-  margin: 0;
 }
 
 .form-section {
@@ -227,14 +209,6 @@ function handleCountryChange(countryCode: string | undefined) {
 
 /* Mobile responsive */
 @media (max-width: $breakpoint-mobile) {
-  .step-title {
-    font-size: 1.3rem;
-  }
-
-  .step-description {
-    font-size: 0.95rem;
-  }
-
   .country-options {
     grid-template-columns: 1fr;
   }
@@ -259,14 +233,6 @@ function handleCountryChange(countryCode: string | undefined) {
 @media (max-width: 480px) {
   .jurisdiction-step {
     gap: 1.25rem;
-  }
-
-  .step-title {
-    font-size: 1.2rem;
-  }
-
-  .step-description {
-    font-size: 0.9rem;
   }
 
   .form-label {

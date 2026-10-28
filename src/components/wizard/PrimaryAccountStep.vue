@@ -1,12 +1,9 @@
 <template>
   <div class="primary-account-step">
-    <div class="step-description">
-      <p>
-        Select which liquid account should be used by default for your income, expenses, and debt
-        payments.
-      </p>
-      <p class="hint">You can still override this for individual items.</p>
-    </div>
+    <h3 class="step-title">Primary account</h3>
+    <p class="step-description">
+      Income, expenses, and debt payments use this account. You can change it for each item.
+    </p>
 
     <div class="form-group">
       <label for="primary-account">Primary Liquid Account</label>
@@ -42,19 +39,6 @@ const primaryAccountId = computed({
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-
-  .step-description {
-    p {
-      margin: 0 0 0.5rem 0;
-      color: $text-primary;
-      font-size: 1rem;
-      line-height: 1.5;
-    }
-    .hint {
-      color: $text-light;
-      font-size: 0.875rem;
-    }
-  }
 
   .form-group {
     display: flex;

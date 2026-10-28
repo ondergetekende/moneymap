@@ -1,11 +1,7 @@
 <template>
   <div class="birth-date-step">
     <h3 class="step-title">When were you born?</h3>
-    <p class="step-description">
-      Your birth date helps us calculate your current age and project your financial future through
-      different life stages. This allows for age-specific planning, such as retirement projections
-      and milestone planning.
-    </p>
+    <p class="step-description">We use it to show your age at each point of your plan.</p>
 
     <div class="form-section">
       <DateSpecificationEdit
@@ -74,20 +70,6 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
   gap: 1.5rem;
 }
 
-.step-title {
-  font-size: 1.5rem;
-  color: $text-primary;
-  margin: 0;
-  font-weight: 700;
-}
-
-.step-description {
-  font-size: 1rem;
-  color: $text-tertiary;
-  line-height: 1.6;
-  margin: 0;
-}
-
 .form-section {
   display: flex;
   flex-direction: column;
@@ -154,14 +136,6 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 
 /* Mobile responsive */
 @media (max-width: $breakpoint-mobile) {
-  .step-title {
-    font-size: 1.3rem;
-  }
-
-  .step-description {
-    font-size: 0.95rem;
-  }
-
   .age-display {
     padding: 0.875rem;
   }
@@ -186,14 +160,6 @@ function handleBirthDateUpdate(value: DateSpecification | undefined) {
 @media (max-width: 480px) {
   .birth-date-step {
     gap: 1.25rem;
-  }
-
-  .step-title {
-    font-size: 1.2rem;
-  }
-
-  .step-description {
-    font-size: 0.9rem;
   }
 
   .age-display {
