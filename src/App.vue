@@ -35,7 +35,7 @@ watch(
 
 <template>
   <div id="app">
-    <header v-if="showHeader">
+    <header v-if="showHeader" class="app-header">
       <router-link to="/" class="header-brand">
         <h1>MoneyMap</h1>
       </router-link>
@@ -90,7 +90,7 @@ body {
   display: block;
 }
 
-header {
+.app-header {
   background-color: $bg-card;
   color: $text-primary;
   padding: $spacing-sm 0;

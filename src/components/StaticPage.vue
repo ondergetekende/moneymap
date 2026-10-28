@@ -1,6 +1,6 @@
 <script setup lang="ts">
 defineProps<{
-  title: string
+  title?: string
   subtitle?: string
 }>()
 </script>
@@ -8,7 +8,7 @@ defineProps<{
 <template>
   <div class="static-page-wrapper">
     <div class="static-page-card">
-      <header class="static-page-header">
+      <header v-if="title" class="static-page-header">
         <h1>{{ title }}</h1>
         <p v-if="subtitle" class="static-page-subtitle">{{ subtitle }}</p>
       </header>
@@ -100,7 +100,7 @@ defineProps<{
   color: $text-secondary;
   line-height: $line-height-base;
 
-  h2 {
+  :deep(h2) {
     font-size: $font-lg;
     font-weight: $font-semibold;
     color: $text-primary;
@@ -108,7 +108,11 @@ defineProps<{
     margin-bottom: $spacing-sm;
   }
 
-  h3 {
+  :deep(h2:first-child) {
+    margin-top: 0;
+  }
+
+  :deep(h3) {
     font-size: $font-base-lg;
     font-weight: $font-semibold;
     color: $text-primary;
@@ -116,49 +120,26 @@ defineProps<{
     margin-bottom: $spacing-sm;
   }
 
-  p {
+  :deep(p) {
     margin-bottom: $spacing-base;
   }
 
-  ul,
-  ol {
+  :deep(ul),
+  :deep(ol) {
     margin-bottom: $spacing-xl;
-    padding-left: $spacing-lg;
+    padding-left: $spacing-xl;
 
     li {
       margin-bottom: $spacing-sm;
-      padding: $spacing-sm $spacing-md;
-      background: $bg-alt-3;
-      border-radius: $radius-md;
     }
   }
 
-  @include mobile {
-    ul,
-    ol {
-      padding-left: $spacing-base;
-    }
-
-    ul li,
-    ol li {
-      margin-left: 0;
-      margin-right: 0;
-    }
-  }
-
-  a {
-    color: $primary;
-    text-decoration: none;
+  :deep(a) {
+    color: $success-dark;
     font-weight: $font-medium;
-    background: $primary-light;
-    padding: $spacing-xs $spacing-sm;
-    border-radius: $radius-base;
-    transition: $transition-base;
 
     &:hover {
-      background-color: $primary;
-      color: white;
-      text-decoration: none;
+      color: $success-darker;
     }
   }
 

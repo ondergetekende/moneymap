@@ -20,19 +20,26 @@ import {
 } from '@/models'
 import { storageService } from '@/services/storage'
 import { calculateProjections } from '@/services/calculator'
+import {
+  createDefaultBirthDate,
+  createDefaultItems,
+  createDefaultLifeEvents,
+  DEFAULT_INFLATION_RATE,
+  DEFAULT_INTEREST_RATE,
+} from '@/services/sampleData'
 import type { Month, DateSpecification } from '@/types/month'
-import { getCurrentMonth, addMonths, createAbsoluteDate } from '@/types/month'
+import { createAbsoluteDate } from '@/types/month'
 
 export const usePlannerStore = defineStore('planner', () => {
   // State
   // Default to 30 years ago (30 * 12 months = 360 months)
-  const birthDate = ref<Month>(addMonths(getCurrentMonth(), -360))
+  const birthDate = ref<Month>(createDefaultBirthDate())
   const capitalAccounts = ref<CapitalAccount[]>([])
   const cashFlows = ref<CashFlow[]>([])
   const debts = ref<Debt[]>([])
   const lifeEvents = ref<LifeEvent[]>([])
-  const liquidAssetsInterestRate = ref<number>(7) // Default 7% for all liquid assets (moderate)
-  const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
+  const liquidAssetsInterestRate = ref<number>(DEFAULT_INTEREST_RATE)
+  const inflationRate = ref<number>(DEFAULT_INFLATION_RATE)
   const taxCountry = ref<string | undefined>(undefined) // ISO country code for tax calculations
   const primaryAccountId = ref<string | undefined>(undefined) // Default liquid account for flows
   const projectionResult = ref<ProjectionResult | null>(null)
@@ -131,19 +138,7 @@ export const usePlannerStore = defineStore('planner', () => {
 
     // Add default life events on first-time wizard open
     if (!wizardCompleted.value && lifeEvents.value.length === 0) {
-      const retirementEvent: LifeEvent = {
-        id: crypto.randomUUID(),
-        name: 'Retirement',
-        date: { type: 'age', age: 67 },
-        description: 'Default retirement life event',
-      }
-      const lifeExpectancyEvent: LifeEvent = {
-        id: crypto.randomUUID(),
-        name: 'Life expectancy',
-        date: { type: 'age', age: 90 },
-        description: 'Expected life span',
-      }
-      lifeEvents.value.push(retirementEvent, lifeExpectancyEvent)
+      lifeEvents.value.push(...createDefaultLifeEvents())
     }
   }
 
@@ -164,60 +159,9 @@ export const usePlannerStore = defineStore('planner', () => {
       // Find the retirement event (should have been created when wizard opened)
       const retirementEvent = lifeEvents.value.find((le) => le.name === 'Retirement')
 
-      // Add savings account
-      const savingsAccount = new LiquidAsset(
-        crypto.randomUUID(),
-        'Savings',
-        10000,
-        undefined,
-        undefined,
-      )
-      capitalAccounts.value.push(savingsAccount)
-
-      // Add salary income (from now until retirement)
-      const salaryIncome = new CashFlow(
-        crypto.randomUUID(),
-        'Salary',
-        2500,
-        'income',
-        undefined, // Start immediately
-        retirementEvent ? { type: 'lifeEvent', eventId: retirementEvent.id } : undefined,
-        true, // Follows inflation
-        false, // Not one-time
-        undefined,
-        'monthly',
-      )
-      cashFlows.value.push(salaryIncome)
-
-      // Add pension income (from retirement onward)
-      const pensionIncome = new CashFlow(
-        crypto.randomUUID(),
-        'Pension',
-        1500,
-        'income',
-        retirementEvent ? { type: 'lifeEvent', eventId: retirementEvent.id } : undefined,
-        undefined, // No end date
-        true, // Follows inflation
-        false, // Not one-time
-        undefined,
-        'monthly',
-      )
-      cashFlows.value.push(pensionIncome)
-
-      // Add living expenses
-      const livingExpenses = new CashFlow(
-        crypto.randomUUID(),
-        'Living expenses',
-        1500,
-        'expense',
-        undefined, // Start immediately
-        undefined, // No end date
-        true, // Follows inflation
-        false, // Not one-time
-        undefined,
-        'monthly',
-      )
-      cashFlows.value.push(livingExpenses)
+      const defaults = createDefaultItems(retirementEvent?.id)
+      capitalAccounts.value.push(...defaults.capitalAccounts)
+      cashFlows.value.push(...defaults.cashFlows)
 
       recalculate()
     }
@@ -541,13 +485,13 @@ export const usePlannerStore = defineStore('planner', () => {
   }
 
   function clearAll() {
-    birthDate.value = addMonths(getCurrentMonth(), -360) // 30 years ago
+    birthDate.value = createDefaultBirthDate()
     capitalAccounts.value = []
     cashFlows.value = []
     debts.value = []
     lifeEvents.value = []
-    liquidAssetsInterestRate.value = 7
-    inflationRate.value = 3
+    liquidAssetsInterestRate.value = DEFAULT_INTEREST_RATE
+    inflationRate.value = DEFAULT_INFLATION_RATE
     taxCountry.value = undefined
     primaryAccountId.value = undefined
     projectionResult.value = null

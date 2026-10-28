@@ -150,6 +150,8 @@ const chartData = computed(() => {
 const chartOptions: ChartOptions<'line'> = {
   responsive: true,
   maintainAspectRatio: true,
+  // ponytail: read once at render; a resize across the breakpoint keeps the old ratio until reload.
+  aspectRatio: window.matchMedia('(max-width: 768px)').matches ? 1.2 : 2,
   interaction: {
     mode: 'index',
     intersect: false,
