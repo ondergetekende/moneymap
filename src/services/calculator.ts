@@ -81,6 +81,20 @@ function isMonthInRange(month: Month, startMonth?: Month, endMonth?: Month): boo
 }
 
 /**
+ * Mutable tracking state for a liquid account across the projection.
+ * Carries the original LiquidAsset fields (tax IDs, rate override) plus the
+ * running balance. Each account has its own balance and interest rate.
+ */
+interface LiquidAssetTracking {
+  id: string
+  amount: number
+  annualInterestRate?: number // Per-account override; undefined = use profile rate
+  wealthTaxId?: string
+  capitalGainsTaxId?: string
+  balance: number
+}
+
+/**
  * Mutable tracking state for a fixed asset across the projection.
  * Carries the original FixedAsset fields (amount, tax IDs, rate) plus the
  * running balance and resolved liquidation date.
@@ -114,6 +128,17 @@ interface CashFlowTracking {
   cashFlow: CashFlow
   resolvedStartDate: Month | undefined
   resolvedEndDate: Month | undefined
+  accountId: string | undefined // Routing override; falls back to primary
+}
+
+/**
+ * Build tracking state for liquid accounts, one balance per account.
+ */
+function buildLiquidAssetTracking(liquidAccounts: LiquidAsset[]): LiquidAssetTracking[] {
+  return liquidAccounts.map((account) => ({
+    ...account,
+    balance: account.amount,
+  }))
 }
 
 /**
@@ -177,6 +202,7 @@ function buildCashFlowTracking(cashFlows: CashFlow[], profile: UserProfile): Cas
     cashFlow,
     resolvedStartDate: resolveDateSpec(cashFlow.startDate, profile),
     resolvedEndDate: resolveDateSpec(cashFlow.endDate, profile),
+    accountId: cashFlow.accountId,
   }))
 }
 
@@ -188,12 +214,12 @@ function buildCashFlowTracking(cashFlows: CashFlow[], profile: UserProfile): Cas
  */
 function applyAssetGrowthAndTaxes(
   state: {
-    liquidBalance: number
+    liquidBalances: Map<string, number> // Per-account balances
     fixedAssets: FixedAssetTracking[]
   },
-  liquidAccounts: LiquidAsset[],
-  totalLiquidPrincipal: number,
-  liquidInterestRate: number,
+  liquidTrackings: LiquidAssetTracking[],
+  primaryAccountId: string | undefined,
+  profileRate: number,
   taxCountry: string | undefined,
   currentMonth: Month,
   inflationAdjustment: InflationAdjustment,
@@ -202,21 +228,24 @@ function applyAssetGrowthAndTaxes(
   let wealthTax = 0
   const liquidatedIds = new Set<string>()
 
-  // Apply interest to the shared liquid assets pool.
-  const liquidMonthlyRate = liquidInterestRate / 100 / 12
-  const liquidInterest = state.liquidBalance * liquidMonthlyRate
-  state.liquidBalance += liquidInterest
+  // Each liquid account earns interest on its own balance at its own rate.
+  // Capital gains tax on that interest is paid from the account itself.
+  for (const account of liquidTrackings) {
+    const balance = state.liquidBalances.get(account.id) ?? 0
+    if (balance === 0) continue
 
-  // Capital gains tax on the liquid interest, proportional to each account's share.
-  if (liquidInterest > 0) {
-    for (const account of liquidAccounts) {
-      const taxOption = resolveTaxOption(account.capitalGainsTaxId, taxCountry, 'capital_gains')
-      if (!taxOption) continue
+    const monthlyRate = (account.annualInterestRate ?? profileRate) / 100 / 12
+    const interest = balance * monthlyRate
+    const newBalance = balance + interest
 
-      const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
-      const accountInterest = liquidInterest * accountShare
-      const annualTax = calculateTax(accountInterest * 12, taxOption, inflationAdjustment)
-      capitalGainsTax += annualTax / 12
+    const taxOption = resolveTaxOption(account.capitalGainsTaxId, taxCountry, 'capital_gains')
+    if (taxOption && interest > 0) {
+      const annualTax = calculateTax(interest * 12, taxOption, inflationAdjustment)
+      const monthlyTax = annualTax / 12
+      capitalGainsTax += monthlyTax
+      state.liquidBalances.set(account.id, newBalance - monthlyTax)
+    } else {
+      state.liquidBalances.set(account.id, newBalance)
     }
   }
 
@@ -233,38 +262,53 @@ function applyAssetGrowthAndTaxes(
 
     const taxOption = resolveTaxOption(asset.capitalGainsTaxId, taxCountry, 'capital_gains')
     const totalGain = asset.balance - asset.amount
+    let proceeds = asset.balance
     if (taxOption && totalGain > 0) {
-      capitalGainsTax += calculateTax(totalGain, taxOption, inflationAdjustment)
+      const gainTax = calculateTax(totalGain, taxOption, inflationAdjustment)
+      capitalGainsTax += gainTax
+      proceeds -= gainTax
     }
 
-    // Transfer the liquidated value into the liquid pool.
-    state.liquidBalance += asset.balance
+    // Net proceeds land in the primary account.
+    if (primaryAccountId !== undefined) {
+      state.liquidBalances.set(
+        primaryAccountId,
+        (state.liquidBalances.get(primaryAccountId) ?? 0) + proceeds,
+      )
+    }
     asset.balance = 0
     liquidatedIds.add(asset.id)
   }
 
-  // Deduct capital gains tax from liquid assets.
-  state.liquidBalance -= capitalGainsTax
-
-  // Wealth tax on liquid assets (proportional share of the current pool).
-  for (const account of liquidAccounts) {
+  // Wealth tax on liquid assets: paid from the account itself.
+  for (const account of liquidTrackings) {
     const taxOption = resolveTaxOption(account.wealthTaxId, taxCountry, 'wealth')
     if (!taxOption) continue
-
-    const accountShare = totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
-    const accountValue = state.liquidBalance * accountShare
-    wealthTax += calculateTax(accountValue, taxOption, inflationAdjustment) / 12
+    const value = state.liquidBalances.get(account.id) ?? 0
+    if (value <= 0) continue
+    const monthlyWealthTax = calculateTax(value, taxOption, inflationAdjustment) / 12
+    wealthTax += monthlyWealthTax
+    state.liquidBalances.set(account.id, value - monthlyWealthTax)
   }
 
-  // Wealth tax on fixed assets.
-  for (const asset of state.fixedAssets) {
-    if (asset.balance <= 0) continue
-    const taxOption = resolveTaxOption(asset.wealthTaxId, taxCountry, 'wealth')
-    if (!taxOption) continue
-    wealthTax += calculateTax(asset.balance, taxOption, inflationAdjustment) / 12
+  // Wealth tax on fixed assets: paid from the primary account.
+  if (primaryAccountId !== undefined) {
+    let fixedWealthTax = 0
+    for (const asset of state.fixedAssets) {
+      if (asset.balance <= 0) continue
+      const taxOption = resolveTaxOption(asset.wealthTaxId, taxCountry, 'wealth')
+      if (!taxOption) continue
+      fixedWealthTax += calculateTax(asset.balance, taxOption, inflationAdjustment) / 12
+    }
+    if (fixedWealthTax > 0) {
+      wealthTax += fixedWealthTax
+      state.liquidBalances.set(
+        primaryAccountId,
+        (state.liquidBalances.get(primaryAccountId) ?? 0) - fixedWealthTax,
+      )
+    }
   }
 
-  state.liquidBalance -= wealthTax
   return { capitalGainsTax, wealthTax, liquidatedIds }
 }
 
@@ -282,7 +326,8 @@ interface DebtItemResult {
  * Returns the per-debt payments keyed by debt id, plus the rolled-up totals.
  */
 function processDebtPayments(
-  state: { liquidBalance: number; debts: DebtTracking[] },
+  state: { liquidBalances: Map<string, number>; debts: DebtTracking[] },
+  primaryAccountId: string | undefined,
   currentMonth: Month,
 ): { debtInterest: number; debtPrincipal: number; perDebt: Map<string, DebtItemResult> } {
   let debtInterest = 0
@@ -299,12 +344,18 @@ function processDebtPayments(
     if (tracking.isPaidOff) continue
 
     const debt = tracking.debt
+    // Source account: the debt override, else the primary account.
+    const sourceId =
+      tracking.debt.accountId !== undefined && state.liquidBalances.has(tracking.debt.accountId)
+        ? tracking.debt.accountId
+        : primaryAccountId
+    const sourceBalance = sourceId !== undefined ? (state.liquidBalances.get(sourceId) ?? 0) : 0
 
     // At or after the end date: make the final balloon payment.
     if (tracking.resolvedEndDate !== undefined && currentMonth >= tracking.resolvedEndDate) {
       const payment = debt.calculateMonthlyPayment(tracking.balance, 1)
-      if (state.liquidBalance >= payment.totalPayment) {
-        state.liquidBalance -= payment.totalPayment
+      if (sourceBalance >= payment.totalPayment) {
+        state.liquidBalances.set(sourceId!, sourceBalance - payment.totalPayment)
         tracking.balance -= payment.principal
         debtInterest += payment.interest
         debtPrincipal += payment.principal
@@ -335,10 +386,10 @@ function processDebtPayments(
         : undefined
 
     const payment = debt.calculateMonthlyPayment(tracking.balance, monthsRemaining)
-    // Skip when there are not enough liquid assets to cover the payment.
-    if (state.liquidBalance < payment.totalPayment) continue
+    // Skip when the source account cannot cover the payment.
+    if (sourceBalance < payment.totalPayment) continue
 
-    state.liquidBalance -= payment.totalPayment
+    state.liquidBalances.set(sourceId!, sourceBalance - payment.totalPayment)
     tracking.balance -= payment.principal
     debtInterest += payment.interest
     debtPrincipal += payment.principal
@@ -364,11 +415,11 @@ interface CashFlowItemResult {
  * Apply recurring and one-time cash flows for the month.
  *
  * Returns income, expenses and income tax, plus the per-cash-flow amounts
- * keyed by cash-flow id for item snapshots. Income tax is deducted from the
- * liquid balance here; the net cash flow is left for the caller to apply.
+ * keyed by cash-flow id for item snapshots.
  */
 function processCashFlows(
-  state: { liquidBalance: number },
+  state: { liquidBalances: Map<string, number> },
+  primaryAccountId: string | undefined,
   cashFlowTracking: CashFlowTracking[],
   taxCountry: string | undefined,
   inflationRate: number | undefined,
@@ -386,7 +437,7 @@ function processCashFlows(
   let incomeTax = 0
   const perCashFlow = new Map<string, CashFlowItemResult>()
 
-  for (const { cashFlow, resolvedStartDate, resolvedEndDate } of cashFlowTracking) {
+  for (const { cashFlow, resolvedStartDate, resolvedEndDate, accountId } of cashFlowTracking) {
     const shouldApply = cashFlow.isOneTime
       ? currentMonth === resolvedStartDate // One-time: only on exact date
       : isMonthInRange(currentMonth, resolvedStartDate, resolvedEndDate) // Recurring: within range
@@ -398,22 +449,34 @@ function processCashFlows(
       amount = amount * Math.pow(1 + inflationRate / 100, yearsElapsed)
     }
 
+    const targetId =
+      accountId !== undefined && state.liquidBalances.has(accountId) ? accountId : primaryAccountId
+    const targetBalance = targetId !== undefined ? (state.liquidBalances.get(targetId) ?? 0) : 0
+
     if (cashFlow.type === 'income') {
       income += amount
+      let netIncome = amount
       if (cashFlow.incomeTaxId !== 'after-tax') {
         const taxOption = resolveTaxOption(cashFlow.incomeTaxId, taxCountry, 'income')
         if (taxOption) {
-          incomeTax += calculateMonthlyIncomeTax(amount, taxOption, inflationAdjustment)
+          const monthlyTax = calculateMonthlyIncomeTax(amount, taxOption, inflationAdjustment)
+          incomeTax += monthlyTax
+          netIncome -= monthlyTax
         }
+      }
+      if (targetId !== undefined) {
+        state.liquidBalances.set(targetId, targetBalance + netIncome)
       }
     } else {
       expenses += amount
+      if (targetId !== undefined) {
+        state.liquidBalances.set(targetId, targetBalance - amount)
+      }
     }
 
     perCashFlow.set(cashFlow.id, { amount, type: cashFlow.type })
   }
 
-  state.liquidBalance -= incomeTax
   return { income, expenses, incomeTax, perCashFlow }
 }
 
@@ -505,7 +568,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
   )
 
   const liquidInterestRate = liquidAssetsInterestRate ?? 5
-  const totalLiquidPrincipal = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
+  const primaryAccountId = profile.resolvePrimaryAccountId() ?? ''
 
   const projectionStart = getCurrentMonth()
   const fixedAssetTracking = buildFixedAssetTracking(fixedAccounts, profile)
@@ -515,16 +578,21 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
     projectionStart,
   )
   const cashFlowTracking = buildCashFlowTracking(cashFlows, profile)
+  const liquidTrackings = buildLiquidAssetTracking(liquidAccounts)
+  if (liquidTrackings.length === 0) {
+    liquidTrackings.push({ id: primaryAccountId, amount: 0, balance: 0 })
+  }
 
   // Mutable projection state shared across the monthly steps.
   const state = {
-    liquidBalance: totalLiquidPrincipal,
+    liquidBalances: new Map(liquidTrackings.map((account) => [account.id, account.amount])),
     fixedAssets: fixedAssetTracking,
     debts: debtTracking,
   }
 
+  const totalLiquidPrincipal = liquidAccounts.reduce((sum, account) => sum + account.amount, 0)
   const totalCapital =
-    state.liquidBalance +
+    totalLiquidPrincipal +
     fixedAssetTracking.reduce((sum, asset) => sum + asset.balance, 0) -
     initialTotalDebt
 
@@ -539,8 +607,6 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
   // Per-item snapshot collectors, keyed by item id.
   const itemSnapshots = new Map<string, ItemMonthlySnapshot[]>()
-  const liquidShare = (account: LiquidAsset) =>
-    totalLiquidPrincipal > 0 ? account.amount / totalLiquidPrincipal : 0
 
   // Fixed assets stop recording once liquidated; track which are done.
   const liquidatedFixed = new Set<string>()
@@ -556,18 +622,23 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     const { capitalGainsTax, wealthTax, liquidatedIds } = applyAssetGrowthAndTaxes(
       state,
-      liquidAccounts,
-      totalLiquidPrincipal,
+      liquidTrackings,
+      primaryAccountId,
       liquidInterestRate,
       profile.taxCountry,
       currentMonth,
       inflationAdjustment,
     )
 
-    const { debtInterest, debtPrincipal, perDebt } = processDebtPayments(state, currentMonth)
+    const { debtInterest, debtPrincipal, perDebt } = processDebtPayments(
+      state,
+      primaryAccountId,
+      currentMonth,
+    )
 
     const { income, expenses, incomeTax, perCashFlow } = processCashFlows(
       state,
+      primaryAccountId,
       cashFlowTracking,
       profile.taxCountry,
       inflationRate,
@@ -576,17 +647,18 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       inflationAdjustment,
     )
 
-    // Apply net cash flow to the liquid pool.
-    state.liquidBalance += income - expenses
-
     const fixedAssetsTotal = state.fixedAssets.reduce((sum, asset) => sum + asset.balance, 0)
     const totalDebt = state.debts.reduce((sum, d) => sum + d.balance, 0)
+    const totalLiquidAssets = Array.from(state.liquidBalances.values()).reduce(
+      (sum, b) => sum + b,
+      0,
+    )
 
     monthlyProjections.push({
       date: formatMonth(currentMonth, 'YYYY-MM'),
       age,
-      balance: state.liquidBalance + fixedAssetsTotal - totalDebt,
-      liquidAssets: state.liquidBalance,
+      balance: totalLiquidAssets + fixedAssetsTotal - totalDebt,
+      liquidAssets: totalLiquidAssets,
       fixedAssets: fixedAssetsTotal,
       totalDebt,
       income,
@@ -601,7 +673,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
 
     // --- Record per-item snapshots for the timeline scrubber ---
 
-    // Liquid assets: always active; balance is their share of the liquid pool.
+    // Liquid assets: always active; use their specific balance from the map.
     for (const account of liquidAccounts) {
       let snapshots = itemSnapshots.get(account.id)
       if (!snapshots) {
@@ -611,7 +683,7 @@ export function calculateProjections(profile: UserProfile): ProjectionResult {
       snapshots.push({
         itemId: account.id,
         monthOffset: monthIndex,
-        balance: state.liquidBalance * liquidShare(account),
+        balance: state.liquidBalances.get(account.id) ?? 0,
         inflow: 0,
         outflow: 0,
         interestPaid: 0,

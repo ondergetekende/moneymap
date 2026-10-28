@@ -101,6 +101,64 @@ describe('Planner Store', () => {
   })
 
   describe('Financial Item Actions', () => {
+    it('clears routing settings when their account is removed', () => {
+      const store = usePlannerStore()
+      vi.mocked(calculateProjections).mockReturnValue(mockProjectionResult)
+      store.addCapitalAccount({ type: 'liquid', name: 'Savings', amount: 1000 })
+      const accountId = store.capitalAccounts[0]!.id
+      store.setPrimaryAccountId(accountId)
+      store.addCashFlow({
+        name: 'Income',
+        amount: 100,
+        type: 'income',
+        followsInflation: false,
+        isOneTime: false,
+        frequency: 'monthly',
+        accountId,
+      })
+      store.addDebt(
+        new Debt({ id: 'loan', name: 'Loan', amount: 100, annualInterestRate: 0, accountId }),
+      )
+
+      store.removeCapitalAccount(accountId)
+
+      expect(store.primaryAccountId).toBeUndefined()
+      expect(store.cashFlows[0]!.accountId).toBeUndefined()
+      expect(store.debts[0]!.accountId).toBeUndefined()
+    })
+
+    it('clears optional account and interest overrides', () => {
+      const store = usePlannerStore()
+      vi.mocked(calculateProjections).mockReturnValue(mockProjectionResult)
+      store.addCapitalAccount({
+        type: 'liquid',
+        name: 'Savings',
+        amount: 1000,
+        annualInterestRate: 3,
+      })
+      const accountId = store.capitalAccounts[0]!.id
+      store.addCashFlow({
+        name: 'Income',
+        amount: 100,
+        type: 'income',
+        followsInflation: false,
+        isOneTime: false,
+        frequency: 'monthly',
+        accountId,
+      })
+      store.addDebt(
+        new Debt({ id: 'loan', name: 'Loan', amount: 100, annualInterestRate: 0, accountId }),
+      )
+
+      store.updateCapitalAccount(accountId, { annualInterestRate: undefined })
+      store.updateCashFlow(store.cashFlows[0]!.id, { accountId: undefined })
+      store.updateDebt('loan', { accountId: undefined })
+
+      expect(store.capitalAccounts[0]!.annualInterestRate).toBeUndefined()
+      expect(store.cashFlows[0]!.accountId).toBeUndefined()
+      expect(store.debts[0]!.accountId).toBeUndefined()
+    })
+
     it('should add a liquid asset', () => {
       const store = usePlannerStore()
       vi.mocked(calculateProjections).mockReturnValue(mockProjectionResult)
@@ -198,12 +256,14 @@ describe('Planner Store', () => {
 
     it('should clear all data', () => {
       const store = usePlannerStore()
+      store.setPrimaryAccountId('account')
       store.clearAll()
 
       expect(store.capitalAccounts).toEqual([])
       expect(store.cashFlows).toEqual([])
       expect(store.debts).toEqual([])
       expect(store.lifeEvents).toEqual([])
+      expect(store.primaryAccountId).toBeUndefined()
       expect(storageService.clearProfile).toHaveBeenCalled()
       expect(storageService.clearWizardCompleted).toHaveBeenCalled()
     })

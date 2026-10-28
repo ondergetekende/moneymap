@@ -76,6 +76,125 @@ describe('Financial Calculator', () => {
     vi.useRealTimers()
   })
 
+  it('keeps income and sale proceeds when there are no liquid accounts', () => {
+    const profile = createTestProfile({
+      birthDate: '1995-01-01',
+      capitalAccounts: [
+        {
+          id: 'house',
+          name: 'House',
+          amount: 10000,
+          assetType: 'fixed',
+          liquidationDate: '2025-01-01',
+        },
+      ],
+      liquidAssetsInterestRate: 12,
+      cashFlows: [{ id: 'income', name: 'Income', monthlyAmount: 1000, type: 'income' }],
+    })
+
+    const result = calculateProjections(profile)
+
+    expect(result.monthlyProjections[0]?.liquidAssets).toBe(11000)
+    expect(result.monthlyProjections[1]?.liquidAssets).toBe(12110)
+  })
+
+  it('routes transactions to the first liquid account when selected accounts are missing', () => {
+    const account = new LiquidAsset('savings', 'Savings', 1000)
+    const income = new CashFlow(
+      'income',
+      'Income',
+      200,
+      'income',
+      undefined,
+      undefined,
+      false,
+      false,
+      undefined,
+      'monthly',
+      'deleted',
+    )
+    const debt = new Debt({
+      id: 'loan',
+      name: 'Loan',
+      amount: 500,
+      annualInterestRate: 0,
+      monthlyPrincipalPayment: 100,
+      accountId: 'deleted',
+    })
+    const profile = new UserProfile(
+      stringToMonth('1995-01-01')!,
+      [account],
+      [income],
+      0,
+      [debt],
+      0,
+      undefined,
+      [],
+      'deleted',
+    )
+
+    const result = calculateProjections(profile)
+
+    expect(result.monthlyProjections[0]?.liquidAssets).toBe(1100)
+    expect(result.monthlyProjections[0]?.totalDebt).toBe(400)
+    expect(
+      result.itemProjections.find((item) => item.itemId === 'savings')?.snapshots[0]?.balance,
+    ).toBe(1100)
+  })
+
+  it('uses account rates and routes flows and debt after serialization', () => {
+    const accounts = [
+      new LiquidAsset('primary', 'Primary', 1000, undefined, undefined, 0),
+      new LiquidAsset('other', 'Other', 2000, undefined, undefined, 12),
+      new LiquidAsset('default', 'Default rate', 1000),
+    ]
+    const flows = [
+      new CashFlow('income', 'Income', 100, 'income', undefined, undefined, false),
+      new CashFlow(
+        'expense',
+        'Expense',
+        20,
+        'expense',
+        undefined,
+        undefined,
+        false,
+        false,
+        undefined,
+        'monthly',
+        'other',
+      ),
+    ]
+    const debt = new Debt({
+      id: 'loan',
+      name: 'Loan',
+      amount: 500,
+      annualInterestRate: 0,
+      monthlyPrincipalPayment: 100,
+      accountId: 'other',
+    })
+    const profile = new UserProfile(
+      stringToMonth('1995-01-01')!,
+      accounts,
+      flows,
+      6,
+      [debt],
+      0,
+      undefined,
+      [],
+      'primary',
+    )
+
+    const result = calculateProjections(UserProfile.fromJSON(profile.toJSON()))
+    const balance = (id: string) =>
+      result.itemProjections.find((item) => item.itemId === id)?.snapshots[0]?.balance
+
+    expect(balance('primary')).toBe(1100)
+    expect(balance('other')).toBe(1900)
+    expect(balance('default')).toBe(1005)
+    expect(result.monthlyProjections[0]?.liquidAssets).toBe(4005)
+    expect(result.monthlyProjections[0]?.totalDebt).toBe(400)
+  })
+
   it('should calculate projections correctly', () => {
     const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
@@ -494,13 +613,13 @@ describe('Financial Calculator', () => {
     expect(year2034?.endingBalance).toBeCloseTo(164701, 0)
   })
 
-  it('should handle different interest rates for multiple accounts', () => {
+  it('applies the profile interest rate to accounts without an override', () => {
     const profile = createTestProfile({
       birthDate: '1990-01-01', // 35 years old in 2025
       capitalAccounts: [
-        { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' }, // No interest
-        { id: '2', name: 'Savings', amount: 50000, assetType: 'liquid' }, // 2% interest
-        { id: '3', name: 'Investment', amount: 40000, assetType: 'liquid' }, // 7% interest
+        { id: '1', name: 'Checking', amount: 10000, assetType: 'liquid' },
+        { id: '2', name: 'Savings', amount: 50000, assetType: 'liquid' },
+        { id: '3', name: 'Investment', amount: 40000, assetType: 'liquid' },
       ],
       liquidAssetsInterestRate: 3.8,
       cashFlows: [],
@@ -508,10 +627,6 @@ describe('Financial Calculator', () => {
 
     const result = calculateProjections(profile)
 
-    // Total starting: 100000
-    // All liquid accounts are pooled with weighted average rate:
-    // (10000*0 + 50000*2 + 40000*7) / 100000 = 3.8%
-    // After 1 year: 100000 * (1 + 0.038/12)^12 ≈ 103867
     const firstYear = result.annualSummaries[0]
     expect(firstYear?.startingBalance).toBe(100000)
     expect(firstYear?.endingBalance).toBeCloseTo(103867, 0)
@@ -572,7 +687,7 @@ describe('Financial Calculator', () => {
     expect(laterYear?.endingBalance).toBeLessThan(-100000)
   })
 
-  it('should distribute cash flows proportionally across accounts with different rates', () => {
+  it('charges unassigned expenses to the first liquid account', () => {
     const profile = createTestProfile({
       birthDate: '1995-01-01', // 30 years old in 2025
       capitalAccounts: [
@@ -593,15 +708,14 @@ describe('Financial Calculator', () => {
 
     const result = calculateProjections(profile)
 
-    // Both accounts start with same amount, so expenses are split 50/50
-    // After 1 year, high rate account should have grown more despite withdrawals
     const firstYear = result.annualSummaries[0]
     expect(firstYear?.startingBalance).toBe(100000)
-
-    // Total should be: initial - expenses + interest from both accounts
-    // The exact amount depends on the proportional distribution logic
-    expect(firstYear?.endingBalance).toBeLessThan(100000) // Net expenses
-    expect(firstYear?.endingBalance).toBeGreaterThan(85000) // But interest partially offsets
+    expect(
+      result.itemProjections.find((item) => item.itemId === '1')?.snapshots[0]?.balance,
+    ).toBeCloseTo(50000 * (1 + 0.055 / 12) - 1000)
+    expect(
+      result.itemProjections.find((item) => item.itemId === '2')?.snapshots[0]?.balance,
+    ).toBeCloseTo(50000 * (1 + 0.055 / 12))
   })
 
   it('should handle fixed assets separately from liquid assets', () => {
@@ -1618,6 +1732,56 @@ describe('Financial Calculator', () => {
   })
 
   describe('Taxation', () => {
+    it('charges income tax and gains tax to their respective accounts', () => {
+      const accounts = [
+        new LiquidAsset(
+          'investment',
+          'Investment',
+          1000000,
+          undefined,
+          'us-capital-gains-long',
+          10,
+        ),
+        new LiquidAsset('checking', 'Checking', 10000, undefined, undefined, 0),
+      ]
+      const income = new CashFlow(
+        'salary',
+        'Salary',
+        5000,
+        'income',
+        undefined,
+        undefined,
+        false,
+        false,
+        'us-income-single',
+        'monthly',
+        'checking',
+      )
+      const profile = new UserProfile(
+        stringToMonth('1990-01-01')!,
+        accounts,
+        [income],
+        0,
+        [],
+        0,
+        'US',
+        [],
+        'investment',
+      )
+
+      const result = calculateProjections(profile)
+      const month = result.monthlyProjections[0]!
+      const balance = (id: string) =>
+        result.itemProjections.find((item) => item.itemId === id)?.snapshots[0]?.balance
+
+      expect(month.incomeTaxPaid).toBeGreaterThan(0)
+      expect(month.capitalGainsTaxPaid).toBeGreaterThan(0)
+      expect(balance('investment')).toBeCloseTo(
+        1000000 + (1000000 * 0.1) / 12 - month.capitalGainsTaxPaid,
+      )
+      expect(balance('checking')).toBeCloseTo(15000 - month.incomeTaxPaid)
+    })
+
     it('should calculate income tax on cash flows', () => {
       // Create income with tax
       const income = new CashFlow(

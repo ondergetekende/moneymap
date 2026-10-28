@@ -23,6 +23,7 @@ export class Debt extends FinancialItem {
   readonly startDate?: DateSpecification
   readonly repaymentStartDate?: DateSpecification
   readonly endDate?: DateSpecification
+  readonly accountId?: string // Routing override: which liquid account this debt payment is drawn from
 
   // How the user specified the repayment schedule
   readonly specificationMode?: 'endDate' | 'amount'
@@ -44,6 +45,7 @@ export class Debt extends FinancialItem {
     monthlyPrincipalPayment?: number
     monthlyPayment?: number
     finalBalance?: number
+    accountId?: string
   }) {
     super(data.id || crypto.randomUUID(), data.name)
     this.amount = data.amount
@@ -55,6 +57,7 @@ export class Debt extends FinancialItem {
     this.monthlyPrincipalPayment = data.monthlyPrincipalPayment
     this.monthlyPayment = data.monthlyPayment
     this.finalBalance = data.finalBalance
+    this.accountId = data.accountId
   }
 
   /**
@@ -233,6 +236,7 @@ export class Debt extends FinancialItem {
       monthlyPrincipalPayment: number | undefined
       monthlyPayment: number | undefined
       finalBalance: number | undefined
+      accountId: string | undefined
     }>,
   ): Debt {
     return new Debt({
@@ -257,6 +261,7 @@ export class Debt extends FinancialItem {
       monthlyPayment:
         updates.monthlyPayment !== undefined ? updates.monthlyPayment : this.monthlyPayment,
       finalBalance: updates.finalBalance !== undefined ? updates.finalBalance : this.finalBalance,
+      accountId: 'accountId' in updates ? updates.accountId : this.accountId,
     })
   }
 
@@ -277,6 +282,7 @@ export class Debt extends FinancialItem {
       monthlyPrincipalPayment: this.monthlyPrincipalPayment,
       monthlyPayment: this.monthlyPayment,
       finalBalance: this.finalBalance,
+      accountId: this.accountId,
     }
   }
 
@@ -341,6 +347,7 @@ export class Debt extends FinancialItem {
       monthlyPrincipalPayment: data.monthlyPrincipalPayment as number | undefined,
       monthlyPayment: data.monthlyPayment as number | undefined,
       finalBalance: data.finalBalance as number | undefined,
+      accountId: data.accountId as string | undefined,
     })
   }
 

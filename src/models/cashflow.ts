@@ -22,6 +22,7 @@ export class CashFlow extends FinancialItem {
   readonly isOneTime: boolean // Whether this is a one-time transaction (vs recurring monthly)
   readonly incomeTaxId?: string // Tax treatment for income: tax option ID, 'after-tax', 'default', or undefined
   readonly frequency: CashFlowFrequency // The frequency that amount represents
+  readonly accountId?: string // Routing override: which liquid account this flow belongs to
 
   constructor(
     id: string,
@@ -34,6 +35,7 @@ export class CashFlow extends FinancialItem {
     isOneTime: boolean = false,
     incomeTaxId?: string,
     frequency: CashFlowFrequency = 'monthly',
+    accountId?: string,
   ) {
     super(id, name)
 
@@ -54,6 +56,7 @@ export class CashFlow extends FinancialItem {
     this.isOneTime = isOneTime
     this.incomeTaxId = incomeTaxId
     this.frequency = frequency
+    this.accountId = accountId
   }
 
   /**
@@ -120,6 +123,7 @@ export class CashFlow extends FinancialItem {
         | 'isOneTime'
         | 'incomeTaxId'
         | 'frequency'
+        | 'accountId'
       >
     >,
   ): CashFlow {
@@ -134,6 +138,7 @@ export class CashFlow extends FinancialItem {
       updates.isOneTime ?? this.isOneTime,
       updates.incomeTaxId !== undefined ? updates.incomeTaxId : this.incomeTaxId,
       updates.frequency ?? this.frequency,
+      'accountId' in updates ? updates.accountId : this.accountId,
     )
   }
 
@@ -152,6 +157,7 @@ export class CashFlow extends FinancialItem {
       isOneTime: this.isOneTime,
       incomeTaxId: this.incomeTaxId,
       frequency: this.frequency,
+      accountId: this.accountId,
     }
   }
 
@@ -217,6 +223,7 @@ export class CashFlow extends FinancialItem {
       (data.isOneTime as boolean) ?? false,
       data.incomeTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
       frequency,
+      data.accountId as string | undefined,
     )
   }
 

@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById } from '@/config/itemTypes'
-import { Debt } from '@/models'
+import { Debt, LiquidAsset } from '@/models'
 import type { Month, DateSpecification } from '@/types/month'
 import { getCurrentMonth, addMonths, monthDiff, resolveDate, formatMonth } from '@/types/month'
 import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
@@ -35,6 +35,7 @@ const repaymentStartDate = ref<DateSpecification | undefined>(undefined)
 const endDate = ref<DateSpecification | undefined>(undefined)
 const monthlyPayment = ref<number | undefined>(undefined)
 const monthlyPrincipal = ref<number | undefined>(undefined)
+const accountId = ref<string | undefined>(undefined)
 
 // Show/hide fields based on repayment type
 const showRepaymentStartDate = computed(() => hasDelayedStart.value)
@@ -52,7 +53,10 @@ const pageTitle = computed(() => {
   return `New ${typeName}`
 })
 
-// Helper functions
+// Tax-related computed properties
+const liquidAccounts = computed(() => {
+  return store.capitalAccounts.filter((acc) => acc instanceof LiquidAsset)
+})
 function getStartMonth(): Month {
   if (startDate.value) {
     const resolved = resolveDate(startDate.value, store.birthDate, store.lifeEvents)
@@ -248,6 +252,7 @@ onMounted(() => {
       amount.value = debt.amount
       annualInterestRate.value = debt.annualInterestRate
       startDate.value = debt.startDate
+      accountId.value = debt.accountId
 
       // Determine repayment type from existing debt
       const type = debt.getDebtType()
@@ -344,6 +349,7 @@ function handleSave() {
     startDate: startDate.value,
     repaymentStartDate: hasDelayedStart.value ? repaymentStartDate.value : undefined,
     endDate: finalEndDate,
+    accountId: accountId.value,
   }
 
   // Determine which debt type to create based on repayment type
@@ -455,6 +461,17 @@ function handleDelete() {
           placeholder="0.00"
           required
         />
+      </div>
+
+      <div v-if="liquidAccounts.length > 0" class="form-group">
+        <label for="account-id">Pay from Liquid Account (optional)</label>
+        <select id="account-id" v-model="accountId">
+          <option :value="undefined">Primary Account (Default)</option>
+          <option v-for="acc in liquidAccounts" :key="acc.id" :value="acc.id">
+            {{ acc.name }}
+          </option>
+        </select>
+        <p class="help-text">Override the default primary account for these payments</p>
       </div>
 
       <div class="form-group">

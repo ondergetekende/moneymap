@@ -31,6 +31,7 @@ export class UserProfile {
   readonly inflationRate: number // Annual inflation rate (percentage)
   readonly taxCountry?: string // ISO country code for tax calculations (e.g., 'NL', 'US', 'GB')
   readonly lifeEvents: LifeEvent[] // Life events that can be referenced in date specifications
+  readonly primaryAccountId?: string // Liquid account that receives income / pays expenses/debt by default
 
   constructor(
     birthDate: Month,
@@ -41,6 +42,7 @@ export class UserProfile {
     inflationRate: number = 2.5,
     taxCountry?: string,
     lifeEvents: LifeEvent[] = [],
+    primaryAccountId?: string,
   ) {
     if (birthDate === undefined || typeof birthDate !== 'number') {
       throw new Error('UserProfile birthDate must be a valid Month value')
@@ -54,6 +56,23 @@ export class UserProfile {
     this.inflationRate = inflationRate
     this.taxCountry = taxCountry
     this.lifeEvents = lifeEvents
+    this.primaryAccountId = primaryAccountId
+  }
+
+  /**
+   * Resolve the primary liquid account id: the explicit setting, else the first
+   * liquid account. Returns undefined when there are no liquid accounts.
+   */
+  resolvePrimaryAccountId(): string | undefined {
+    if (
+      this.capitalAccounts.some(
+        (account) => LiquidAsset.isLiquidAsset(account) && account.id === this.primaryAccountId,
+      )
+    ) {
+      return this.primaryAccountId
+    }
+    const firstLiquid = this.capitalAccounts.find(LiquidAsset.isLiquidAsset)
+    return firstLiquid?.id
   }
 
   /**
@@ -116,6 +135,7 @@ export class UserProfile {
     inflationRate?: number
     taxCountry?: string
     lifeEvents?: LifeEvent[]
+    primaryAccountId?: string
   }): UserProfile {
     return new UserProfile(
       updates.birthDate ?? this.birthDate,
@@ -126,6 +146,7 @@ export class UserProfile {
       updates.inflationRate ?? this.inflationRate,
       updates.taxCountry ?? this.taxCountry,
       updates.lifeEvents ?? this.lifeEvents,
+      'primaryAccountId' in updates ? updates.primaryAccountId : this.primaryAccountId,
     )
   }
 
@@ -142,6 +163,7 @@ export class UserProfile {
       inflationRate: this.inflationRate,
       taxCountry: this.taxCountry,
       lifeEvents: this.lifeEvents,
+      primaryAccountId: this.primaryAccountId,
     }
   }
 
@@ -197,6 +219,7 @@ export class UserProfile {
       (data.inflationRate as number) ?? 2.5, // Default to 2.5% for backward compatibility
       data.taxCountry as string | undefined, // Optional, undefined if not present for backward compatibility
       lifeEvents,
+      data.primaryAccountId as string | undefined,
     )
   }
 }

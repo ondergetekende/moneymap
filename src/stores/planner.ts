@@ -34,6 +34,7 @@ export const usePlannerStore = defineStore('planner', () => {
   const liquidAssetsInterestRate = ref<number>(7) // Default 7% for all liquid assets (moderate)
   const inflationRate = ref<number>(3) // Default 3% inflation (moderate)
   const taxCountry = ref<string | undefined>(undefined) // ISO country code for tax calculations
+  const primaryAccountId = ref<string | undefined>(undefined) // Default liquid account for flows
   const projectionResult = ref<ProjectionResult | null>(null)
 
   // Timeline scrubber state (transient; not persisted)
@@ -54,6 +55,7 @@ export const usePlannerStore = defineStore('planner', () => {
       inflationRate.value,
       taxCountry.value,
       lifeEvents.value,
+      primaryAccountId.value,
     )
   })
 
@@ -116,6 +118,11 @@ export const usePlannerStore = defineStore('planner', () => {
 
   function setTaxCountry(country: string | undefined) {
     taxCountry.value = country
+    recalculate()
+  }
+
+  function setPrimaryAccountId(id: string | undefined) {
+    primaryAccountId.value = id
     recalculate()
   }
 
@@ -224,6 +231,7 @@ export const usePlannerStore = defineStore('planner', () => {
           type: 'liquid'
           name: string
           amount: number
+          annualInterestRate?: number
           wealthTaxId?: string
           capitalGainsTaxId?: string
         }
@@ -265,6 +273,7 @@ export const usePlannerStore = defineStore('planner', () => {
         account.amount,
         account.wealthTaxId,
         account.capitalGainsTaxId,
+        account.annualInterestRate,
       )
     }
 
@@ -293,6 +302,13 @@ export const usePlannerStore = defineStore('planner', () => {
 
   function removeCapitalAccount(id: string) {
     capitalAccounts.value = capitalAccounts.value.filter((a) => a.id !== id)
+    if (primaryAccountId.value === id) primaryAccountId.value = undefined
+    cashFlows.value = cashFlows.value.map((flow) =>
+      flow.accountId === id ? flow.with({ accountId: undefined }) : flow,
+    )
+    debts.value = debts.value.map((debt) =>
+      debt.accountId === id ? debt.with({ accountId: undefined }) : debt,
+    )
     recalculate()
   }
 
@@ -306,6 +322,7 @@ export const usePlannerStore = defineStore('planner', () => {
     isOneTime: boolean
     incomeTaxId?: string
     frequency: CashFlowFrequency
+    accountId?: string
   }) {
     // Convert Month values to DateSpecification if needed
     const startDate =
@@ -332,6 +349,7 @@ export const usePlannerStore = defineStore('planner', () => {
       cashFlow.isOneTime,
       cashFlow.incomeTaxId,
       cashFlow.frequency,
+      cashFlow.accountId,
     )
     cashFlows.value.push(newCashFlow)
     recalculate()
@@ -507,6 +525,7 @@ export const usePlannerStore = defineStore('planner', () => {
       liquidAssetsInterestRate.value = profile.liquidAssetsInterestRate
       inflationRate.value = profile.inflationRate
       taxCountry.value = profile.taxCountry
+      primaryAccountId.value = profile.primaryAccountId
       lifeEvents.value = profile.lifeEvents
       recalculate()
 
@@ -530,6 +549,7 @@ export const usePlannerStore = defineStore('planner', () => {
     liquidAssetsInterestRate.value = 7
     inflationRate.value = 3
     taxCountry.value = undefined
+    primaryAccountId.value = undefined
     projectionResult.value = null
     selectedMonthOffset.value = 0
     wizardCompleted.value = false
@@ -620,6 +640,7 @@ export const usePlannerStore = defineStore('planner', () => {
     liquidAssetsInterestRate,
     inflationRate,
     taxCountry,
+    primaryAccountId,
     projectionResult,
     wizardCompleted,
     showWizard,
@@ -640,6 +661,7 @@ export const usePlannerStore = defineStore('planner', () => {
     setLiquidAssetsInterestRate,
     setInflationRate,
     setTaxCountry,
+    setPrimaryAccountId,
     openWizard,
     closeWizard,
     completeWizard,

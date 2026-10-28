@@ -15,6 +15,7 @@ export class LiquidAsset extends FinancialItem {
   readonly amount: number
   readonly wealthTaxId?: string // Wealth tax: tax option ID, 'none', 'default', or undefined
   readonly capitalGainsTaxId?: string // Capital gains tax: tax option ID, 'none', 'default', or undefined
+  readonly annualInterestRate?: number // Per-account rate override; undefined = use profile liquidAssetsInterestRate
 
   constructor(
     id: string,
@@ -22,6 +23,7 @@ export class LiquidAsset extends FinancialItem {
     amount: number,
     wealthTaxId?: string,
     capitalGainsTaxId?: string,
+    annualInterestRate?: number,
   ) {
     super(id, name)
 
@@ -32,13 +34,37 @@ export class LiquidAsset extends FinancialItem {
     this.amount = amount
     this.wealthTaxId = wealthTaxId
     this.capitalGainsTaxId = capitalGainsTaxId
+    this.annualInterestRate = annualInterestRate
+  }
+
+  /**
+   * Resolve the annual interest rate: per-account override, else the profile rate.
+   */
+  resolveAnnualRate(profileRate: number): number {
+    return this.annualInterestRate ?? profileRate
+  }
+
+  /**
+   * Project this account's balance forward by the given number of months,
+   * using monthly compounding at the resolved rate. Used for fast-forward
+   * when the user returns after some months have elapsed.
+   */
+  calculateProjectedBalance(months: number, profileRate: number): number {
+    if (months <= 0) return this.amount
+    const monthlyRate = this.resolveAnnualRate(profileRate) / 100 / 12
+    return this.amount * Math.pow(1 + monthlyRate, months)
   }
 
   /**
    * Create a copy of this asset with updated properties
    */
   with(
-    updates: Partial<Pick<LiquidAsset, 'name' | 'amount' | 'wealthTaxId' | 'capitalGainsTaxId'>>,
+    updates: Partial<
+      Pick<
+        LiquidAsset,
+        'name' | 'amount' | 'wealthTaxId' | 'capitalGainsTaxId' | 'annualInterestRate'
+      >
+    >,
   ): LiquidAsset {
     return new LiquidAsset(
       this.id,
@@ -46,6 +72,7 @@ export class LiquidAsset extends FinancialItem {
       updates.amount ?? this.amount,
       updates.wealthTaxId !== undefined ? updates.wealthTaxId : this.wealthTaxId,
       updates.capitalGainsTaxId !== undefined ? updates.capitalGainsTaxId : this.capitalGainsTaxId,
+      'annualInterestRate' in updates ? updates.annualInterestRate : this.annualInterestRate,
     )
   }
 
@@ -60,6 +87,7 @@ export class LiquidAsset extends FinancialItem {
       amount: this.amount,
       wealthTaxId: this.wealthTaxId,
       capitalGainsTaxId: this.capitalGainsTaxId,
+      annualInterestRate: this.annualInterestRate,
       assetType: 'liquid', // For backward compatibility
     }
   }
@@ -74,6 +102,7 @@ export class LiquidAsset extends FinancialItem {
       (data.amount as number) || 0,
       data.wealthTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
       data.capitalGainsTaxId as string | undefined, // Optional, undefined if not present for backward compatibility
+      data.annualInterestRate as number | undefined,
     )
   }
 

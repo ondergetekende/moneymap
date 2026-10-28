@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePlannerStore } from '@/stores/planner'
 import { getItemTypeById, getItemTypeButtonLabel } from '@/config/itemTypes'
-import { CashFlow, type CashFlowType, type CashFlowFrequency } from '@/models'
+import { CashFlow, LiquidAsset, type CashFlowType, type CashFlowFrequency } from '@/models'
 import type { DateSpecification } from '@/types/month'
 import DateSpecificationEdit from '@/components/DateSpecificationEdit.vue'
 import { getTaxOptions, getTaxConfig } from '@/config/taxConfig'
@@ -26,6 +26,7 @@ const followsInflation = ref<boolean>(true)
 const isOneTime = ref<boolean>(false)
 const incomeTaxId = ref<string | undefined>(undefined)
 const frequency = ref<CashFlowFrequency>('monthly')
+const accountId = ref<string | undefined>(undefined)
 const isInitialLoad = ref<boolean>(true)
 
 // UI state
@@ -61,6 +62,9 @@ const startDateHelpText = computed(() =>
 
 // Tax-related computed properties
 const taxCountry = computed(() => store.taxCountry)
+const liquidAccounts = computed(() => {
+  return store.capitalAccounts.filter((acc) => acc instanceof LiquidAsset)
+})
 const countryName = computed(() => {
   if (!taxCountry.value) return ''
   const config = getTaxConfig(taxCountry.value)
@@ -92,6 +96,7 @@ onMounted(() => {
       incomeTaxId.value = cashFlow.incomeTaxId
       amount.value = cashFlow.amount
       frequency.value = cashFlow.frequency
+      accountId.value = cashFlow.accountId
     } else {
       // CashFlow not found, redirect to dashboard
       router.push({ name: 'dashboard' })
@@ -110,6 +115,7 @@ onMounted(() => {
       isOneTime.value = template.isOneTime ?? false
       incomeTaxId.value = template.incomeTaxId
       frequency.value = template.frequency ?? 'monthly'
+      accountId.value = template.accountId
     } else {
       cashFlowType.value = props.typeId as CashFlowType
     }
@@ -196,6 +202,7 @@ function handleSave() {
       isOneTime: isOneTime.value,
       incomeTaxId: incomeTaxId.value,
       frequency: frequency.value,
+      accountId: accountId.value,
     }
     store.updateCashFlow(props.id, cashFlowData)
   } else {
@@ -213,6 +220,7 @@ function handleSave() {
         isOneTime: isOneTime.value,
         incomeTaxId: incomeTaxId.value,
         frequency: frequency.value,
+        accountId: accountId.value,
       })
     }
   }
@@ -306,6 +314,17 @@ function handleDelete() {
           placeholder="e.g., Salary, Rent, Groceries"
           required
         />
+      </div>
+
+      <div v-if="liquidAccounts.length > 0" class="form-group">
+        <label for="account-id">Target Liquid Account (optional)</label>
+        <select id="account-id" v-model="accountId">
+          <option :value="undefined">Primary Account (Default)</option>
+          <option v-for="acc in liquidAccounts" :key="acc.id" :value="acc.id">
+            {{ acc.name }}
+          </option>
+        </select>
+        <p class="help-text">Override the default primary account for this flow</p>
       </div>
 
       <div class="form-group">

@@ -44,6 +44,7 @@
             @update:inflationRate="store.setInflationRate($event)"
           />
           <LifeEventsStep v-if="currentStep === 4" />
+          <PrimaryAccountStep v-if="currentStep === 5" />
         </div>
 
         <div class="wizard-footer">
@@ -81,6 +82,7 @@ import BirthDateStep from './wizard/BirthDateStep.vue'
 import JurisdictionStep from './wizard/JurisdictionStep.vue'
 import ReturnsInflationStep from './wizard/ReturnsInflationStep.vue'
 import LifeEventsStep from './wizard/LifeEventsStep.vue'
+import PrimaryAccountStep from './wizard/PrimaryAccountStep.vue'
 
 const props = defineProps<{
   isOpen: boolean
@@ -94,7 +96,7 @@ const emit = defineEmits<{
 const store = usePlannerStore()
 
 const currentStep = ref(1)
-const totalSteps = 4
+const totalSteps = 5
 
 // Watch for wizard opening to set initial step
 watch(
@@ -125,6 +127,8 @@ const canProceed = computed(() => {
       )
     case 4:
       return true // Life events are optional
+    case 5:
+      return true // Primary account is optional
     default:
       return false
   }
@@ -140,6 +144,8 @@ function getStepLabel(step: number): string {
       return 'Returns & Inflation'
     case 4:
       return 'Life Events'
+    case 5:
+      return 'Routing'
     default:
       return ''
   }

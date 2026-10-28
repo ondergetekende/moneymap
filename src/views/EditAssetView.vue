@@ -20,7 +20,7 @@ const store = usePlannerStore()
 // Form state
 const name = ref('')
 const amount = ref<number>(0)
-const annualInterestRate = ref<number>(0)
+const annualInterestRate = ref<number | ''>('')
 const liquidationDate = ref<DateSpecification | undefined>(undefined)
 const assetType = ref<AssetType>('liquid')
 const wealthTaxId = ref<string | undefined>(undefined)
@@ -41,8 +41,6 @@ const assetTypeName = computed(() => {
     ? 'Liquid Asset (Savings, Cash)'
     : 'Fixed Asset (Property, House)'
 })
-
-const showInterestRate = computed(() => assetType.value === 'fixed')
 
 // Tax-related computed properties
 const taxCountry = computed(() => store.taxCountry)
@@ -85,6 +83,8 @@ onMounted(() => {
       if (asset instanceof FixedAsset) {
         annualInterestRate.value = asset.annualInterestRate
         liquidationDate.value = asset.liquidationDate
+      } else if (asset instanceof LiquidAsset) {
+        annualInterestRate.value = asset.annualInterestRate ?? ''
       }
     } else {
       // Asset not found, redirect to dashboard
@@ -108,6 +108,7 @@ onMounted(() => {
       } else if (template instanceof LiquidAsset) {
         assetType.value = 'liquid'
         amount.value = template.amount
+        annualInterestRate.value = template.annualInterestRate ?? ''
         wealthTaxId.value = template.wealthTaxId
         capitalGainsTaxId.value = template.capitalGainsTaxId
       }
@@ -138,9 +139,9 @@ function handleSave() {
       amount: amount.value,
       wealthTaxId: wealthTaxId.value,
       capitalGainsTaxId: capitalGainsTaxId.value,
+      annualInterestRate: annualInterestRate.value === '' ? undefined : annualInterestRate.value,
     }
     if (assetType.value === 'fixed') {
-      updates.annualInterestRate = annualInterestRate.value
       updates.liquidationDate = liquidationDate.value
     }
     store.updateCapitalAccount(props.id, updates)
@@ -151,7 +152,7 @@ function handleSave() {
         type: 'fixed',
         name: name.value.trim(),
         amount: amount.value,
-        annualInterestRate: annualInterestRate.value,
+        annualInterestRate: annualInterestRate.value === '' ? 0 : annualInterestRate.value,
         liquidationDate: liquidationDate.value,
         wealthTaxId: wealthTaxId.value,
         capitalGainsTaxId: capitalGainsTaxId.value,
@@ -161,6 +162,7 @@ function handleSave() {
         type: 'liquid',
         name: name.value.trim(),
         amount: amount.value,
+        annualInterestRate: annualInterestRate.value === '' ? undefined : annualInterestRate.value,
         wealthTaxId: wealthTaxId.value,
         capitalGainsTaxId: capitalGainsTaxId.value,
       })
@@ -221,20 +223,28 @@ function handleDelete() {
         />
       </div>
 
-      <div v-if="showInterestRate" class="form-group">
-        <label for="interest-rate">Annual Interest Rate (%) *</label>
+      <div class="form-group">
+        <label for="interest-rate"
+          >Annual Interest Rate (%) {{ assetType === 'liquid' ? '(optional)' : '*' }}</label
+        >
         <input
           id="interest-rate"
           v-model.number="annualInterestRate"
           type="number"
           step="0.01"
           placeholder="e.g., 3.5 for 3.5%"
-          required
+          :required="assetType === 'fixed'"
         />
-        <p class="help-text">Growth rate (positive) or depreciation (negative)</p>
+        <p class="help-text">
+          {{
+            assetType === 'liquid'
+              ? 'Override global liquid rate (otherwise use profile rate)'
+              : 'Growth rate (positive) or depreciation (negative)'
+          }}
+        </p>
       </div>
 
-      <div v-if="showInterestRate" class="form-group">
+      <div v-if="assetType === 'fixed'" class="form-group">
         <DateSpecificationEdit
           v-model="liquidationDate"
           label="Liquidation Month (optional)"
